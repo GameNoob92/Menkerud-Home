@@ -56,7 +56,7 @@ Both can be on at the same time: Discord for the messages, the ntfy kiosk topic 
 
 ## 2. Video calls (LiveKit)
 
-Calls run on **LiveKit** (self-hosted on Tower) plus a small **call-backend** that mints tokens and rings the parent over Discord. In production the backend runs on the **Ubuntu screen PC** as a systemd service, reached by the screen at same-origin `/api`; only LiveKit and SWAG live on Tower. Full steps: **`DEPLOYMENT.md`** and **`call-backend/README.md`**.
+Calls run on **LiveKit** plus a small **call-backend** that mints tokens and rings the parent over Discord. Both run on Tower — LiveKit and the call-backend (a Docker container, `menkerud-callapi`, on `noobventure-network`) — behind SWAG; the screen calls the backend at `https://call.noobventure.com`. Full steps: **`DEPLOYMENT.md`** and **`call-backend/README.md`**.
 
 In short:
 
@@ -64,13 +64,13 @@ In short:
 - `call.noobventure.com` → the backend API and the parent's answer page.
 - The screen calls the backend and joins a private room; the backend DMs the parent an **Svar** link that joins the same room. No app to install — it opens in the phone's browser.
 
-On the screen: Innstillinger → Videosamtale → leave **Call-backend URL** blank (the screen uses its own `/api`, which nginx proxies to the local backend). The camera and mic are pre-granted by the Firefox policy in §3 and work because the page is served from `http://localhost` (a secure context).
+On the screen: Innstillinger → Videosamtale → **Call-backend URL** = `https://call.noobventure.com` (already the default in `config.js`). The camera and mic are pre-granted by the Firefox policy in §3 and work because the page is served from `http://localhost` (a secure context).
 
 ---
 
 ## 3. The screen PC (Ubuntu + nginx + Firefox)
 
-Full production setup — the git checkout as the web root, nginx, the systemd call-backend, Firefox fullscreen and GDM autologin — is in **`DEPLOYMENT.md`**. Two things worth calling out:
+Full production setup — the git checkout at `/var/www/menkerud-home` as the web root, nginx (static only), Firefox fullscreen and GDM autologin — is in **`DEPLOYMENT.md`**. The call-backend is not here; it runs as a Docker container on Unraid. Two things worth calling out:
 
 **Serve from localhost, never the LAN IP.** The camera and mic (the LiveKit call) need a *secure context*; `http://localhost` and `https://` qualify, `http://<LAN-IP>` does not, so the LAN IP would silently kill calling. nginx is bound to `127.0.0.1` so `config.js` and its token stay on the machine, and Firefox opens `http://localhost`. The page also still works opened from `file://` for a quick test.
 

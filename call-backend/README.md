@@ -1,45 +1,37 @@
 # Menkerud Home – call backend (LiveKit + Discord)
 
-The one-tap calling service. It is **separate** from `index.html` and, in production, runs on the **Ubuntu touchscreen PC** as a systemd service; **LiveKit** runs on **Unraid**. See `../DEPLOYMENT.md` for the whole picture; this file is the calling-specific detail.
+The one-tap calling service. It is **separate** from `index.html` and runs as a **Docker container on Unraid** (`menkerud-callapi`); **LiveKit** also runs on Unraid. The Ubuntu touchscreen only serves the static frontend and runs Firefox — it does not host or proxy the backend. See `../DEPLOYMENT.md` for the whole picture.
 
 ```
-Kiosk (http://localhost)  --/api-->  nginx  -->  Node backend :3000 (systemd, this PC)
-                                                     |  LiveKit token + call state
-                                                     |  Discord DM with the answer link
-                                                     v
-Parent's phone  --https://call.noobventure.com/answer/<token>-->  SWAG (Unraid) --> this PC:3000
+Kiosk (Ubuntu, http://localhost)  --https /api-->  SWAG (Unraid)  -->  menkerud-callapi:3000 (Docker, Unraid)
+                                                                          |  LiveKit token + call state
+                                                                          |  Discord DM with the answer link
+                                                                          v
+Parent's phone  --https://call.noobventure.com/answer/<token>-->  SWAG  -->  menkerud-callapi
 Both join the same room on LiveKit (Unraid): wss://rtc.noobventure.com, media UDP 7882.
 ```
 
-- The kiosk calls `/api/*` same-origin; nginx proxies to `127.0.0.1:3000`.
-- Parents reach the answer page over `call.noobventure.com`, which SWAG on Unraid proxies to this PC's `:3000` (set that PC's LAN IP in `swag/call.subdomain.conf`).
-- Secrets (LiveKit API secret, Discord token) live only in `.env` on this PC and `livekit.yaml` on Unraid — never in the browser.
+- The kiosk calls `https://call.noobventure.com/api/*` (routes unchanged: `/api/calls`, `/api/calls/answer`, `/api/calls/:id/cancel|end`, `/api/calls/:id`).
+- SWAG proxies `call.noobventure.com` to the `menkerud-callapi` container by name over the shared `noobventure-network`.
+- Secrets (LiveKit API secret, Discord token, device key) come from `.env` only — never in the browser or committed.
 
 ## Files
-`src/server.js` API + call state · `src/livekit.js` tokens/room cleanup · `src/discord.js` DM · `public/answer.html` parent page · `livekit.example.yaml` + `docker-compose.yml` (LiveKit, Unraid) · `deploy/menkerud-backend.service` (systemd) · `deploy/nginx-menkerud.conf` (nginx) · `swag/*.subdomain.conf` (Unraid SWAG).
+`src/server.js` API + call state · `src/livekit.js` tokens/room cleanup · `src/discord.js` DM · `public/answer.html` parent page · `Dockerfile` + `docker-compose.yml` (this container) · `livekit.example.yaml` (LiveKit reference) · `deploy/nginx-menkerud.conf` (Ubuntu static site) · `swag/*.subdomain.conf` (Unraid SWAG).
 
 ## A. LiveKit on Unraid (already running)
-LiveKit is installed at `/mnt/user/appdata/LiveKit/config.yaml` (single node: `port: 7880`, `rtc.tcp_port: 7881`, `rtc.udp_port: 7882`). Leave that install and its Docker networking as-is — the repo's `docker-compose.yml` / `livekit.example.yaml` are reference only. **Never enable the 50000-60000 UDP range.**
-1. Copy the `key: secret` pair from that `config.yaml` (`keys:`) into the backend `.env` as `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET`; they must match exactly.
-2. SWAG on Unraid: copy `swag/rtc.subdomain.conf` to `/config/nginx/proxy-confs/` (proxies `rtc.noobventure.com` → `192.168.68.74:7880` with WebSocket upgrade), and `swag/call.subdomain.conf` with `$upstream_app` = the **Ubuntu PC's** LAN IP. `nginx -t && nginx -s reload`.
-3. Router: forward **UDP 7882** → Unraid `192.168.68.74` (both hops). Optionally **TCP 7881** for WebRTC-over-TCP fallback. Do **not** forward 7880 (it rides SWAG/443), and never open 50000-60000.
+LiveKit is installed at `/mnt/user/appdata/LiveKit/config.yaml` (single node: `port: 7880`, `rtc.tcp_port: 7881`, `rtc.udp_port: 7882`). Leave that install and its Docker networking as-is — the repo's `livekit.example.yaml` is reference only. **Never enable the 50000-60000 UDP range.**
+1. SWAG on Unraid: copy `swag/rtc.subdomain.conf` to `/config/nginx/proxy-confs/` (proxies `rtc.noobventure.com` → `192.168.68.74:7880`, WebSocket upgrade via SWAG's `proxy.conf`).
+2. Router: forward **UDP 7882** → Unraid `192.168.68.74` (both hops). Optionally **TCP 7881** for WebRTC-over-TCP fallback. Do not forward 7880 (it rides SWAG/443), and never open 50000-60000.
 
-## B. Backend on the Ubuntu PC (systemd)
-From the git checkout at `/home/menkerud/menkerud-home`:
-```bash
-cd call-backend
-npm ci
-cp .env.example .env       # then fill in LIVEKIT_API_KEY/SECRET (same as livekit.yaml), DISCORD_BOT_TOKEN, DEVICE_KEY
-sudo cp deploy/menkerud-backend.service /etc/systemd/system/
-sudo systemctl daemon-reload && sudo systemctl enable --now menkerud-backend
-curl -s localhost:3000/healthz    # {"ok":true,"livekit":true,"discord":true}
-```
-nginx (serves the dashboard and proxies `/api`): see `deploy/nginx-menkerud.conf` and `../DEPLOYMENT.md`.
-
-Set `DEVICE_KEY` in `.env` and the same value in the kiosk's `config.js` (`call.deviceKey`) so only the screen can start calls.
+## B. call-backend on Unraid (Docker)
+1. Put this `call-backend/` folder on Unraid, e.g. `/mnt/user/appdata/menkerud-call/` (git clone the repo there, or copy the folder).
+2. `cp .env.example .env` and fill: `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` (the exact `key: secret` pair from `/mnt/user/appdata/LiveKit/config.yaml`), `DISCORD_BOT_TOKEN`, and a `DEVICE_KEY`. Put that same `DEVICE_KEY` in the kiosk's `config.js` (`call.deviceKey`). Leave `LIVEKIT_URL=wss://rtc.noobventure.com`.
+3. `docker compose up -d --build`. The container listens on 3000, is published on host **3008**, and joins **noobventure-network** so SWAG resolves it by name.
+4. SWAG on Unraid: copy `swag/call.subdomain.conf` to `/config/nginx/proxy-confs/` (proxies `call.noobventure.com` → `menkerud-callapi:3000`; SWAG must be on `noobventure-network`), then `nginx -t && nginx -s reload`.
+5. Verify from anywhere: `curl https://call.noobventure.com/healthz` → `{"ok":true,"livekit":true,"discord":true}`. On the host you can also hit `http://<unraid-ip>:3008/healthz`.
 
 ## Verify media before going live
-Temporarily set `DEV=1` in `.env`, `sudo systemctl restart menkerud-backend`, and use the kiosk's "Ring far" (or `/dev/pair`) to prove a real call. Set `DEV=0` again after.
+Temporarily set `DEV=1` in `.env`, `docker compose up -d`, and use the kiosk's "Ring far" (or `/dev/pair`) to prove a real call to a phone on mobile data. Set `DEV=0` again after.
 
 ## Local development
-`npm install && npm test` runs the token unit test. `DEV=1 LIVEKIT_API_KEY=devkey LIVEKIT_API_SECRET=devsecret_long_enough node src/server.js` boots without systemd.
+`npm install && npm test` runs the token unit test. `DEV=1 LIVEKIT_API_KEY=devkey LIVEKIT_API_SECRET=devsecret_long_enough node src/server.js` boots without Docker.

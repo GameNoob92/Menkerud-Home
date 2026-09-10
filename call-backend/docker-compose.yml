@@ -1,16 +1,21 @@
-# LiveKit SFU for Menkerud Home — REFERENCE compose. The running install is authoritative at
-# /mnt/user/appdata/LiveKit/config.yaml on Unraid; do not change that install's Docker networking to match this.
-# The Node call-backend does NOT run here: it runs on the Ubuntu touchscreen PC as a systemd
-# service (see ../DEPLOYMENT.md and deploy/menkerud-backend.service).
-# SWAG on Unraid proxies rtc.noobventure.com -> :7880; media is the single UDP port 7882 (forward on the router).
+# Menkerud Home call-backend — Docker container on Unraid.
+# LiveKit runs separately (its own install at /mnt/user/appdata/LiveKit/config.yaml) — not managed here.
+# This container listens on 3000 inside, is published on host port 3008, and joins the existing
+# noobventure-network so SWAG reaches it by name (menkerud-callapi:3000). Secrets come from .env.
+#
+# Deploy on Unraid (put this folder somewhere like /mnt/user/appdata/menkerud-call, with a filled .env):
+#   docker compose up -d --build
 services:
-  livekit:
-    image: livekit/livekit-server:v1.13.6
-    container_name: menkerud-livekit
+  callapi:
+    build: .
+    container_name: menkerud-callapi
     restart: unless-stopped
-    # Host networking so LiveKit advertises the real LAN IP (192.168.68.74) to on-LAN clients like the
-    # kiosk; use_external_ip in livekit.yaml adds the public IP via STUN for phones. Binds 7880/7881/7882.
-    network_mode: host
-    command: ["--config", "/etc/livekit.yaml"]
-    volumes:
-      - ./livekit.yaml:/etc/livekit.yaml:ro
+    env_file: .env
+    ports:
+      - "3008:3000"          # host 3008 -> container 3000 (the app listens on 3000; 3008 for host/debug access)
+    networks:
+      - noobventure-network
+
+networks:
+  noobventure-network:
+    external: true            # the shared Unraid network SWAG is on (must already exist)

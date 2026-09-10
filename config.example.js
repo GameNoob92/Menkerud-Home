@@ -21,7 +21,7 @@ window.MENKERUD_CONFIG = {
 
   // Video calls run on LiveKit via the call-backend (see DEPLOYMENT.md).
   call: {
-    backend: "",                         // blank = same-origin /api (nginx proxies to the local backend); or a full URL for testing
+    backend: "https://call.noobventure.com",  // the call-backend Docker container on Unraid (reached via SWAG)
     deviceKey: "",                       // must match DEVICE_KEY in the backend .env if you set one
     timeoutSec: 60                       // give up ringing after this many seconds
   },

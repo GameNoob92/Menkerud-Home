@@ -1,67 +1,57 @@
 # DEPLOYMENT.md — Menkerud Home production deployment
 
-**Source of truth for deployment.** Target: a permanently mounted **Ubuntu Desktop touchscreen** at **1920×1080 landscape** running the dashboard in Firefox, with a local Node call-backend, talking to LiveKit + SWAG + Home Assistant on Unraid.
+**Source of truth for deployment.** Target: a permanently mounted **Ubuntu Desktop touchscreen** at **1920×1080 landscape** showing the dashboard in Firefox. It serves only static files and runs Firefox — no Node, no backend. The call-backend and LiveKit run on **Unraid**.
 
 ```
-Development PC ──git push──▶ private Git repo ──git pull──▶ Ubuntu touchscreen PC
-                                                            ├─ nginx        (serves the repo, proxies /api)
-                                                            ├─ Firefox      (fullscreen, http://localhost)
-                                                            └─ call-backend (Node, systemd :3000)
-Unraid ─ Home Assistant · LiveKit (rtc.noobventure.com, UDP 7882) · SWAG (rtc. + call.)
+Ubuntu touchscreen                         Unraid
+├─ nginx  → serves /var/www/menkerud-home  ├─ SWAG            (rtc. + call. subdomains)
+└─ Firefox (kiosk, http://localhost)       ├─ LiveKit  Docker (rtc.noobventure.com, UDP 7882)
+                                           └─ call-backend Docker (menkerud-callapi, :3000 → host 3008)
 ```
 
-LiveKit is **not** on the touchscreen PC. There is **no Docker** on the touchscreen PC. The Git checkout **is** the production directory — never copy into `/var/www`.
+Data flow: the kiosk calls `https://call.noobventure.com/api/*` → SWAG → the `menkerud-callapi` container, which mints LiveKit tokens and DMs the parent an answer link. Both ends join a room on LiveKit; media is a single UDP port, **7882**.
 
-## Paths (Ubuntu)
+Ubuntu must **not** host or proxy the backend. There is **no Node and no systemd service** on the touchscreen.
 
-| Purpose | Path |
+## Paths / identity (Ubuntu)
+
+| Purpose | Value |
 |---|---|
-| Repo = web root | `/home/menkerud/menkerud-home` |
-| Backend | `/home/menkerud/menkerud-home/call-backend` |
+| User | `menkerud-hjem` |
+| Repo = web root | `/var/www/menkerud-home` |
 
-## 1. One-time Ubuntu setup
+The git checkout at `/var/www/menkerud-home` is the web root. Do not clone a second copy under `/home`.
+
+## 1. Ubuntu touchscreen (static + Firefox)
 
 ```bash
-# Node 20 (for the backend), nginx, Firefox, fonts, F11 helper
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs nginx firefox fonts-noto-color-emoji speech-dispatcher espeak-ng xdotool
+sudo apt install -y nginx firefox fonts-noto-color-emoji speech-dispatcher espeak-ng xdotool
 
-# The git checkout is the web root
-sudo -u menkerud git clone <your-private-repo-url> /home/menkerud/menkerud-home
-cd /home/menkerud/menkerud-home
-cp config.example.js config.js      # then fill in real values (Discord webhook/token, etc.)
+# The git checkout is the web root; owned by the kiosk user
+sudo mkdir -p /var/www/menkerud-home
+sudo chown -R menkerud-hjem:menkerud-hjem /var/www/menkerud-home
+sudo -u menkerud-hjem git clone <your-private-repo-url> /var/www/menkerud-home
+cd /var/www/menkerud-home
+sudo -u menkerud-hjem cp config.example.js config.js   # then fill in real values (see §Settings below)
 ```
 
-### nginx (serves the repo, proxies /api to the backend)
+### nginx (static only; no /api proxy)
 
 ```bash
-sudo cp call-backend/deploy/nginx-menkerud.conf /etc/nginx/sites-available/menkerud
+sudo cp /var/www/menkerud-home/call-backend/deploy/nginx-menkerud.conf /etc/nginx/sites-available/menkerud
 sudo ln -sf /etc/nginx/sites-available/menkerud /etc/nginx/sites-enabled/menkerud
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-The site is bound to `127.0.0.1` on purpose: `http://localhost` is a secure context (camera/mic work) and `config.js` (which holds the Discord token) never reaches the LAN. Do **not** serve it on the LAN IP over plain http.
+Bound to `127.0.0.1` so `config.js` (which holds the Discord token) never leaves the machine and the page is served from `http://localhost` — a secure context, required for camera/mic. The kiosk reaches the backend over the internet at `https://call.noobventure.com`.
 
-### Backend (systemd)
-
-```bash
-cd call-backend
-npm ci
-cp .env.example .env     # fill LIVEKIT_API_KEY/SECRET (match Unraid's livekit.yaml), DISCORD_BOT_TOKEN, DEVICE_KEY
-sudo cp deploy/menkerud-backend.service /etc/systemd/system/
-sudo systemctl daemon-reload && sudo systemctl enable --now menkerud-backend
-curl -s localhost:3000/healthz     # expect {"ok":true,"livekit":true,"discord":true}
-```
-
-Set `DEVICE_KEY` in `.env` and the same value in `config.js` (`call.deviceKey`) so only the screen can start calls. The kiosk's `call.backend` stays blank (same-origin `/api`).
-
-### Firefox (fullscreen appliance)
+### Firefox (fullscreen appliance) + GDM autologin
 
 ```bash
-firefox -CreateProfile "Menkerud Home"    # once
-mkdir -p ~/.config/autostart
-cat > ~/.config/autostart/menkerud-home.desktop <<'EOF'
+sudo -u menkerud-hjem firefox -CreateProfile "Menkerud Home"   # once
+sudo -u menkerud-hjem mkdir -p /home/menkerud-hjem/.config/autostart
+sudo -u menkerud-hjem tee /home/menkerud-hjem/.config/autostart/menkerud-home.desktop >/dev/null <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=Menkerud Home
@@ -70,50 +60,60 @@ X-GNOME-Autostart-enabled=true
 EOF
 ```
 
-Pre-grant camera/mic so Firefox never prompts (SETUP.md §3 has the `policies.json`). No Chromium, no Electron.
-
-### GDM automatic login
-
-Edit `/etc/gdm3/custom.conf`:
+Pre-grant camera/mic so Firefox never prompts (SETUP.md §3 has the `policies.json`). GDM autologin — edit `/etc/gdm3/custom.conf`:
 
 ```ini
 [daemon]
 AutomaticLoginEnable=true
-AutomaticLogin=menkerud
+AutomaticLogin=menkerud-hjem
 ```
 
-After boot the dashboard appears with no interaction.
+No Chromium, no Electron, no Node.
 
-## 2. Unraid side (once)
+## 2. Unraid (SWAG + LiveKit + call-backend)
 
-LiveKit already runs on Unraid (config `/mnt/user/appdata/LiveKit/config.yaml`, single UDP mux **7882** — never the 50000-60000 range). Copy its `keys:` pair into the backend `.env`. Then the two SWAG vhosts and the router forward — see **`call-backend/README.md` §A**. In `swag/call.subdomain.conf`, set `$upstream_app` to the **Ubuntu PC's LAN IP** (give it a DHCP reservation), because `call.noobventure.com` must reach the backend on that PC for the parents' answer page. Router: **UDP 7882 → Unraid** is required; **TCP 7881** optional (WebRTC-TCP fallback); do not forward 7880.
+Full detail in `call-backend/README.md`. In short:
+
+- **LiveKit** already runs (`/mnt/user/appdata/LiveKit/config.yaml`; TCP 7880/7881, single UDP mux **7882** — never the 50000-60000 range). SWAG conf `swag/rtc.subdomain.conf` proxies `rtc.noobventure.com` → `192.168.68.74:7880`.
+- **call-backend**: put the `call-backend/` folder on Unraid (e.g. `/mnt/user/appdata/menkerud-call/`), fill `.env` (LiveKit `key`/`secret` matching `config.yaml`, `DISCORD_BOT_TOKEN`, `DEVICE_KEY`), then `docker compose up -d --build`. It listens on 3000, publishes host **3008**, and joins **noobventure-network**. SWAG conf `swag/call.subdomain.conf` proxies `call.noobventure.com` → `menkerud-callapi:3000`.
+- **Router**: forward **UDP 7882** → Unraid (required); optionally **TCP 7881**; do not forward 7880.
+- The `DEVICE_KEY` in the backend `.env` must equal `call.deviceKey` in the kiosk's `config.js`, so only the screen can start calls (the backend is internet-facing).
+
+Verify: `curl https://call.noobventure.com/healthz` → `{"ok":true,"livekit":true,"discord":true}`.
+
+## Settings (why they must not reset)
+
+On-screen settings (names, PIN, weather place, night mode) are saved in the browser's **localStorage**, which is tied to the exact URL and to the Firefox profile. They persist across restarts **only if** the kiosk always opens the same `http://localhost` in the same persistent "Menkerud Home" profile, and Firefox is not set to clear history/site data on close (and is not in private mode). To be safe against any storage wipe, put the values you want permanent into **`config.js`**, which is loaded fresh every boot and underlies localStorage:
+
+```js
+weather: { place: "Raufoss", lat: 60.725, lon: 10.617 },
+pin: "1234",
+people: { mor: { name: "Mor", ... }, far: { name: "Far", ... } },
+```
+
+Anything in `config.js` is the baseline at every boot; on-screen edits still override it but are no longer the only copy.
 
 ## 3. Updating
 
-```bash
-cd ~/menkerud-home && git pull
-# only if backend deps changed:
-cd call-backend && npm ci && sudo systemctl restart menkerud-backend
-```
-
-Front-end changes need no restart — nginx serves the files straight from the checkout. Run `npm test` on the dev PC before pushing.
+Frontend (Ubuntu): `cd /var/www/menkerud-home && sudo -u menkerud-hjem git pull` — no service to restart, nginx serves the files.
+Backend (Unraid): `git pull` the call-backend folder, then `docker compose up -d --build`.
+Run `npm test` on the dev PC before pushing.
 
 ## Secrets
 
-Never commit `.env`, `config.js`, the Discord bot token or the LiveKit secret. Commit only `config.example.js` and `.env.example`. Production secrets live only on the Ubuntu PC (`config.js`, `call-backend/.env`) and Unraid (`livekit.yaml`).
+Never commit `.env`, `config.js`, `livekit.yaml`, the Discord bot token or the LiveKit secret. Commit only `config.example.js` and `.env.example`. Production secrets live on the Ubuntu PC (`config.js`) and Unraid (call-backend `.env`, `LiveKit/config.yaml`).
 
 ## Acceptance checklist
 
-- [ ] Ubuntu boots and logs in automatically (GDM)
-- [ ] Firefox launches to `http://localhost`, fullscreen
-- [ ] nginx serves the dashboard from the git checkout
-- [ ] `menkerud-backend` runs under systemd, restarts on failure
-- [ ] `localhost:3000/healthz` and `/api/...` respond
+- [ ] Ubuntu boots and logs in automatically (GDM, user `menkerud-hjem`)
+- [ ] Firefox launches to `http://localhost`, fullscreen; nginx serves `/var/www/menkerud-home`
+- [ ] No Node/systemd/backend on the touchscreen
+- [ ] `menkerud-callapi` container runs on Unraid, on `noobventure-network`, published on host 3008
+- [ ] `https://call.noobventure.com/healthz` returns all-true from outside
 - [ ] LiveKit reachable at `wss://rtc.noobventure.com`; UDP 7882 forwarded
-- [ ] `call.noobventure.com/answer/<token>` reaches the backend from mobile data
-- [ ] "Ring far" → Discord DM → parent taps Svar → video both ways
-- [ ] `git pull` updates the system with no manual file copying
+- [ ] "Ring far" → Discord DM → parent taps Svar → video both ways on mobile data
+- [ ] `git pull` updates each side with no manual file copying
 
 ## Constraints for future changes
 
-Preserve the single-repo structure; no Docker on the touchscreen PC; LiveKit stays on Unraid; nginx stays the static server; Firefox stays the client; design for 1920×1080 landscape; keep everything Git-update compatible.
+Single repo; the backend is Docker on Unraid (never on the touchscreen); LiveKit stays on Unraid with the single UDP mux 7882 (never 50000-60000); nginx on Ubuntu serves static files only; Firefox is the client; design for 1920×1080 landscape; keep everything Git-update compatible.

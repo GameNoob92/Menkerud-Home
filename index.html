@@ -624,7 +624,7 @@ const DEFAULTS = {
     mor: { name: 'Mor', photo: 'assets/avatars/mor.png', emoji: '👩', callSub: 'Hun blir så glad!' },
     far: { name: 'Far', photo: 'assets/avatars/far.png', emoji: '👨', callSub: 'Rett hjem, uansett hvor du er!' }
   },
-  call: { backend: '', deviceKey: '', timeoutSec: 60 },
+  call: { backend: 'https://call.noobventure.com', deviceKey: '', timeoutSec: 60 },
   notify: {
     provider: 'discord',
     discord: { webhook: '', userMor: '', userFar: '', botToken: '', ringChannel: '' },
@@ -1274,7 +1274,7 @@ async function startCallLiveKit(who) {
   ring.start();
   speak('Ringer ' + p.name);
 
-  const base = String((cfg.call && cfg.call.backend) || '').replace(/\/+$/, '');  // '' = same-origin /api (nginx proxies to the local backend)
+  const base = String((cfg.call && cfg.call.backend) || '').replace(/\/+$/, '');  // the call-backend on Unraid (https://call.noobventure.com); '' would fall back to same-origin
   let data;
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -1594,7 +1594,7 @@ const SETTINGS = [
   { k: 'home.homeSub', l: 'Undertekst, Hjemme-kortet' },
   { k: 'home.background', l: 'Bakgrunnsbilde', select: [['auto', 'Automatisk (tid på døgnet)'], ['evening', 'Kveld'], ['day', 'Dag'], ['night', 'Natt'], ['none', 'Ingen (mørk)']] },
   { sec: 'Videosamtale (LiveKit)' },
-  { k: 'call.backend', l: 'Call-backend URL', hint: 'Tom = lokal backend via nginx (/api). Ellers full URL. Se DEPLOYMENT.md' },
+  { k: 'call.backend', l: 'Call-backend URL', hint: 'F.eks. https://call.noobventure.com (kjører på Unraid). Se DEPLOYMENT.md' },
   { k: 'call.deviceKey', l: 'Enhetsnøkkel (valgfritt)', hint: 'Må matche DEVICE_KEY i backend .env hvis satt' },
   { k: 'call.timeoutSec', l: 'Gi opp etter (sekunder)', num: true, number: true },
   { sec: 'Ring telefonene' },
