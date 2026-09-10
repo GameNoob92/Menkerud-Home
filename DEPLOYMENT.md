@@ -74,9 +74,9 @@ No Chromium, no Electron, no Node.
 
 Full detail in `call-backend/README.md`. In short:
 
-- **LiveKit** already runs (`/mnt/user/appdata/LiveKit/config.yaml`; TCP 7880/7881, single UDP mux **7882** — never the 50000-60000 range). It **must be host-networked with `rtc.use_external_ip: true`**, or it advertises its internal `172.x` container IP and all media fails (signalling connects, calls drop after ~16s). Host mode advertises the LAN IP for the kiosk; `use_external_ip` adds the public IP for phones. SWAG conf `swag/rtc.subdomain.conf` proxies `rtc.noobventure.com` → `192.168.68.74:7880`.
+- **LiveKit** already runs (`/mnt/user/appdata/LiveKit/config.yaml`; TCP 7880/7881, single UDP mux **7882** — never the 50000-60000 range). It runs on the **`br0` macvlan network with a dedicated static LAN IP `192.168.68.2`** (not host networking) and **`rtc.use_external_ip: true`**. Host networking crash-looped on the shared UDP 7882 bind (`address already in use`); a dedicated br0 IP binds cleanly, advertises a real LAN address, and `use_external_ip` STUN-discovers the public IP for phones. SWAG reaches it through Unraid's macvlan shim — keep *Settings → Docker → "Host access to custom networks"* enabled. SWAG conf `swag/rtc.subdomain.conf` proxies `rtc.noobventure.com` → `192.168.68.2:7880`.
 - **call-backend**: put the `call-backend/` folder on Unraid (e.g. `/mnt/user/appdata/menkerud-call/`), fill `.env` (LiveKit `key`/`secret` matching `config.yaml`, `DISCORD_BOT_TOKEN`, `DEVICE_KEY`), then `docker compose up -d --build`. It listens on 3000, publishes host **3008**, and joins **noobventure-network**. SWAG conf `swag/call.subdomain.conf` proxies `call.noobventure.com` → `menkerud-callapi:3000`.
-- **Router**: forward **UDP 7882** → Unraid (required); optionally **TCP 7881**; do not forward 7880.
+- **Router**: forward **UDP 7882** → `192.168.68.2` (LiveKit's br0 IP; both hops of the double-router; required); optionally **TCP 7881**; do not forward 7880.
 - The `DEVICE_KEY` in the backend `.env` must equal `call.deviceKey` in the kiosk's `config.js`, so only the screen can start calls (the backend is internet-facing).
 
 Verify: `curl https://call.noobventure.com/healthz` → `{"ok":true,"livekit":true,"discord":true}`.
@@ -116,4 +116,4 @@ Never commit `.env`, `config.js`, `livekit.yaml`, the Discord bot token or the L
 
 ## Constraints for future changes
 
-Single repo; the backend is Docker on Unraid (never on the touchscreen); LiveKit stays on Unraid with the single UDP mux 7882 (never 50000-60000); nginx on Ubuntu serves static files only; Firefox is the client; design for 1920×1080 landscape; keep everything Git-update compatible.
+Single repo; the backend is Docker on Unraid (never on the touchscreen); LiveKit stays on Unraid on the `br0` macvlan network with a dedicated static IP (`192.168.68.2`, not host networking) and the single UDP mux 7882 (never 50000-60000); nginx on Ubuntu serves static files only; Firefox is the client; design for 1920×1080 landscape; keep everything Git-update compatible.
