@@ -1,4 +1,5 @@
-# LiveKit SFU for Menkerud Home — runs on Unraid (Compose Manager / docker-compose).
+# LiveKit SFU for Menkerud Home — REFERENCE compose. The running install is authoritative at
+# /mnt/user/appdata/LiveKit/config.yaml on Unraid; do not change that install's Docker networking to match this.
 # The Node call-backend does NOT run here: it runs on the Ubuntu touchscreen PC as a systemd
 # service (see ../DEPLOYMENT.md and deploy/menkerud-backend.service).
 # SWAG on Unraid proxies rtc.noobventure.com -> :7880; media is the single UDP port 7882 (forward on the router).

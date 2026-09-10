@@ -86,7 +86,7 @@ After boot the dashboard appears with no interaction.
 
 ## 2. Unraid side (once)
 
-LiveKit + the two SWAG vhosts + the UDP 7882 forward — see **`call-backend/README.md` §A**. In `swag/call.subdomain.conf`, set `$upstream_app` to the **Ubuntu PC's LAN IP** (give it a DHCP reservation), because `call.noobventure.com` must reach the backend on that PC for the parents' answer page.
+LiveKit already runs on Unraid (config `/mnt/user/appdata/LiveKit/config.yaml`, single UDP mux **7882** — never the 50000-60000 range). Copy its `keys:` pair into the backend `.env`. Then the two SWAG vhosts and the router forward — see **`call-backend/README.md` §A**. In `swag/call.subdomain.conf`, set `$upstream_app` to the **Ubuntu PC's LAN IP** (give it a DHCP reservation), because `call.noobventure.com` must reach the backend on that PC for the parents' answer page. Router: **UDP 7882 → Unraid** is required; **TCP 7881** optional (WebRTC-TCP fallback); do not forward 7880.
 
 ## 3. Updating
 

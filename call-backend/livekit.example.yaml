@@ -1,5 +1,7 @@
-# LiveKit server config. Copy to livekit.yaml (gitignored) and fill in real keys at deploy.
-# The single UDP mux port (7882) is the only media port that must be forwarded from the router.
+# LiveKit server config — REFERENCE ONLY. The family's running install is authoritative and lives at
+# /mnt/user/appdata/LiveKit/config.yaml on Unraid; do not change that install's Docker networking to match this.
+# The single UDP mux port (7882) is the only media port to forward. Do NOT enable the 50000-60000 UDP range
+# (the old Unraid template exposed it and caused problems).
 port: 7880
 rtc:
   tcp_port: 7881          # optional WebRTC-over-TCP fallback

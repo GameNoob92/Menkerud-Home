@@ -18,11 +18,11 @@ Both join the same room on LiveKit (Unraid): wss://rtc.noobventure.com, media UD
 ## Files
 `src/server.js` API + call state · `src/livekit.js` tokens/room cleanup · `src/discord.js` DM · `public/answer.html` parent page · `livekit.example.yaml` + `docker-compose.yml` (LiveKit, Unraid) · `deploy/menkerud-backend.service` (systemd) · `deploy/nginx-menkerud.conf` (nginx) · `swag/*.subdomain.conf` (Unraid SWAG).
 
-## A. LiveKit on Unraid (Docker)
-1. Put this folder's `docker-compose.yml` + `livekit.yaml` on Unraid (e.g. `/mnt/user/appdata/menkerud-livekit/`). Generate an API key/secret pair and write it into `livekit.yaml` (`keys:`); keep the same pair for the backend `.env`.
-2. `docker-compose up -d`; check `curl -s -o /dev/null -w '%{http_code}\n' http://localhost:7880` returns `200`.
-3. SWAG: copy `swag/rtc.subdomain.conf` to `/config/nginx/proxy-confs/`, and `swag/call.subdomain.conf` with `$upstream_app` set to the **Ubuntu PC's** LAN IP. `nginx -t && nginx -s reload`.
-4. Router: forward **UDP 7882** to Unraid (`192.168.68.74`) on both routers.
+## A. LiveKit on Unraid (already running)
+LiveKit is installed at `/mnt/user/appdata/LiveKit/config.yaml` (single node: `port: 7880`, `rtc.tcp_port: 7881`, `rtc.udp_port: 7882`). Leave that install and its Docker networking as-is — the repo's `docker-compose.yml` / `livekit.example.yaml` are reference only. **Never enable the 50000-60000 UDP range.**
+1. Copy the `key: secret` pair from that `config.yaml` (`keys:`) into the backend `.env` as `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET`; they must match exactly.
+2. SWAG on Unraid: copy `swag/rtc.subdomain.conf` to `/config/nginx/proxy-confs/` (proxies `rtc.noobventure.com` → `192.168.68.74:7880` with WebSocket upgrade), and `swag/call.subdomain.conf` with `$upstream_app` = the **Ubuntu PC's** LAN IP. `nginx -t && nginx -s reload`.
+3. Router: forward **UDP 7882** → Unraid `192.168.68.74` (both hops). Optionally **TCP 7881** for WebRTC-over-TCP fallback. Do **not** forward 7880 (it rides SWAG/443), and never open 50000-60000.
 
 ## B. Backend on the Ubuntu PC (systemd)
 From the git checkout at `/home/menkerud/menkerud-home`:
