@@ -117,6 +117,12 @@ header{display:grid;grid-template-columns:auto auto 1fr auto auto;align-items:ce
 .card.far{background:linear-gradient(145deg,#19b9ff 0%,#0f91ed 55%,#0872d1 100%)}
 .card.home{background:linear-gradient(145deg,#25e08f 0%,#0fba75 55%,#05885d 100%)}
 .cards-dim .card:not(.active){filter:brightness(.5) saturate(.8);transform:scale(.98)}
+/* Full-card image variant (Ring Mor / Ring Far / Jeg er hjemme) */
+.card.img-card{position:relative;background:none;border:0;box-shadow:none;overflow:visible;padding:0;min-height:0}
+.card.img-card::before,.card.img-card::after{display:none}
+.card.img-card>.phone,.card.img-card>.house-big,.card.img-card>.label,.card.img-card>.sublabel{display:none}
+.card.img-card>.cardart{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:.88;filter:drop-shadow(0 .7rem 1.6rem rgba(0,0,0,.42))}
+.card.img-card:hover>.cardart{opacity:.98}
 
 .avatar{
   width:9.2rem;height:9.2rem;border-radius:50%;overflow:hidden;flex:none;position:relative;z-index:1;
@@ -397,17 +403,20 @@ select.inp option{color:#111}
 </header>
 
 <main id="cards">
-  <button class="card mor" id="card-mor">
+  <button class="card mor img-card" id="card-mor">
+    <img class="cardart" src="assets/cards/card-mor.png" alt="Ring Mor">
     <div class="phone"><img src="assets/icons/call-mor-glass.png" alt=""></div>
     <div class="label">RING <span data-name="mor">MOR</span></div>
     <div class="sublabel" id="sub-mor"></div>
   </button>
-  <button class="card far" id="card-far">
+  <button class="card far img-card" id="card-far">
+    <img class="cardart" src="assets/cards/card-far.png" alt="Ring Far">
     <div class="phone"><img src="assets/icons/call-far-glass.png" alt=""></div>
     <div class="label">RING <span data-name="far">FAR</span></div>
     <div class="sublabel" id="sub-far"></div>
   </button>
-  <button class="card home" id="card-home">
+  <button class="card home img-card" id="card-home">
+    <img class="cardart" src="assets/cards/card-home.png" alt="Jeg er hjemme">
     <div class="house-big"><img src="assets/icons/home-arrival-glass.png" alt=""></div>
     <div class="label">JEG ER HJEMME</div>
     <div class="sublabel" id="sub-home"></div>
@@ -616,7 +625,7 @@ select.inp option{color:#111}
 /* ---------------- Defaults ---------------- */
 const DEFAULTS = {
   home: { name: 'Menkerud', subtitle: 'FAMILIE • HJEM • SAMMEN • ALLTID', tagline: 'Samme plass.\nSterkere dager.', footer: 'Et bedre hjem, hver dag', homeSub: 'Gi oss beskjed', background: 'auto' },
-  weather: { place: 'Raufoss', lat: 60.725, lon: 10.617 },
+  weather: { place: 'Lena', lat: 60.6746, lon: 10.8286 },
   people: {
     mor: { name: 'Mor', photo: 'assets/avatars/mor.png', emoji: '👩', callSub: 'Hun blir så glad!' },
     far: { name: 'Far', photo: 'assets/avatars/far.png', emoji: '👨', callSub: 'Rett hjem, uansett hvor du er!' }
@@ -633,7 +642,7 @@ const DEFAULTS = {
     scripts: { mor: 'script.ring_mor', far: 'script.ring_far', home: 'script.jeg_er_hjemme' },
     callEvent: 'menkerud_call'
   },
-  pin: '1234',
+  pin: '061111',
   night: { enabled: true, from: '21:00', to: '06:30' },
   emojis: ['⚽','🏀','🏊','⛷️','🎿','🚲','🥾','🏃','🎒','📚','✏️','🎨','🎵','🎹','🎮','📺','🦷','🛁','🧼','😴','🌙','⏰','🍎','🥪','🍕','🍦','🎂','🎁','🎉','❤️','⭐','😊','🧸','🐶','🐱','🐴','🧥','🧦','👟','🧤','☀️','🌧️','❄️','🚌','🚗','🏠','👵','👴','🎈','🧹']
 };

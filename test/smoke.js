@@ -49,7 +49,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   // PIN + menu
   click(q('#menu-btn'));
-  ['1', '2', '3', '4'].forEach(k => click(qa('#pin-pad button').find(b => b.textContent === k)));
+  ['0', '6', '1', '1', '1', '1'].forEach(k => click(qa('#pin-pad button').find(b => b.textContent === k)));
   assert(!q('#menu').classList.contains('hidden'), 'menu opens with PIN');
 
   // New note with docked keyboard
