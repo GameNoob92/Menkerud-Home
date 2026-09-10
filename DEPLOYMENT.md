@@ -41,8 +41,10 @@ sudo -u menkerud-hjem cp config.example.js config.js   # then fill in real value
 sudo cp /var/www/menkerud-home/call-backend/deploy/nginx-menkerud.conf /etc/nginx/sites-available/menkerud
 sudo ln -sf /etc/nginx/sites-available/menkerud /etc/nginx/sites-enabled/menkerud
 sudo rm -f /etc/nginx/sites-enabled/default
-sudo nginx -t && sudo systemctl reload nginx
+sudo nginx -t && sudo systemctl restart nginx   # restart, not reload: see below
 ```
+
+Use `restart` (not `reload`) whenever the `listen` address changes – e.g. when replacing a site that listened on `0.0.0.0:80` with this one (`127.0.0.1:80`). A reload cannot bind the new address while the old wildcard socket is open, returns success anyway, and silently keeps the old config running (workers keep their old start time in `ps`, `ss -ltn` still shows `0.0.0.0:80`). Any other enabled site in `/etc/nginx/sites-enabled/` must go, or it wins for port 80.
 
 Bound to `127.0.0.1` so `config.js` (which holds the Discord token) never leaves the machine and the page is served from `http://localhost` — a secure context, required for camera/mic. The kiosk reaches the backend over the internet at `https://call.noobventure.com`.
 
