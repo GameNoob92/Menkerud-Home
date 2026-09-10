@@ -20,3 +20,13 @@ These assets were separated from the generated Menkerud Home art-board so Claude
 - status/ — status indicators
 - decoration/ — small decorative elements
 - reference/ — complete dashboard visual target
+
+## Updated primary action icons — 2026-09-10
+
+New 512×512 transparent circular badge assets matching the current glassmorphism/scenic Menkerud Home UI:
+
+- `icons/call-mor-glass.png` — pink glass phone + heart badge for **Ring Mor**
+- `icons/call-far-glass.png` — blue glass ringing-phone badge for **Ring Far**
+- `icons/home-arrival-glass.png` — green glass illuminated-home badge for **Jeg er hjemme**
+
+These are the preferred primary-card icons. Keep card gradients, text, shadows and interaction states in CSS rather than baking them into the artwork.

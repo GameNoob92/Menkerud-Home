@@ -127,12 +127,10 @@ header{display:grid;grid-template-columns:auto auto 1fr auto auto;align-items:ce
 .avatar img{width:100%;height:100%;object-fit:cover}
 .avatar .fallback{font-size:6rem;line-height:1}
 .phone{
-  width:6rem;height:6rem;border-radius:50%;margin-top:-2.6rem;z-index:2;position:relative;
-  display:grid;place-items:center;border:.32rem solid rgba(255,255,255,.92);
-  box-shadow:0 .6rem 1.6rem rgba(0,0,0,.32),0 0 1.4rem rgba(255,255,255,.18)}
+  width:11.5rem;height:11.5rem;border-radius:50%;margin-top:.2rem;z-index:2;position:relative;
+  display:grid;place-items:center}
+.phone img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 .7rem 1.6rem rgba(0,0,0,.42))}
 .phone svg{width:3.2rem;height:3.2rem;fill:#fff}
-.mor .phone{background:#ff3b70}
-.far .phone{background:#2d7cff}
 /* Idle ring waves radiating from the phone badge */
 .phone::before,.phone::after{content:'';position:absolute;inset:-.3rem;border-radius:50%;border:.28rem solid rgba(255,255,255,.7);animation:ringWave 2.1s ease-out infinite;pointer-events:none}
 .phone::after{animation-delay:1.05s}
@@ -141,8 +139,9 @@ header{display:grid;grid-template-columns:auto auto 1fr auto auto;align-items:ce
 
 .card .label{font-size:2.5rem;font-weight:900;letter-spacing:.04em;margin-top:.9rem;text-shadow:0 .25rem .8rem rgba(0,0,0,.42);position:relative;z-index:1;text-align:center;line-height:1}
 .card .sublabel{font-family:var(--hand);font-size:1.6rem;color:rgba(255,255,255,.92);margin-top:.25rem;z-index:1;text-align:center;padding:0 1rem;line-height:1.05}
-.house-big{width:10.5rem;height:10.5rem;display:grid;place-items:center;position:relative;border-radius:50%;background:rgba(0,0,0,.1)}
-.house-big img,.house-big svg{width:7.2rem;height:7.2rem;fill:#eafff2;filter:drop-shadow(0 0 1.8rem rgba(200,255,220,.7))}
+.house-big{width:11.5rem;height:11.5rem;display:grid;place-items:center;position:relative}
+.house-big img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 .7rem 1.6rem rgba(0,0,0,.4))}
+.house-big svg{width:7.2rem;height:7.2rem;fill:#eafff2;filter:drop-shadow(0 0 1.8rem rgba(200,255,220,.7))}
 .house-big::before{content:'';position:absolute;right:.6rem;top:1.2rem;width:2.4rem;height:2.4rem;background:var(--spark,none) center/contain no-repeat;opacity:.9}
 
 /* ---------- Bottom three-column row ---------- */
@@ -399,19 +398,17 @@ select.inp option{color:#111}
 
 <main id="cards">
   <button class="card mor" id="card-mor">
-    <div class="avatar" data-who="mor"></div>
-    <div class="phone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></div>
+    <div class="phone"><img src="assets/icons/call-mor-glass.png" alt=""></div>
     <div class="label">RING <span data-name="mor">MOR</span></div>
     <div class="sublabel" id="sub-mor"></div>
   </button>
   <button class="card far" id="card-far">
-    <div class="avatar" data-who="far"></div>
-    <div class="phone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></div>
+    <div class="phone"><img src="assets/icons/call-far-glass.png" alt=""></div>
     <div class="label">RING <span data-name="far">FAR</span></div>
     <div class="sublabel" id="sub-far"></div>
   </button>
   <button class="card home" id="card-home">
-    <div class="house-big"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></svg></div>
+    <div class="house-big"><img src="assets/icons/home-arrival-glass.png" alt=""></div>
     <div class="label">JEG ER HJEMME</div>
     <div class="sublabel" id="sub-home"></div>
   </button>
