@@ -69,14 +69,7 @@
     .catch(function () { fail('Noe gikk galt', 'Prøv igjen om litt.'); });
 
   async function connect(url, tok) {
-    room = new LK.Room({
-      adaptiveStream: true,
-      dynacast: true,
-      // Match the kiosk: keep the stream light so the 2-core kiosk can decode it smoothly.
-      videoCaptureDefaults: { resolution: { width: 640, height: 360, frameRate: 20 } },
-      publishDefaults: { simulcast: false, videoCodec: 'vp8', videoEncoding: { maxBitrate: 500000, maxFramerate: 20 } },
-      audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-    });
+    room = new LK.Room({ adaptiveStream: true, dynacast: true });
     room.on(LK.RoomEvent.TrackSubscribed, function (track) {
       if (track.kind === 'video') { track.attach(remote); remote.style.display = 'block'; stage.style.display = 'none'; }
       else if (track.kind === 'audio') { track.attach(); }

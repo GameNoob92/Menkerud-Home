@@ -1304,14 +1304,7 @@ async function startCallLiveKit(who) {
 
   const LK = window.LivekitClient;
   try {
-    lkRoom = new LK.Room({
-      adaptiveStream: true,
-      dynacast: true,
-      // The kiosk is a 2-core AIO doing software video; keep encode/decode cheap for a 1:1 call.
-      videoCaptureDefaults: { resolution: { width: 640, height: 360, frameRate: 20 } },
-      publishDefaults: { simulcast: false, videoCodec: 'vp8', videoEncoding: { maxBitrate: 500000, maxFramerate: 20 } },
-      audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-    });
+    lkRoom = new LK.Room({ adaptiveStream: true, dynacast: true });
     lkRoom.on(LK.RoomEvent.TrackSubscribed, track => {
       if (track.kind === 'video') {
         const v = document.createElement('video');
