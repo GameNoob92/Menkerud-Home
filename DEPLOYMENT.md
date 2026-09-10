@@ -57,7 +57,7 @@ systemctl --user daemon-reload && systemctl --user enable --now menkerud-screen.
 curl -s http://127.0.0.1:7777/status      # {"power": 0, ...} = running
 ```
 
-`scripts/kiosk-screen.py` switches the display off/on for the page (⏻ button, «Skjerm av» window, incoming calls) over Mutter's D-Bus API; keep GNOME's own screen blanking at Never. Pictures for the photo frame go in `/var/www/menkerud-home/photos/` (gitignored) or on a network share mounted at `/mnt/bilder` (`cifs-utils`, fstab with `x-systemd.automount,nofail`); the nginx conf above lists both (`/photos/`, `/bilder/`). Details in SETUP.md §3.
+`scripts/kiosk-screen.py` blacks out the screen for the page (⏻ button, «Skjerm av» window, incoming calls) by setting the backlight to 0 through logind – not DPMS, which would also power down the AIO's USB touch controller; keep GNOME's own screen blanking at Never. Pictures for the photo frame go in `/var/www/menkerud-home/photos/` (gitignored) or on a network share mounted at `/mnt/bilder` (`cifs-utils`, fstab with `x-systemd.automount,nofail`); the nginx conf above lists both (`/photos/`, `/bilder/`). Details in SETUP.md §3.
 
 ### Firefox (fullscreen appliance) + GDM autologin
 
