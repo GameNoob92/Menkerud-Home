@@ -960,24 +960,47 @@ let frameTimer = null, framePhotos = [], frameIdx = 0, frameToken = 0;
 function frameOn() { return !$('#frame').classList.contains('hidden'); }
 function photoDir() { return String((cfg.photos && cfg.photos.dir) || 'photos/').replace(/\/*$/, '/'); }
 const isImg = n => /\.(jpe?g|png|gif|webp|avif)$/i.test(n);
+// Hidden / system clutter that network shares tend to carry (AppleDouble "._x.jpg", Synology @eaDir, recycle bins …)
+const junkName = n => /^[._]|^(thumbs\.db|desktop\.ini|@eadir|#recycle|\$recycle\.bin|system volume information|lost\+found)$/i.test(n);
+const encPath = p => p.split('/').map(encodeURIComponent).join('/');
+async function listDir(url) {   // one folder via nginx autoindex → { files, dirs } (JSON with autoindex_format json, else the HTML listing)
+  const r = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+  if (!r.ok) return null;
+  const out = { files: [], dirs: [] };
+  const ct = (r.headers && r.headers.get('content-type')) || '';
+  if (/json/i.test(ct)) {
+    const j = await r.json();
+    (Array.isArray(j) ? j : []).forEach(e => { if (!e || !e.name) return; if (e.type === 'directory') out.dirs.push(e.name); else if (e.type === 'file') out.files.push(e.name); });
+    return out;
+  }
+  const html = await r.text();
+  for (const m of html.matchAll(/href="([^"?#]+)"/g)) {
+    let n = m[1]; try { n = decodeURIComponent(n); } catch (e) {}
+    if (n === '../' || n.startsWith('/') || /^[a-z]+:/i.test(n)) continue;             // parent link, absolute paths, external links
+    if (n.endsWith('/')) { n = n.slice(0, -1); if (!n.includes('/')) out.dirs.push(n); } else if (!n.includes('/')) out.files.push(n);
+  }
+  return out;
+}
 async function listPhotos() {
   const dir = photoDir();
-  const abs = n => (/^(https?:)?\/\//i.test(n) || n.startsWith('/')) ? n : dir + n.split('/').map(encodeURIComponent).join('/');
-  try {   // 1) optional manifest <dir>/index.json: ["a.jpg", …] or {"photos": [ … ]}
+  const abs = n => (/^(https?:)?\/\//i.test(n) || n.startsWith('/')) ? n : dir + encPath(n);
+  try {   // 1) optional manifest <dir>/index.json: ["a.jpg", "tur/b.jpg", …] or {"photos": [ … ]}
     const r = await fetch(dir + 'index.json', { cache: 'no-store' });
     if (r.ok) { const j = await r.json(); const arr = Array.isArray(j) ? j : (j && (j.photos || j.files)) || []; const out = arr.map(String).filter(isImg).map(abs); if (out.length) return out; }
   } catch (e) {}
-  try {   // 2) the folder itself: nginx autoindex (JSON with autoindex_format json, else the HTML listing)
-    const r = await fetch(dir, { headers: { Accept: 'application/json' }, cache: 'no-store' });
-    if (r.ok) {
-      const ct = (r.headers && r.headers.get('content-type')) || '';
-      if (/json/i.test(ct)) { const j = await r.json(); return (Array.isArray(j) ? j : []).filter(e => e && e.type === 'file' && isImg(e.name)).map(e => abs(e.name)); }
-      const html = await r.text();
-      const names = [...html.matchAll(/href="([^"?#]+)"/g)].map(m => { try { return decodeURIComponent(m[1]); } catch (e) { return m[1]; } }).filter(n => isImg(n) && !n.includes('/'));
-      return [...new Set(names)].map(abs);
-    }
-  } catch (e) {}
-  return [];
+  // 2) walk the folder and its subfolders (a mounted network share can be big – cap the walk)
+  const MAX_DEPTH = 4, MAX_DIRS = 150, MAX_PHOTOS = 2000;
+  const out = [], queue = [''];
+  let visited = 0;
+  while (queue.length && visited < MAX_DIRS && out.length < MAX_PHOTOS) {
+    const rel = queue.shift(); visited++;
+    let d = null;
+    try { d = await listDir(dir + encPath(rel)); } catch (e) {}
+    if (!d) continue;
+    d.files.forEach(n => { if (isImg(n) && !junkName(n)) out.push(abs(rel + n)); });
+    if (rel.split('/').length - 1 < MAX_DEPTH) d.dirs.forEach(n => { if (!junkName(n)) queue.push(rel + n + '/'); });
+  }
+  return out.slice(0, MAX_PHOTOS);
 }
 function showSlide(src) {
   const wrap = $('#frame'), old = $$('#frame .slide');
@@ -1743,7 +1766,7 @@ const SETTINGS = [
   { k: 'screen.offFrom', l: 'Av fra klokka', hint: 'TT:MM', num: true },
   { k: 'screen.offTo', l: 'På igjen klokka', hint: 'TT:MM', num: true },
   { sec: 'Bilderamme' },
-  { k: 'photos.dir', l: 'Bildemappe', hint: 'Mappe på skjermen med .jpg/.png/.webp – standard photos/ (se SETUP.md)' },
+  { k: 'photos.dir', l: 'Bildemappe', hint: 'photos/ i appen, /bilder/ for nettverksmappa (se SETUP.md) eller en http://-adresse. Undermapper tas med' },
   { k: 'photos.intervalSec', l: 'Sekunder per bilde', num: true, number: true }
 ];
 let draft = null;

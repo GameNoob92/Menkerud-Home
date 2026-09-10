@@ -54,7 +54,7 @@ gsettings set org.gnome.desktop.screensaver lock-enabled false                  
 gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type nothing    # never suspend the PC itself
 ```
 
-The page holds a Screen Wake Lock while it should be visible, so the display only blanks when the page lets it (⏻ button or the «Skjerm av» window). Pictures for the photo frame go in `/var/www/menkerud-home/photos/` (gitignored); the nginx conf above enables the folder listing for `/photos/`. Details in SETUP.md §3.
+The page holds a Screen Wake Lock while it should be visible, so the display only blanks when the page lets it (⏻ button or the «Skjerm av» window). Pictures for the photo frame go in `/var/www/menkerud-home/photos/` (gitignored) or on a network share mounted at `/mnt/bilder` (`cifs-utils`, fstab with `x-systemd.automount,nofail`); the nginx conf above lists both (`/photos/`, `/bilder/`). Details in SETUP.md §3.
 
 ### Firefox (fullscreen appliance) + GDM autologin
 

@@ -15,7 +15,11 @@ function mkdom(beforeParse) {
       window.fetch = (url, opts) => {
         fetchCalls.push({ url, opts });
         if (/open-meteo.*forecast/.test(url)) return Promise.resolve({ ok: true, json: async () => ({ current: { temperature_2m: 13.6, weather_code: 61, is_day: 1 } }) });
-        if (/photos\/index\.json$/.test(url)) return Promise.resolve({ ok: true, json: async () => ['a.jpg', 'b.jpg', 'notes.txt'] });
+        // Bilderamme: photos/ has no manifest → folder walk (JSON autoindex, one subfolder, share clutter); bilder/ has a manifest
+        if (/^photos\/index\.json$/.test(url)) return Promise.resolve({ ok: false, status: 404, json: async () => ({}) });
+        if (/^photos\/$/.test(url)) return Promise.resolve({ ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => [{ name: '2025', type: 'directory' }, { name: '@eaDir', type: 'directory' }, { name: 'a.jpg', type: 'file' }, { name: 'Thumbs.db', type: 'file' }, { name: '._b.jpg', type: 'file' }] });
+        if (/^photos\/2025\/$/.test(url)) return Promise.resolve({ ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => [{ name: 'b.jpg', type: 'file' }, { name: 'notes.txt', type: 'file' }] });
+        if (/^bilder\/index\.json$/.test(url)) return Promise.resolve({ ok: true, json: async () => ['c.jpg', 'tur/d.jpg'] });
         if (/geocoding/.test(url)) return Promise.resolve({ ok: true, json: async () => ({ results: [{ name: 'Raufoss', admin1: 'Innlandet', country: 'Norge', latitude: 60.72, longitude: 10.61 }] }) });
         if (/\/api\/calls$/.test(url) && opts && opts.method === 'POST') return Promise.resolve({ ok: true, json: async () => ({ callId: 'c_test', status: 'ringing', livekit: { url: 'wss://rtc.test', token: 'tok' } }) });
         return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
@@ -60,13 +64,13 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await wait(20);
   assert(q('#night').classList.contains('hidden') && wl.held, 'touch wakes the screen and re-acquires the wake lock');
 
-  // Bilderamme: photos listed from photos/index.json, shown full-screen until touched
+  // Bilderamme: folder walked through the (mocked) nginx listing, subfolder included, clutter skipped; shown full-screen until touched
   click(q('#frame-btn'));
   await wait(50);
   assert(!q('#frame').classList.contains('hidden'), 'photo frame opens');
   const slideImg = q('#frame .slide img');
-  assert(!!slideImg && /^photos\/[ab]\.jpg$/.test(slideImg.getAttribute('src')), 'first photo shown (non-images skipped): ' + (slideImg && slideImg.getAttribute('src')));
-  assert(fetchCalls.some(c => /photos\/index\.json$/.test(c.url)), 'photo list fetched from photos/index.json');
+  assert(!!slideImg && /^photos\/(a\.jpg|2025\/b\.jpg)$/.test(slideImg.getAttribute('src')), 'first photo shown (clutter and non-images skipped): ' + (slideImg && slideImg.getAttribute('src')));
+  assert(fetchCalls.some(c => c.url === 'photos/2025/') && !fetchCalls.some(c => /@eaDir/.test(c.url)), 'subfolder walked, @eaDir skipped');
   assert(wl.held, 'wake lock held while the frame runs');
   q('#frame').dispatchEvent(new w.Event('pointerdown', { bubbles: true, cancelable: true }));
   assert(q('#frame').classList.contains('hidden') && qa('#frame .slide').length === 0, 'touch closes the photo frame');
@@ -125,6 +129,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const setVal = (label, v) => { const i = inputFor(label); i.value = v; i.dispatchEvent(new w.Event('input', { bubbles: true })); };
   setVal('Mor heter', 'Mamma');
   setVal('Call-backend URL', 'https://call.example.no');
+  setVal('Bildemappe', 'bilder/');
   assert(!!inputFor('Discord-webhook') && !inputFor('ntfy-server'), 'discord fields shown by default');
   { const s0 = inputFor('Hvordan varsle'); s0.value = 'ntfy'; s0.dispatchEvent(new w.Event('change', { bubbles: true })); }
   setVal('Emne for mors', 'menkerud-mor-test');
@@ -147,7 +152,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   // save
   click(q('#s-save'));
   const saved = JSON.parse(w.localStorage.getItem('menkerud.settings'));
-  assert(saved.people.mor.name === 'Mamma' && saved.call.backend === 'https://call.example.no' && saved.notify.ntfy.topicMor === 'menkerud-mor-test' && saved.weather.lat === 60.72, 'settings saved: ' + JSON.stringify(saved.call) + ' ' + saved.weather.lat);
+  assert(saved.people.mor.name === 'Mamma' && saved.call.backend === 'https://call.example.no' && saved.notify.ntfy.topicMor === 'menkerud-mor-test' && saved.weather.lat === 60.72 && saved.photos.dir === 'bilder/', 'settings saved: ' + JSON.stringify(saved.call) + ' ' + saved.weather.lat + ' ' + saved.photos.dir);
 
   // Second load with saved settings applied
   const second = mkdom(win => { win.localStorage.setItem('menkerud.settings', JSON.stringify(saved)); });
@@ -156,6 +161,14 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const click2 = el => el.dispatchEvent(new w2.MouseEvent('click', { bubbles: true }));
   await wait(300);
   assert(q2('[data-name="mor"]').textContent === 'MAMMA', 'saved name applied after reload: ' + q2('[data-name="mor"]').textContent);
+  // Bilderamme from another folder with a manifest (subfolder path encoded, no folder walk)
+  click2(q2('#frame-btn'));
+  await wait(50);
+  const img2 = q2('#frame .slide img');
+  assert(!!img2 && /^bilder\/(c\.jpg|tur\/d\.jpg)$/.test(img2.getAttribute('src')), 'manifest photos from the saved folder: ' + (img2 && img2.getAttribute('src')));
+  assert(!second.fetchCalls.some(c => c.url === 'bilder/'), 'no folder walk when the manifest lists pictures');
+  q2('#frame').dispatchEvent(new w2.Event('pointerdown', { bubbles: true, cancelable: true }));
+  assert(q2('#frame').classList.contains('hidden'), 'frame closed before the call test');
   // Ring mamma -> LiveKit call: POST to the call backend + ringing overlay (no ntfy/discord push from the kiosk)
   click2(q2('#card-mor'));
   await wait(60);

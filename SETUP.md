@@ -108,7 +108,23 @@ gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type not
 
 Any touch wakes the display; the touch lands on the black overlay and brings the page back (for two minutes inside the night window, for good after ⏻). Because of the wake lock the screen never blanks during the day. Two things to know: the page cannot switch a blanked display back *on*, so an incoming call at night rings audibly and the picture appears at the first touch; and if the page is ever run in a browser without the Wake Lock API (or from `file://`), set `idle-delay` back to `0` or the screen blanks every 15 s.
 
-**Bilderamme (🖼 in the top bar).** Shows the pictures in `photos/` full-screen – shuffled, crossfading, «Sekunder per bilde» in Innstillinger – until the screen is touched. Drop `.jpg`/`.png`/`.webp` files in `/var/www/menkerud-home/photos/` (gitignored; `scp` them there as `menkerud-hjem`). The page finds them through nginx's folder listing, which `call-backend/deploy/nginx-menkerud.conf` enables for `/photos/` (`autoindex on; autoindex_format json;`) – re-copy the conf and `sudo nginx -t && sudo systemctl reload nginx` after updating. Without such a listing (another web server, `file://`) put a `photos/index.json` next to the pictures instead: `["ferie1.jpg", "bursdag.png"]`.
+**Bilderamme (🖼 in the top bar).** Shows the pictures in `photos/` full-screen – shuffled, crossfading, «Sekunder per bilde» in Innstillinger – until the screen is touched. Drop `.jpg`/`.png`/`.webp` files in `/var/www/menkerud-home/photos/` (gitignored; `scp` them there as `menkerud-hjem`). The page finds them through nginx's folder listing, which `call-backend/deploy/nginx-menkerud.conf` enables for `/photos/` (`autoindex on; autoindex_format json;`) – re-copy the conf and `sudo nginx -t && sudo systemctl reload nginx` after updating. Without such a listing (another web server, `file://`) put a `photos/index.json` next to the pictures instead: `["ferie1.jpg", "tur/bursdag.png"]`. Subfolders are included (up to 4 levels, 150 folders, 2000 pictures); hidden and system files (`._x.jpg`, `Thumbs.db`, `@eaDir` …) are skipped.
+
+**Pictures from a network share.** The browser can only fetch over HTTP, so mount the share on the screen PC and let nginx serve it – `nginx-menkerud.conf` already publishes `/mnt/bilder` as `/bilder/` with the folder listing. As `menkerud` (sudo), with the share's own user/password:
+
+```bash
+sudo apt install -y cifs-utils
+sudo tee /etc/cifs-bilder >/dev/null <<'CRED'
+username=<share user>
+password=<share password>
+CRED
+sudo chmod 600 /etc/cifs-bilder
+sudo mkdir -p /mnt/bilder
+echo '//<server>/Bilder /mnt/bilder cifs credentials=/etc/cifs-bilder,ro,uid=menkerud-hjem,gid=menkerud-hjem,iocharset=utf8,vers=3.0,x-systemd.automount,_netdev,nofail 0 0' | sudo tee -a /etc/fstab
+sudo systemctl daemon-reload && sudo mount /mnt/bilder && ls /mnt/bilder | head
+```
+
+Then Innstillinger → Bilderamme → Bildemappe = `/bilder/` (or a subfolder, `/bilder/Familie/`). Read-only, `nofail` and the automount mean a server that is asleep never blocks the boot – the frame just reports that it found no pictures. Alternative without mounting: serve the folder over HTTP from the server (any nginx with `autoindex on; autoindex_format json;` **and** `add_header Access-Control-Allow-Origin *;` on that location – the listing is fetched cross-origin) and put that `http://…/` address in Bildemappe.
 
 ## 4. Optional: Home Assistant
 
