@@ -74,7 +74,7 @@ No Chromium, no Electron, no Node.
 
 Full detail in `call-backend/README.md`. In short:
 
-- **LiveKit** already runs (`/mnt/user/appdata/LiveKit/config.yaml`; TCP 7880/7881, single UDP mux **7882** — never the 50000-60000 range). SWAG conf `swag/rtc.subdomain.conf` proxies `rtc.noobventure.com` → `192.168.68.74:7880`.
+- **LiveKit** already runs (`/mnt/user/appdata/LiveKit/config.yaml`; TCP 7880/7881, single UDP mux **7882** — never the 50000-60000 range). It **must be host-networked with `rtc.use_external_ip: true`**, or it advertises its internal `172.x` container IP and all media fails (signalling connects, calls drop after ~16s). Host mode advertises the LAN IP for the kiosk; `use_external_ip` adds the public IP for phones. SWAG conf `swag/rtc.subdomain.conf` proxies `rtc.noobventure.com` → `192.168.68.74:7880`.
 - **call-backend**: put the `call-backend/` folder on Unraid (e.g. `/mnt/user/appdata/menkerud-call/`), fill `.env` (LiveKit `key`/`secret` matching `config.yaml`, `DISCORD_BOT_TOKEN`, `DEVICE_KEY`), then `docker compose up -d --build`. It listens on 3000, publishes host **3008**, and joins **noobventure-network**. SWAG conf `swag/call.subdomain.conf` proxies `call.noobventure.com` → `menkerud-callapi:3000`.
 - **Router**: forward **UDP 7882** → Unraid (required); optionally **TCP 7881**; do not forward 7880.
 - The `DEVICE_KEY` in the backend `.env` must equal `call.deviceKey` in the kiosk's `config.js`, so only the screen can start calls (the backend is internet-facing).
