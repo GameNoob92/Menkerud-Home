@@ -1882,7 +1882,7 @@ function pickBackground() {
   const bg = $('#bg'); if (!bg) return;
   let mode = (cfg.home && cfg.home.background) || 'auto';
   if (mode === 'none') { bg.style.removeProperty('--bg-img'); bg.style.opacity = '0'; return; }
-  if (mode === 'auto') { const hr = new Date().getHours(); mode = (hr >= 7 && hr < 17) ? 'day' : (hr >= 17 && hr < 21) ? 'evening' : 'night'; }
+  if (mode === 'auto') { const d = new Date(), cur = d.getHours() * 60 + d.getMinutes(); mode = (cur >= 390 && cur < 900) ? 'day' : (cur >= 900 && cur < 1260) ? 'evening' : 'night'; } // day 06:30–14:59, evening 15:00–20:59, night 21:00–06:29
   bg.style.opacity = '1';
   bg.style.setProperty('--bg-img', "url('" + (BG_IMG[mode] || BG_IMG.evening) + "')");
 }
