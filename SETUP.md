@@ -98,15 +98,16 @@ POLICY
 
 Check the default audio device (`pavucontrol` / `wpctl status`) so the call uses the right mic and speakers.
 
-**Screen off (⏻ in the top bar) and the night window.** The page holds a browser *Screen Wake Lock* while it should be visible and releases it when ⏻ is pressed or during the «Skjerm av» window (Innstillinger → Skjerm av, default 23:00–06:00). GNOME does the actual blanking, so give it a short idle delay (run as the kiosk user, no sudo):
+**Screen off (⏻ in the top bar) and the night window.** A web page cannot switch a display off, so the kiosk runs a tiny helper in the kiosk user's session: `scripts/kiosk-screen.py`, a Python service on `127.0.0.1:7777` that flips Mutter's display power over D-Bus. The page calls it when ⏻ is pressed or the «Skjerm av» window starts (Innstillinger → Skjerm av, default 23:00–06:00), and again when the picture should return: a touch (the first touch also wakes the display – the helper watches for input), the end of the window, or an incoming call, which therefore lights the screen up by itself. Install as the kiosk user, no sudo:
 
 ```bash
-gsettings set org.gnome.desktop.session idle-delay 15                                   # display off 15 s after the page drops its wake lock
-gsettings set org.gnome.desktop.screensaver lock-enabled false                          # no lock screen on wake
-gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type nothing    # never suspend the PC itself
+mkdir -p ~/.config/systemd/user
+cp /var/www/menkerud-home/call-backend/deploy/menkerud-screen.service ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now menkerud-screen.service
+curl -s http://127.0.0.1:7777/status      # {"power": 0, ...} = running
 ```
 
-Any touch wakes the display; the touch lands on the black overlay and brings the page back (for two minutes inside the night window, for good after ⏻). Because of the wake lock the screen never blanks during the day. Two things to know: the page cannot switch a blanked display back *on*, so an incoming call at night rings audibly and the picture appears at the first touch; and if the page is ever run in a browser without the Wake Lock API (or from `file://`), set `idle-delay` back to `0` or the screen blanks every 15 s.
+Leave GNOME's own blanking off (Settings → Power → Screen Blank = Never, i.e. `idle-delay 0`), no lock screen, no suspend – the helper does all the switching. The address is «Skjermhjelper» under Innstillinger; without it (another PC, `file://`) the page only shows the black overlay. Tried and rejected: the browser Screen Wake Lock API plus a short GNOME idle delay – Chrome on this Wayland session never registers an idle inhibitor, so the display blanked regardless.
 
 **Bilderamme (🖼 in the top bar).** Shows the pictures in `photos/` full-screen – shuffled, crossfading, «Sekunder per bilde» in Innstillinger – until the screen is touched. Drop `.jpg`/`.png`/`.webp` files in `/var/www/menkerud-home/photos/` (gitignored; `scp` them there as `menkerud-hjem`). The page finds them through nginx's folder listing, which `call-backend/deploy/nginx-menkerud.conf` enables for `/photos/` (`autoindex on; autoindex_format json;`) – re-copy the conf and `sudo nginx -t && sudo systemctl reload nginx` after updating. Without such a listing (another web server, `file://`) put a `photos/index.json` next to the pictures instead: `["ferie1.jpg", "tur/bursdag.png"]`. Subfolders are included (up to 4 levels, 150 folders, 2000 pictures); hidden and system files (`._x.jpg`, `Thumbs.db`, `@eaDir` …) are skipped.
 

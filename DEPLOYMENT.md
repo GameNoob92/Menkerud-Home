@@ -51,12 +51,13 @@ Bound to `127.0.0.1` so `config.js` (which holds the Discord token) never leaves
 ### Screen off + photo frame (as the kiosk user, no sudo)
 
 ```bash
-gsettings set org.gnome.desktop.session idle-delay 15                                   # display off 15 s after the page drops its wake lock
-gsettings set org.gnome.desktop.screensaver lock-enabled false                          # no lock screen on wake
-gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type nothing    # never suspend the PC itself
+mkdir -p ~/.config/systemd/user
+cp /var/www/menkerud-home/call-backend/deploy/menkerud-screen.service ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now menkerud-screen.service
+curl -s http://127.0.0.1:7777/status      # {"power": 0, ...} = running
 ```
 
-The page holds a Screen Wake Lock while it should be visible, so the display only blanks when the page lets it (⏻ button or the «Skjerm av» window). Pictures for the photo frame go in `/var/www/menkerud-home/photos/` (gitignored) or on a network share mounted at `/mnt/bilder` (`cifs-utils`, fstab with `x-systemd.automount,nofail`); the nginx conf above lists both (`/photos/`, `/bilder/`). Details in SETUP.md §3.
+`scripts/kiosk-screen.py` switches the display off/on for the page (⏻ button, «Skjerm av» window, incoming calls) over Mutter's D-Bus API; keep GNOME's own screen blanking at Never. Pictures for the photo frame go in `/var/www/menkerud-home/photos/` (gitignored) or on a network share mounted at `/mnt/bilder` (`cifs-utils`, fstab with `x-systemd.automount,nofail`); the nginx conf above lists both (`/photos/`, `/bilder/`). Details in SETUP.md §3.
 
 ### Firefox (fullscreen appliance) + GDM autologin
 

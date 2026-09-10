@@ -655,7 +655,7 @@ const DEFAULTS = {
   },
   pin: '061111',
   night: { enabled: true, from: '21:00', to: '06:30' },
-  screen: { offEnabled: true, offFrom: '23:00', offTo: '06:00' },   // display off: the page drops its wake lock, GNOME blanks (SETUP.md §3)
+  screen: { offEnabled: true, offFrom: '23:00', offTo: '06:00', helper: 'http://127.0.0.1:7777' },   // display off via the kiosk screen helper (SETUP.md §3)
   photos: { dir: 'photos/', intervalSec: 20 },                      // Bilderamme
   emojis: ['⚽','🏀','🏊','⛷️','🎿','🚲','🥾','🏃','🎒','📚','✏️','🎨','🎵','🎹','🎮','📺','🦷','🛁','🧼','😴','🌙','⏰','🍎','🥪','🍕','🍦','🎂','🎁','🎉','❤️','⭐','😊','🧸','🐶','🐱','🐴','🧥','🧦','👟','🧤','☀️','🌧️','❄️','🚌','🚗','🏠','👵','👴','🎈','🧹']
 };
@@ -922,25 +922,16 @@ function inWindow(from, to, d) {
 function inNight(d) { return inWindow(cfg.night.from || '21:00', cfg.night.to || '06:30', d); }
 function inScreenOff(d) { return !!(cfg.screen && cfg.screen.offEnabled) && inWindow(cfg.screen.offFrom || '23:00', cfg.screen.offTo || '06:00', d); }
 
-/* Skjerm av: #night goes fully black (.dark) and the page releases its Screen Wake Lock, so the kiosk's ordinary
-   idle blanking (GNOME idle-delay, SETUP.md §3) switches the display off. The page can't wake a blanked display –
-   that takes a touch, which lands on #night and wakes it for two minutes (or for good after the ⏻ button). */
+/* Skjerm av: #night goes fully black (.dark) and the page asks the kiosk's screen helper (scripts/kiosk-screen.py,
+   cfg.screen.helper) to switch the display off; when the page should be visible again – a touch, an incoming call,
+   the end of the night window – it asks for it back on. Without the helper only the black overlay remains. */
 let restMode = false;                                  // ⏻ pressed – until the next touch
-let wakeLock = null, wakeWanted = true, wakeBusy = false;
-async function syncWakeLock(want) {
-  wakeWanted = want;
-  if (!navigator.wakeLock || wakeBusy) return;         // no API (file://, old browser): leave GNOME idle-delay at 0
-  wakeBusy = true;
-  try {
-    if (wakeWanted && !wakeLock) {
-      const l = await navigator.wakeLock.request('screen');
-      l.addEventListener('release', () => { if (wakeLock === l) wakeLock = null; });
-      wakeLock = l;
-    } else if (!wakeWanted && wakeLock) { const l = wakeLock; wakeLock = null; await l.release(); }
-  } catch (e) { /* page hidden or not allowed – the 1 s tick retries */ }
-  wakeBusy = false;
+let lastDark = null;
+function screenPower(on) {
+  const h = String((cfg.screen && cfg.screen.helper) || '').trim().replace(/\/+$/, '');
+  if (!h) return;
+  try { fetch(h + (on ? '/on' : '/off'), { mode: 'no-cors', cache: 'no-store', keepalive: true }).catch(() => {}); } catch (e) {}
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncWakeLock(wakeWanted); });
 function checkNight(d) {
   d = d || new Date();
   const awake = Date.now() < awakeUntil;
@@ -950,7 +941,7 @@ function checkNight(d) {
   const n = $('#night');
   n.classList.toggle('hidden', !on);
   n.classList.toggle('dark', dark);
-  syncWakeLock(!dark);
+  if (dark !== lastDark) { lastDark = dark; screenPower(!dark); }
 }
 function screenOff() { restMode = true; awakeUntil = 0; checkNight(); }
 $('#night').addEventListener('pointerdown', e => { e.preventDefault(); restMode = false; awakeUntil = Date.now() + 120000; checkNight(); });
@@ -1765,6 +1756,7 @@ const SETTINGS = [
   { k: 'screen.offEnabled', l: 'Slå av skjermen om natten', hint: 'Et trykk vekker den i to minutter. ⏻ i toppen slår av når som helst', toggle: true },
   { k: 'screen.offFrom', l: 'Av fra klokka', hint: 'TT:MM', num: true },
   { k: 'screen.offTo', l: 'På igjen klokka', hint: 'TT:MM', num: true },
+  { k: 'screen.helper', l: 'Skjermhjelper', hint: 'Lokal tjeneste som slår skjermen av/på (scripts/kiosk-screen.py, SETUP.md §3). Tom = bare svart bilde' },
   { sec: 'Bilderamme' },
   { k: 'photos.dir', l: 'Bildemappe', hint: 'photos/ i appen, /bilder/ for nettverksmappa (se SETUP.md) eller en http://-adresse. Undermapper tas med' },
   { k: 'photos.intervalSec', l: 'Sekunder per bilde', num: true, number: true }

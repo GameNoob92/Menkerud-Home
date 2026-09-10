@@ -8,7 +8,6 @@ function mkdom(beforeParse) {
   vc.on('jsdomError', e => { if (!/Could not load|not implemented/i.test(e.message)) errors.push(e.message); });
   vc.on('error', m => errors.push(String(m)));
   const fetchCalls = [];
-  const wl = { requests: 0, releases: 0, held: false };   // Screen Wake Lock stub (jsdom has none)
   const dom = new JSDOM(html, {
     runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/menkerud/index.html', virtualConsole: vc,
     beforeParse(window) {
@@ -24,8 +23,10 @@ function mkdom(beforeParse) {
         if (/\/api\/calls$/.test(url) && opts && opts.method === 'POST') return Promise.resolve({ ok: true, json: async () => ({ callId: 'c_test', status: 'ringing', livekit: { url: 'wss://rtc.test', token: 'tok' } }) });
         return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
       };
+      // Deterministic clock (12:00 on a fixed date) so night dimming and the screen-off window never depend on when the test runs.
+      const FIXED = new window.Date(2026, 8, 10, 12, 0, 0).getTime(), RealDate = window.Date;
+      window.Date = class extends RealDate { constructor(...a) { if (a.length) super(...a); else super(FIXED); } static now() { return FIXED; } };
       window.HTMLMediaElement.prototype.play = () => Promise.resolve();
-      Object.defineProperty(window.navigator, 'wakeLock', { configurable: true, value: { request: async () => { wl.requests++; wl.held = true; return { release: async () => { wl.releases++; wl.held = false; }, addEventListener() {} }; } } });
       window.HTMLCanvasElement.prototype.getContext = () => ({ clearRect(){}, save(){}, restore(){}, translate(){}, rotate(){}, fillRect(){}, drawImage(){} });
       // Minimal LiveKit client stub so the call path runs without the real CDN library.
       window.LivekitClient = {
@@ -36,13 +37,13 @@ function mkdom(beforeParse) {
       if (beforeParse) beforeParse(window);
     }
   });
-  return { dom, fetchCalls, wl };
+  return { dom, fetchCalls };
 }
 const assert = (c, m) => { if (!c) errors.push('ASSERT: ' + m); else console.log('ok -', m); };
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 (async () => {
-  const { dom, fetchCalls, wl } = mkdom();
+  const { dom, fetchCalls } = mkdom();
   const w = dom.window, d = w.document;
   const q = s => d.querySelector(s), qa = s => [...d.querySelectorAll(s)];
   const click = el => el.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
@@ -54,15 +55,16 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(q('#wx-temp').textContent === '14°' && q('#wx-icon').textContent === '🌧️', 'Open-Meteo weather shown: ' + q('#wx-temp').textContent + ' ' + q('#wx-icon').textContent);
   assert(q('#status').classList.contains('off'), 'HA dot grey (not in use)');
 
-  // Skjerm av: black overlay + wake lock released; a touch brings the page (and the lock) back
-  assert(wl.requests === 1 && wl.held, 'screen wake lock held at start');
+  // Skjerm av: black overlay + the kiosk screen helper is asked to switch the display off; a touch brings both back
+  const helperCalls = () => fetchCalls.filter(c => /^http:\/\/127\.0\.0\.1:7777\//.test(c.url)).map(c => c.url.replace(/^.*:7777/, ''));
+  assert(helperCalls().join() === '/on', 'helper asked for display on at start: ' + helperCalls().join());
   click(q('#rest-btn'));
   await wait(20);
   assert(!q('#night').classList.contains('hidden') && q('#night').classList.contains('dark'), 'Skjerm av shows the black overlay');
-  assert(!wl.held && wl.releases === 1, 'wake lock released while the screen is off');
+  assert(helperCalls().slice(-1)[0] === '/off', 'helper asked for display off: ' + helperCalls().join());
   q('#night').dispatchEvent(new w.Event('pointerdown', { bubbles: true, cancelable: true }));
   await wait(20);
-  assert(q('#night').classList.contains('hidden') && wl.held, 'touch wakes the screen and re-acquires the wake lock');
+  assert(q('#night').classList.contains('hidden') && helperCalls().slice(-1)[0] === '/on', 'touch hides the overlay and asks for display on: ' + helperCalls().join());
 
   // Bilderamme: folder walked through the (mocked) nginx listing, subfolder included, clutter skipped; shown full-screen until touched
   click(q('#frame-btn'));
@@ -71,7 +73,6 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const slideImg = q('#frame .slide img');
   assert(!!slideImg && /^photos\/(a\.jpg|2025\/b\.jpg)$/.test(slideImg.getAttribute('src')), 'first photo shown (clutter and non-images skipped): ' + (slideImg && slideImg.getAttribute('src')));
   assert(fetchCalls.some(c => c.url === 'photos/2025/') && !fetchCalls.some(c => /@eaDir/.test(c.url)), 'subfolder walked, @eaDir skipped');
-  assert(wl.held, 'wake lock held while the frame runs');
   q('#frame').dispatchEvent(new w.Event('pointerdown', { bubbles: true, cancelable: true }));
   assert(q('#frame').classList.contains('hidden') && qa('#frame .slide').length === 0, 'touch closes the photo frame');
 

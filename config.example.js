@@ -59,7 +59,8 @@ window.MENKERUD_CONFIG = {
 
   pin: "1234",
   night: { enabled: true, from: "21:00", to: "06:30" },
-  screen: { offEnabled: true, offFrom: "23:00", offTo: "06:00" },   // display off at night; ⏻ in the top bar does it any time, a touch wakes it (SETUP.md §3)
+  screen: { offEnabled: true, offFrom: "23:00", offTo: "06:00",     // display off at night; ⏻ in the top bar does it any time, a touch wakes it
+            helper: "http://127.0.0.1:7777" },                       // the kiosk screen helper (scripts/kiosk-screen.py, SETUP.md §3); "" = black overlay only
   photos: { dir: "photos/", intervalSec: 20 },                      // 🖼 photo frame: "photos/", "/bilder/" (network share mounted on the screen PC, SETUP.md §3) or an http:// folder; seconds per picture
 
   emojis: ["⚽","🏀","🏊","⛷️","🎿","🚲","🥾","🏃","🎒","📚","✏️","🎨","🎵","🎹","🎮","📺","🦷","🛁","🧼","😴","🌙","⏰","🍎","🥪","🍕","🍦","🎂","🎁","🎉","❤️","⭐","😊","🧸","🐶","🐱","🐴","🧥","🧦","👟","🧤","☀️","🌧️","❄️","🚌","🚗","🏠","👵","👴","🎈","🧹"]

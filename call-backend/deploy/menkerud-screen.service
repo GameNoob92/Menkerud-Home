@@ -1,0 +1,17 @@
+# Menkerud Home – kiosk screen helper (systemd --user unit, runs inside the kiosk user's GNOME session, no root).
+# Lets the page switch the display off/on: see scripts/kiosk-screen.py and SETUP.md §3.
+#   mkdir -p ~/.config/systemd/user
+#   cp /var/www/menkerud-home/call-backend/deploy/menkerud-screen.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now menkerud-screen.service
+[Unit]
+Description=Menkerud Home kiosk screen helper (display off/on for the page)
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/python3 /var/www/menkerud-home/scripts/kiosk-screen.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target
