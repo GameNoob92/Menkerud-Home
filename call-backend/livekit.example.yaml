@@ -1,0 +1,12 @@
+# LiveKit server config. Copy to livekit.yaml (gitignored) and fill in real keys at deploy.
+# The single UDP mux port (7882) is the only media port that must be forwarded from the router.
+port: 7880
+rtc:
+  tcp_port: 7881          # optional WebRTC-over-TCP fallback
+  udp_port: 7882          # single-port UDP mux; no 50000-60000 range needed
+  use_external_ip: true   # STUN-discover the public IP so phones on mobile data can reach the media
+logging:
+  level: info
+keys:
+  # <API_KEY>: <API_SECRET>  — must match LIVEKIT_API_KEY / LIVEKIT_API_SECRET in the backend .env
+  devkey: devsecret_change_me

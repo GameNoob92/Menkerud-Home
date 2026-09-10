@@ -1,0 +1,15 @@
+# LiveKit SFU for Menkerud Home — runs on Unraid (Compose Manager / docker-compose).
+# The Node call-backend does NOT run here: it runs on the Ubuntu touchscreen PC as a systemd
+# service (see ../DEPLOYMENT.md and deploy/menkerud-backend.service).
+# SWAG on Unraid proxies rtc.noobventure.com -> :7880; media is the single UDP port 7882 (forward on the router).
+services:
+  livekit:
+    image: livekit/livekit-server:v1.13.6
+    container_name: menkerud-livekit
+    restart: unless-stopped
+    # Host networking so LiveKit advertises the real LAN IP (192.168.68.74) to on-LAN clients like the
+    # kiosk; use_external_ip in livekit.yaml adds the public IP via STUN for phones. Binds 7880/7881/7882.
+    network_mode: host
+    command: ["--config", "/etc/livekit.yaml"]
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro

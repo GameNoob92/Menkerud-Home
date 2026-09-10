@@ -1,0 +1,13 @@
+{
+  "name": "menkerud-home",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Kids' touchscreen dashboard: video-call mor/far via Jitsi, note board, weather. No build step; index.html is the whole app.",
+  "scripts": {
+    "check": "node scripts/check.js",
+    "test": "node scripts/check.js && node test/smoke.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.0"
+  }
+}

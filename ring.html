@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1633">
+<title>Ring hjem</title>
+<style>
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b1633;color:#fff;font-family:'Nunito','Segoe UI',system-ui,sans-serif;text-align:center}
+  .card{padding:2rem 1.5rem;max-width:26rem}
+  .house{font-size:6rem;line-height:1;animation:pulse 1.2s ease-in-out infinite alternate}
+  h1{font-size:1.8rem;margin:1rem 0 .4rem;font-weight:900}
+  p{opacity:.85;font-weight:700;margin:.4rem 0}
+  a.btn{display:inline-block;margin-top:1.4rem;padding:1rem 2rem;border-radius:3rem;background:#22c55e;color:#fff;font-weight:900;text-decoration:none;font-size:1.2rem}
+  @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.08)}}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="house">🏠</div>
+  <h1 id="t">Ringer hjem…</h1>
+  <p id="s">Kiosken får beskjed nå.</p>
+  <a class="btn" id="go" href="#">📞 Åpne samtalen</a>
+</div>
+<script>
+(function () {
+  // Put this file on any https host and add a link like this to the phone's home screen:
+  //   ring.html?who=mor&topic=<kiosk topic>&room=https://meet.example.no/<room>
+  // Optional: &server=https://ntfy.example.no  &token=tk_...  &delay=1500
+  var q = new URLSearchParams(location.search);
+  var who = (q.get('who') || 'mor').toLowerCase();
+  var server = (q.get('server') || 'https://ntfy.sh').replace(/\/+$/, '');
+  var topic = q.get('topic') || '';
+  var room = q.get('room') || '';
+  var token = q.get('token') || '';
+  var delay = Number(q.get('delay')) || 1500;
+  var link = room ? room + (room.indexOf('#') === -1 ? '#config.disableDeepLinking=true' : '') : '';
+  var t = document.getElementById('t'), s = document.getElementById('s'), go = document.getElementById('go');
+  if (link) go.href = link; else go.style.display = 'none';
+  if (!topic) { t.textContent = 'Mangler emne'; s.textContent = 'Lenken trenger ?topic=… (se SETUP.md).'; return; }
+  var headers = {};
+  if (token) headers.Authorization = 'Bearer ' + token;
+  fetch(server + '/', { method: 'POST', headers: headers, body: JSON.stringify({ topic: topic, title: 'ring', message: who, priority: 5 }) })
+    .then(function (r) { if (!r.ok) throw new Error('svarte ' + r.status); s.textContent = 'Kiosken ringer – åpner samtalen…'; })
+    .catch(function (e) { t.textContent = 'Fikk ikke varslet kiosken'; s.textContent = (e && e.message ? e.message + '. ' : '') + 'Åpner samtalen likevel.'; })
+    .then(function () { if (link) setTimeout(function () { location.href = link; }, delay); });
+})();
+</script>
+</body>
+</html>

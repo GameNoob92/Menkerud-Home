@@ -1,0 +1,2065 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0b1633">
+<title>Menkerud Home</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* Menkerud Home – 1rem = 1% of screen width on a 16:9 screen, so the whole layout scales with the display.
+   Design tokens, then reset, page, header, cards, panels, overlays, keyboard, settings, animations, responsive. */
+html{font-size:min(1vw,1.7778vh)}
+:root{
+  --font:'Nunito','Segoe UI',system-ui,-apple-system,sans-serif;
+  --hand:'Caveat','Segoe Script','Bradley Hand',cursive;
+
+  --bg-deep:#07162f;
+  --text-main:#ffffff;
+  --text-soft:rgba(255,255,255,.78);
+  --text-muted:rgba(255,255,255,.55);
+
+  --glass:rgba(11,27,61,.55);
+  --glass-strong:rgba(12,26,58,.82);
+  --glass-line:rgba(255,255,255,.14);
+
+  --pink-1:#ff5c96;--pink-2:#d91669;
+  --blue-1:#19b9ff;--blue-2:#0872d1;
+  --green-1:#25e08f;--green-2:#05885d;
+  --heart:#ff5b87;
+
+  --radius-sm:1rem;--radius-md:1.4rem;--radius-lg:1.8rem;--radius-xl:2.4rem;
+
+  --shadow-card:0 1.1rem 2.6rem rgba(0,0,0,.34);
+  --shadow-panel:0 1rem 2.4rem rgba(0,0,0,.28);
+  --shadow-small:0 .5rem 1.1rem rgba(0,0,0,.22);
+  --glass-blur:1.1rem;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+html,body{height:100%;overflow:hidden;color:var(--text-main);font-family:var(--font);touch-action:manipulation}
+html{background:radial-gradient(circle at 65% 12%,#244b8f 0,#0c2856 38%,#07162f 100%)}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation}
+button:focus-visible{outline:.28rem solid #fff;outline-offset:.2rem}
+img{display:block;max-width:100%}
+.hidden{display:none!important}
+.hand{font-family:var(--hand)}
+
+/* Page background: scenic photo + legibility gradient, with a gradient fallback if the image is missing. */
+body{
+  font-size:1.6rem;
+  display:grid;
+  grid-template-rows:auto minmax(0,1.02fr) minmax(0,1fr) auto;
+  gap:1.1rem;
+  padding:1.4rem 1.7rem 1rem;
+  height:100vh;
+}
+.bg{
+  position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:var(--bg-img,none);
+  background-size:cover;background-position:center;
+  transition:opacity 1.2s ease;
+}
+.bg::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(4,18,50,.30),rgba(6,20,52,.66));
+}
+.aurora{
+  position:fixed;inset:-12%;z-index:-2;pointer-events:none;opacity:.5;
+  background:
+    radial-gradient(38% 55% at 12% 18%,rgba(255,64,128,.55),transparent 62%),
+    radial-gradient(46% 60% at 84% 24%,rgba(255,150,40,.45),transparent 62%),
+    radial-gradient(40% 52% at 78% 88%,rgba(40,220,130,.4),transparent 62%);
+  filter:blur(3rem) saturate(1.1);animation:drift 45s ease-in-out infinite alternate;
+}
+@keyframes drift{from{transform:translate(0,0) scale(1)}to{transform:translate(-2.5%,2%) scale(1.06)}}
+
+/* ---------- Header ---------- */
+header{display:grid;grid-template-columns:auto auto 1fr auto auto;align-items:center;gap:1.4rem;position:relative;min-height:8.5rem}
+.nav-btn{
+  width:5rem;height:5rem;border-radius:1.4rem;flex:none;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:.6rem;
+  background:rgba(14,34,73,.55);border:1px solid var(--glass-line);backdrop-filter:blur(var(--glass-blur));
+  box-shadow:inset 0 .1rem 0 rgba(255,255,255,.12),0 .5rem 1.4rem rgba(0,0,0,.28);transition:transform .12s ease}
+.nav-btn:active{transform:scale(.94)}
+.nav-btn span{display:block;width:2.4rem;height:.4rem;border-radius:.3rem;background:#fff}
+.nav-btn svg{width:2.8rem;height:2.8rem;fill:#fff}
+.title{min-width:0}
+.title h1{font-size:3.1rem;font-weight:900;letter-spacing:.01em;line-height:1;text-shadow:0 .2rem .8rem rgba(0,0,0,.4);white-space:nowrap}
+.title h1 .light{font-weight:700;opacity:.92}
+.heart{color:var(--heart)}
+.title p{font-size:1.15rem;letter-spacing:.3em;font-weight:800;color:var(--text-soft);margin-top:.5rem;white-space:nowrap}
+.clock{text-align:right}
+#clock{font-size:4.2rem;font-weight:900;line-height:1;letter-spacing:-.02em;text-shadow:0 .2rem .9rem rgba(0,0,0,.4)}
+#date{font-size:1.4rem;font-weight:700;color:var(--text-soft);margin-top:.35rem}
+.vline{width:1px;height:5.6rem;background:rgba(255,255,255,.28)}
+.wx{display:flex;align-items:center;gap:1rem;text-align:left}
+#wx-icon{font-size:3.6rem;line-height:1;filter:drop-shadow(0 .3rem .6rem rgba(0,0,0,.3));animation:cloudDrift 6s ease-in-out infinite}
+@keyframes cloudDrift{0%,100%{transform:translateX(0)}50%{transform:translateX(.3rem)}}
+#wx-temp{font-size:2.9rem;font-weight:900;line-height:1}
+#wx-loc{font-size:1.25rem;font-weight:700;color:var(--text-soft);margin-top:.2rem}
+.tagline{position:absolute;right:.4rem;top:5.9rem;font-family:var(--hand);font-size:1.5rem;line-height:1.05;transform:rotate(-6deg);text-align:right;color:#ffe9f1;opacity:.95;pointer-events:none}
+
+/* ---------- Primary cards ---------- */
+#cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.5rem;min-height:0}
+.card{
+  position:relative;border-radius:var(--radius-xl);overflow:hidden;
+  border:1px solid rgba(255,255,255,.30);
+  box-shadow:inset 0 .1rem 0 rgba(255,255,255,.28),var(--shadow-card);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.2rem;
+  transition:transform .2s ease,box-shadow .2s ease,filter .2s ease;
+  animation:enterUp .5s both}
+.card::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.16),transparent 42%);pointer-events:none}
+.card::before{content:'';position:absolute;width:16rem;height:16rem;top:-4.5rem;left:-3.5rem;border-radius:50%;background:rgba(255,255,255,.16);filter:blur(1.8rem);pointer-events:none}
+.card:hover{transform:translateY(-.3rem) scale(1.005)}
+.card:active{transform:translateY(.05rem) scale(.975)}
+.card.mor{background:linear-gradient(145deg,#ff4f94 0%,#ff2b78 55%,#d91669 100%)}
+.card.far{background:linear-gradient(145deg,#19b9ff 0%,#0f91ed 55%,#0872d1 100%)}
+.card.home{background:linear-gradient(145deg,#25e08f 0%,#0fba75 55%,#05885d 100%)}
+.cards-dim .card:not(.active){filter:brightness(.5) saturate(.8);transform:scale(.98)}
+
+.avatar{
+  width:9.2rem;height:9.2rem;border-radius:50%;overflow:hidden;flex:none;position:relative;z-index:1;
+  background:linear-gradient(135deg,#ffe0ec,#c9d8ff);
+  border:.4rem solid rgba(255,255,255,.9);
+  box-shadow:0 0 0 .5rem rgba(255,255,255,.14),0 .8rem 2rem rgba(0,0,0,.3);
+  display:grid;place-items:center}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.avatar .fallback{font-size:6rem;line-height:1}
+.phone{
+  width:6rem;height:6rem;border-radius:50%;margin-top:-2.6rem;z-index:2;position:relative;
+  display:grid;place-items:center;border:.32rem solid rgba(255,255,255,.92);
+  box-shadow:0 .6rem 1.6rem rgba(0,0,0,.32),0 0 1.4rem rgba(255,255,255,.18)}
+.phone svg{width:3.2rem;height:3.2rem;fill:#fff}
+.mor .phone{background:#ff3b70}
+.far .phone{background:#2d7cff}
+/* Idle ring waves radiating from the phone badge */
+.phone::before,.phone::after{content:'';position:absolute;inset:-.3rem;border-radius:50%;border:.28rem solid rgba(255,255,255,.7);animation:ringWave 2.1s ease-out infinite;pointer-events:none}
+.phone::after{animation-delay:1.05s}
+@keyframes ringWave{0%{opacity:0;transform:scale(.7)}30%{opacity:.7}100%{opacity:0;transform:scale(1.9)}}
+.card.active .phone::before,.card.active .phone::after{animation-duration:1.1s;border-color:#fff}
+
+.card .label{font-size:2.5rem;font-weight:900;letter-spacing:.04em;margin-top:.9rem;text-shadow:0 .25rem .8rem rgba(0,0,0,.42);position:relative;z-index:1;text-align:center;line-height:1}
+.card .sublabel{font-family:var(--hand);font-size:1.6rem;color:rgba(255,255,255,.92);margin-top:.25rem;z-index:1;text-align:center;padding:0 1rem;line-height:1.05}
+.house-big{width:10.5rem;height:10.5rem;display:grid;place-items:center;position:relative;border-radius:50%;background:rgba(0,0,0,.1)}
+.house-big img,.house-big svg{width:7.2rem;height:7.2rem;fill:#eafff2;filter:drop-shadow(0 0 1.8rem rgba(200,255,220,.7))}
+.house-big::before{content:'';position:absolute;right:.6rem;top:1.2rem;width:2.4rem;height:2.4rem;background:var(--spark,none) center/contain no-repeat;opacity:.9}
+
+/* ---------- Bottom three-column row ---------- */
+.bottom-grid{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,2.1fr) minmax(0,.9fr);gap:1.2rem;min-height:0}
+.bottom-grid.no-evening{grid-template-columns:minmax(0,1fr) minmax(0,2.2fr)}
+.glass-panel{
+  background:var(--glass);border:1px solid var(--glass-line);border-radius:var(--radius-lg);
+  backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));
+  box-shadow:inset 0 .1rem 0 rgba(255,255,255,.08),var(--shadow-panel);
+  padding:1.1rem 1.4rem;display:flex;flex-direction:column;min-height:0;overflow:hidden;animation:enterUp .5s both}
+.panel-title{display:flex;align-items:center;gap:.7rem;font-family:var(--hand);font-size:2.1rem;color:#eef2ff;margin-bottom:.6rem;flex:none}
+.panel-title .when{margin-left:auto;font-family:var(--font);font-size:1.2rem;font-weight:800;color:var(--text-muted);letter-spacing:.02em}
+
+/* I DAG */
+#today-list{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:.15rem}
+.srow-day{display:grid;grid-template-columns:4.6rem 2.6rem 1fr;align-items:center;gap:.6rem;min-height:2.6rem;padding:.35rem 0;border-bottom:1px solid rgba(255,255,255,.08);font-weight:800}
+.srow-day:last-child{border-bottom:0}
+.srow-day .t{font-size:1.5rem;color:var(--text-soft);font-variant-numeric:tabular-nums}
+.srow-day .i{font-size:1.8rem;line-height:1;text-align:center}
+.srow-day .n{font-size:1.5rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srow-day.done{opacity:.45}
+.srow-day.now{background:rgba(255,255,255,.08);border-radius:.7rem;padding-left:.5rem;padding-right:.5rem}
+#today-progress{height:.55rem;border-radius:.4rem;background:rgba(255,255,255,.14);margin-top:.7rem;overflow:hidden;flex:none}
+#today-progress>span{display:block;height:100%;border-radius:.4rem;background:linear-gradient(90deg,var(--green-1),var(--green-2));transition:width 1s ease}
+.today-foot{font-family:var(--hand);font-size:1.4rem;color:var(--text-soft);margin-top:.5rem;flex:none;display:flex;align-items:center;gap:.4rem}
+
+/* HUSK notes board */
+#board{padding-bottom:.4rem}
+.notes{display:flex;gap:1.8rem;align-items:center;justify-content:center;overflow-x:auto;overflow-y:hidden;padding:1.2rem .6rem .6rem;scrollbar-width:none;flex:1;min-height:0}
+.notes::-webkit-scrollbar{display:none}
+.note{
+  flex:none;width:10rem;height:9.4rem;border-radius:.4rem .4rem .7rem .7rem;color:#1f2340;position:relative;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;padding:1.1rem .6rem .4rem;
+  box-shadow:0 .9rem 1.8rem rgba(0,0,0,.4),inset 0 .1rem 0 rgba(255,255,255,.45);
+  transform:rotate(var(--rot,0deg));transition:transform .15s;cursor:pointer;animation:noteFloat var(--float,6s) ease-in-out infinite}
+.note:active,.note.wiggle{transform:rotate(var(--rot,0deg)) scale(1.07);animation:none}
+@keyframes noteFloat{0%,100%{translate:0 0}50%{translate:0 -.18rem}}
+.note .pin{position:absolute;top:-.8rem;left:50%;transform:translateX(-50%);width:1.7rem;height:1.7rem;border-radius:50%;background:radial-gradient(circle at 35% 32%,#fff 0,var(--pin) 30%,color-mix(in srgb,var(--pin),#000 45%) 100%);box-shadow:0 .35rem .5rem rgba(0,0,0,.45),inset 0 .15rem .2rem rgba(255,255,255,.5)}
+.note .icon{font-size:2.8rem;line-height:1;filter:drop-shadow(0 .15rem .25rem rgba(0,0,0,.18))}
+.note .txt{font-family:var(--hand);font-size:1.55rem;font-weight:700;line-height:1;text-align:center;max-height:2.05em;overflow:hidden;padding:.1rem}
+.note .time{font-family:var(--hand);font-size:1.9rem;font-weight:700;line-height:1}
+.note.c0{background:#ffe95c;--pin:#ff3b3b}
+.note.c1{background:#ffb9dc;--pin:#2f8dff}
+.note.c2{background:#a9dcff;--pin:#22c55e}
+.note.c3{background:#b9f2b3;--pin:#ffb300}
+.note.c4{background:#ddc9ff;--pin:#ff45c4}
+.empty{opacity:.72;font-size:1.5rem;font-weight:700;text-align:center;padding:2rem 1rem;width:100%}
+
+/* KVELD */
+#evening-actions{display:flex;flex-direction:column;gap:.7rem;flex:1;min-height:0;justify-content:center}
+.evening-action{display:grid;grid-template-columns:3.4rem 1fr 1.4rem;align-items:center;gap:.6rem;min-height:3.4rem;padding:0 1rem;border-radius:1.2rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-size:1.5rem;font-weight:800;text-align:left;transition:transform .12s ease,background .12s ease}
+.evening-action:hover{background:rgba(255,255,255,.1);transform:translateX(.2rem)}
+.evening-action:active{transform:scale(.98)}
+.evening-action .ea-ic{font-size:2rem;line-height:1}
+.evening-action .ea-ar{color:var(--text-muted);font-size:1.6rem;text-align:right}
+.evening-action.on{background:rgba(255,220,90,.24);border-color:#ffd54a}
+
+/* ---------- Footer ---------- */
+footer{display:flex;align-items:center;gap:1rem;min-height:2.1rem}
+footer .fhouse{width:2.2rem;height:2.2rem;fill:#fff;opacity:.9}
+footer .hand{font-size:1.8rem;color:var(--text-soft)}
+footer .line{flex:1;height:1px;background:rgba(255,255,255,.28);margin:0 1.4rem}
+footer .brand{letter-spacing:.28em;font-weight:800;color:var(--text-soft);font-size:1.15rem}
+.gear{width:2.6rem;height:2.6rem;border-radius:.8rem;display:grid;place-items:center;font-size:1.6rem;background:rgba(255,255,255,.08);border:1px solid var(--glass-line);margin-left:.4rem}
+.dot{width:1rem;height:1rem;border-radius:50%;background:#ff4d4d;box-shadow:0 0 .8rem #ff4d4d;margin-left:.6rem;flex:none}
+.dot.on{background:#3ee07a;box-shadow:0 0 .8rem #3ee07a}
+.dot.off{background:#8892b0;box-shadow:none}
+
+/* ---------- Overlays (call / incoming / celebrate / pin / menu) ---------- */
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(4,10,26,.94);backdrop-filter:blur(1.1rem);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2rem;text-align:center;padding:2rem;animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.overlay h2{font-size:3.8rem;font-weight:900;text-shadow:0 .3rem 1rem rgba(0,0,0,.4)}
+.overlay p{font-size:2rem;font-weight:700;color:var(--text-soft)}
+.big-btn{font-size:2.5rem;font-weight:900;padding:1.5rem 3.2rem;border-radius:4rem;color:#fff;box-shadow:0 .8rem 2rem rgba(0,0,0,.4);border:.24rem solid rgba(255,255,255,.7);display:inline-flex;align-items:center;gap:1rem;transition:transform .1s}
+.big-btn.red{background:#ff3b3b}
+.big-btn.green{background:#22c55e}
+.big-btn:active{transform:scale(.95)}
+.row{display:flex;gap:3rem;flex-wrap:wrap;justify-content:center}
+.avatar.xl{width:22rem;height:22rem}
+.avatar.xl .fallback{font-size:13rem}
+.ringing{animation:pulse 1.4s ease-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.55),0 .8rem 2rem rgba(0,0,0,.35)}100%{box-shadow:0 0 0 4rem rgba(255,255,255,0),0 .8rem 2rem rgba(0,0,0,.35)}}
+.dots3{display:flex;gap:1rem}
+.dots3 span{width:1.4rem;height:1.4rem;border-radius:50%;background:#fff;opacity:.35;animation:dotsPulse 1.2s ease-in-out infinite}
+.dots3 span:nth-child(2){animation-delay:.2s}
+.dots3 span:nth-child(3){animation-delay:.4s}
+@keyframes dotsPulse{0%,100%{opacity:.3;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
+#celebrate .big-house{font-size:13rem;line-height:1;animation:bounce .9s ease-in-out infinite alternate}
+@keyframes bounce{from{transform:translateY(0) scale(1)}to{transform:translateY(-1.4rem) scale(1.05)}}
+
+/* Call */
+#call{background:#04070f;gap:0;padding:0}
+#callvideo{position:absolute;inset:0}
+#calling{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2.2rem;background:rgba(6,10,30,.97);z-index:2;padding:2rem}
+#calling h2{font-size:3.2rem}
+.call-bar{position:absolute;top:1.4rem;left:1.8rem;z-index:3;font-size:2.2rem;font-weight:900;text-shadow:0 .2rem .8rem #000;background:rgba(0,0,0,.35);padding:.55rem 1.5rem;border-radius:2rem}
+#hangup{position:absolute;bottom:2.4rem;left:50%;transform:translateX(-50%);z-index:3}
+#hangup:active{transform:translateX(-50%) scale(.95)}
+
+/* PIN */
+.pin-box{background:var(--glass-strong);border:1px solid var(--glass-line);border-radius:var(--radius-xl);padding:2.4rem 3rem;display:flex;flex-direction:column;align-items:center;gap:1.6rem;box-shadow:var(--shadow-card)}
+.pin-box h3{font-size:2.2rem;font-weight:900}
+.pin-dots{display:flex;gap:1.2rem;height:2rem;align-items:center}
+.pin-dots span{width:1.6rem;height:1.6rem;border-radius:50%;border:.2rem solid #fff;opacity:.6}
+.pin-dots span.full{background:#fff;opacity:1}
+.pin-pad{display:grid;grid-template-columns:repeat(3,7rem);gap:1rem}
+.pin-pad button{height:7rem;border-radius:1.6rem;background:rgba(255,255,255,.12);font-size:2.8rem;font-weight:900;border:1px solid var(--glass-line)}
+.pin-pad button:disabled{opacity:0;pointer-events:none}
+.link{font-size:1.6rem;font-weight:800;color:var(--text-soft);text-decoration:underline}
+.shake{animation:shake .4s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-1rem)}75%{transform:translateX(1rem)}}
+
+/* Menu panel */
+.panel{width:92rem;max-width:96vw;height:52rem;max-height:94vh;background:var(--glass-strong);border:1px solid var(--glass-line);border-radius:var(--radius-xl);box-shadow:var(--shadow-card);display:flex;flex-direction:column;overflow:hidden;text-align:left}
+.panel-head{display:flex;align-items:center;gap:1rem;padding:1.2rem 1.6rem;border-bottom:1px solid rgba(255,255,255,.12);flex:none}
+.panel-head h3{flex:1;font-size:2.4rem;font-weight:900}
+.icon-btn{width:4.4rem;height:4.4rem;border-radius:1.2rem;background:rgba(255,255,255,.12);font-size:2.4rem;font-weight:900;display:grid;place-items:center;flex:none}
+.panel-body{flex:1;overflow:auto;padding:1.6rem;min-height:0}
+.pane{min-height:100%}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:1.6rem}
+.tile{background:rgba(255,255,255,.1);border:1px solid var(--glass-line);border-radius:2rem;padding:2.4rem 1rem;display:flex;flex-direction:column;align-items:center;gap:1rem;font-size:2rem;font-weight:900;min-height:16rem;justify-content:center;text-align:center}
+.tile span{font-size:5rem;line-height:1}
+.tiles.small{grid-template-columns:repeat(6,1fr);gap:1.2rem}
+.tiles.small .tile{min-height:9rem;padding:1.2rem .6rem;font-size:1.35rem;gap:.5rem}
+.tiles.small .tile span{font-size:3rem}
+.tile.on{background:rgba(255,220,90,.28);border-color:#ffd54a;box-shadow:0 0 1.5rem rgba(255,213,74,.4)}
+.pane-tools{display:flex;gap:1rem;margin-bottom:1.4rem;flex-wrap:wrap;align-items:center}
+.chip-btn{background:rgba(255,255,255,.14);border:1px solid var(--glass-line);border-radius:2rem;padding:.8rem 1.6rem;font-size:1.5rem;font-weight:800}
+.chip-btn.on{background:rgba(110,231,183,.3);border-color:#6ee7b7}
+.chip-btn.danger{border-color:rgba(255,90,90,.7)}
+.btns{display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0}
+
+/* Inputs + docked keyboard */
+.inp{flex:1;min-width:0;width:100%;font:inherit;font-size:1.7rem;font-weight:700;padding:.75rem 1.2rem;border-radius:1rem;border:1px solid var(--glass-line);background:rgba(0,0,0,.28);color:#fff;outline:none;-webkit-user-select:text;user-select:text}
+.inp::placeholder{color:rgba(255,255,255,.45)}
+.inp:focus{border-color:#ffd166;box-shadow:0 0 0 .25rem rgba(255,209,102,.3)}
+select.inp{appearance:none;-webkit-appearance:none;cursor:pointer}
+select.inp option{color:#111}
+.kbd{flex:none;display:flex;flex-direction:column;gap:.45rem;padding:.8rem 1.4rem 1rem;border-top:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.3)}
+.krow{display:flex;gap:.45rem;justify-content:center}
+.key{flex:1;max-width:6.2rem;height:3.6rem;border-radius:.8rem;background:rgba(255,255,255,.14);font-size:1.7rem;font-weight:800;display:grid;place-items:center}
+.key.space{max-width:34rem;flex:6}
+.key.wide{max-width:9rem;flex:1.6;font-size:1.4rem}
+.key.active{background:rgba(255,255,255,.5);color:#111}
+
+/* New note */
+.note-form{display:grid;grid-template-columns:28rem 1fr;gap:2rem;min-height:100%}
+.col-left,.col-right{min-height:0;display:flex;flex-direction:column}
+.sub{font-size:1.3rem;font-weight:800;letter-spacing:.12em;color:var(--text-muted);text-transform:uppercase;margin:.4rem 0 .5rem}
+.preview-wrap{display:flex;justify-content:center;padding:1.6rem 0 1rem}
+.chips{display:flex;flex-wrap:wrap;gap:.7rem;overflow:auto;flex:1;min-height:0;align-content:flex-start;max-height:22rem}
+.chip{display:inline-flex;align-items:center;gap:.6rem;background:rgba(255,255,255,.12);border-radius:2rem;padding:.4rem .5rem .4rem 1rem;font-size:1.4rem;font-weight:800;max-width:100%}
+.chip .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:18rem}
+.chip button{width:2.6rem;height:2.6rem;border-radius:50%;background:rgba(255,80,80,.85);font-size:1.4rem;font-weight:900;display:grid;place-items:center;flex:none}
+.emoji-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,3.6rem);grid-auto-columns:3.8rem;gap:.5rem;overflow-x:auto;overflow-y:hidden;padding:.3rem .2rem .5rem;scrollbar-width:thin}
+.emoji-grid button{font-size:2.4rem;line-height:1;border-radius:.9rem;background:rgba(255,255,255,.08);display:grid;place-items:center}
+.emoji-grid button.sel{background:rgba(255,255,255,.35);outline:.25rem solid #fff}
+.time-row{display:flex;align-items:center;gap:1.2rem;margin:.9rem 0;flex-wrap:wrap}
+.stepper{display:flex;align-items:center;gap:.6rem;font-size:2.2rem;font-weight:900}
+.stepper button{width:3.4rem;height:3.4rem;border-radius:1rem;background:rgba(255,255,255,.14);font-size:2.2rem;font-weight:900}
+.stepper span{min-width:3rem;text-align:center}
+#note-text{font-size:2rem;font-weight:800;padding:.9rem 1.4rem;border-radius:1.2rem;margin-top:.4rem}
+.save{width:100%;justify-content:center;font-size:2.1rem;padding:1rem;margin-top:1.4rem}
+
+/* Settings */
+.status{display:grid;grid-template-columns:1fr 1fr;gap:0 2.4rem;margin-bottom:.6rem}
+.srow{display:flex;justify-content:space-between;gap:1.5rem;padding:.7rem 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:1.5rem;font-weight:700}
+.srow span:last-child{color:var(--text-soft);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sec{font-size:1.9rem;font-weight:900;margin:1.8rem 0 .3rem;color:#ffd166}
+.frow{display:grid;grid-template-columns:27rem 1fr;gap:1.2rem;align-items:center;padding:.65rem 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.flabel{font-size:1.6rem;font-weight:800}
+.flabel small{display:block;font-size:1.2rem;font-weight:700;color:var(--text-muted);margin-top:.15rem;line-height:1.3}
+.fctl{display:flex;gap:.8rem;align-items:center;min-width:0}
+.thumb{width:6rem;height:6rem;border-radius:50%;object-fit:cover;background:rgba(255,255,255,.15);border:.25rem solid rgba(255,255,255,.7);flex:none;display:grid;place-items:center;font-size:3.4rem;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.save-row{margin-top:2rem;align-items:center}
+.hint{color:var(--text-muted);font-size:1.3rem;margin-top:1.2rem;line-height:1.4}
+
+/* Camera view */
+#cam-view{display:flex;flex-direction:column;gap:1rem;height:100%}
+#cam-img{flex:1;min-height:0;width:100%;object-fit:contain;border-radius:1.5rem;background:#000}
+
+/* Calendar (Kalender pane) */
+.srow-day .t.allday{color:var(--text-muted);text-align:center}
+.cal-wrap{display:grid;grid-template-columns:1fr 30rem;gap:2rem;min-height:100%}
+.cal-month{min-width:0;display:flex;flex-direction:column}
+.cal-head{display:flex;align-items:center;gap:1rem;margin-bottom:.8rem}
+.cal-head h4{flex:1;text-align:center;font-size:2rem;font-weight:900}
+.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:.4rem;margin-bottom:.4rem}
+.cal-dow span{text-align:center;font-size:1.2rem;font-weight:800;color:var(--text-muted)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:.4rem}
+.cal-cell{height:5rem;border-radius:1rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;font-size:1.6rem;font-weight:800;color:#fff}
+.cal-cell.empty{background:none;border:0;pointer-events:none}
+.cal-cell.today{border-color:#ffd166}
+.cal-cell.sel{background:rgba(110,231,183,.28);border-color:#6ee7b7}
+.cal-cell .dot{width:.55rem;height:.55rem;border-radius:50%;background:#6ee7b7;box-shadow:0 0 .4rem rgba(110,231,183,.7)}
+.cal-cell .dot.many{width:1.3rem;border-radius:.3rem}
+.cal-side{display:flex;flex-direction:column;min-height:0}
+.cal-side .chips{max-height:16rem;margin-bottom:.6rem}
+
+/* Night, toast, confetti */
+#night{position:fixed;inset:0;z-index:40;background:rgba(0,2,18,.78)}
+#toast{position:fixed;left:50%;bottom:4rem;transform:translateX(-50%);z-index:70;background:rgba(20,26,60,.95);border:1px solid var(--glass-line);border-radius:2rem;padding:1rem 2rem;font-size:1.6rem;font-weight:800;box-shadow:var(--shadow-card);max-width:80vw;text-align:center}
+#confetti{position:fixed;inset:0;z-index:60;pointer-events:none;width:100%;height:100%}
+
+/* Entrance stagger */
+@keyframes enterUp{from{opacity:0;transform:translateY(1rem)}to{opacity:1;transform:translateY(0)}}
+#cards .card:nth-child(1){animation-delay:.08s}
+#cards .card:nth-child(2){animation-delay:.16s}
+#cards .card:nth-child(3){animation-delay:.24s}
+.bottom-grid>.glass-panel:nth-child(1){animation-delay:.28s}
+.bottom-grid>.glass-panel:nth-child(2){animation-delay:.34s}
+.bottom-grid>.glass-panel:nth-child(3){animation-delay:.40s}
+
+/* Portrait: this screen is built for landscape */
+.portrait-warn{display:none}
+@media (orientation:portrait){
+  body>header,body>#cards,body>.bottom-grid,body>footer{display:none!important}
+  .portrait-warn{position:fixed;inset:0;display:grid;place-items:center;text-align:center;padding:3rem;gap:1.5rem;z-index:80}
+  .portrait-warn .rot{font-size:6rem}
+  .portrait-warn p{font-size:2.2rem;font-weight:800;line-height:1.4}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+
+/* Narrower landscape screens (1600x900, 1366x768): tighten, never restack */
+@media (max-width:1500px) and (orientation:landscape){
+  .card .sublabel{display:none}
+  .avatar{width:9.5rem;height:9.5rem}
+}
+
+</style>
+</head>
+<body>
+<div class="aurora" aria-hidden="true"></div>
+<div class="bg" id="bg" aria-hidden="true"></div>
+
+<div class="portrait-warn"><div class="rot">↻</div><p>Denne skjermen er laget for liggende visning.<br>Snu skjermen 🙂</p></div>
+
+<header>
+  <button class="nav-btn" id="menu-btn" aria-label="Meny"><span></span><span></span><span></span></button>
+  <button class="nav-btn" id="home-btn" aria-label="Hjem"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></svg></button>
+  <div class="title">
+    <h1><span id="home-name">MENKERUD</span> <span class="light">HOME</span> <span class="heart">♥</span></h1>
+    <p id="home-sub">FAMILIE • HJEM • SAMMEN • ALLTID</p>
+  </div>
+  <div class="clock"><div id="clock">--:--</div><div id="date"></div></div>
+  <div class="vline"></div>
+  <div class="wx"><span id="wx-icon">🌤️</span><div><div id="wx-temp">–</div><div id="wx-loc"></div></div></div>
+  <div class="tagline" id="tagline"></div>
+</header>
+
+<main id="cards">
+  <button class="card mor" id="card-mor">
+    <div class="avatar" data-who="mor"></div>
+    <div class="phone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></div>
+    <div class="label">RING <span data-name="mor">MOR</span></div>
+    <div class="sublabel" id="sub-mor"></div>
+  </button>
+  <button class="card far" id="card-far">
+    <div class="avatar" data-who="far"></div>
+    <div class="phone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></div>
+    <div class="label">RING <span data-name="far">FAR</span></div>
+    <div class="sublabel" id="sub-far"></div>
+  </button>
+  <button class="card home" id="card-home">
+    <div class="house-big"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></svg></div>
+    <div class="label">JEG ER HJEMME</div>
+    <div class="sublabel" id="sub-home"></div>
+  </button>
+</main>
+
+<section class="bottom-grid" id="bottom-grid">
+  <section class="glass-panel today-panel" id="today-panel">
+    <div class="panel-title">📅 <span>I DAG</span><span class="when" id="today-when"></span></div>
+    <div id="today-list"></div>
+    <div id="today-progress"><span></span></div>
+    <div class="today-foot" id="today-foot"></div>
+  </section>
+
+  <section class="glass-panel notes-panel" id="board">
+    <div class="panel-title">📌 <span>HUSK …</span></div>
+    <div class="notes" id="notes"></div>
+  </section>
+
+  <section class="glass-panel evening-panel" id="evening-panel">
+    <div class="panel-title">🌙 <span>KVELD</span></div>
+    <div id="evening-actions"></div>
+  </section>
+</section>
+
+<footer>
+  <svg class="fhouse" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></svg>
+  <span class="hand" id="footer-text"></span>
+  <span class="line"></span>
+  <span class="brand" id="footer-brand"></span>
+  <span class="heart">♥</span>
+  <button class="gear" id="footer-gear" aria-label="Innstillinger">⚙</button>
+  <span class="dot off" id="status" title="Home Assistant"></span>
+</footer>
+
+<!-- "Jeg er hjemme" celebration -->
+<div id="celebrate" class="overlay hidden">
+  <div class="big-house">🏠</div>
+  <h2>Velkommen hjem! ❤️</h2>
+  <p id="celebrate-sub"></p>
+</div>
+
+<!-- Outgoing / active call -->
+<div id="call" class="overlay hidden">
+  <div id="callvideo"></div>
+  <div id="calling">
+    <div class="avatar xl ringing" id="call-avatar"></div>
+    <h2 id="call-status">Ringer…</h2>
+  </div>
+  <div class="call-bar" id="call-name"></div>
+  <button class="big-btn red" id="hangup">📞 Legg på</button>
+</div>
+
+<!-- Incoming call -->
+<div id="incoming" class="overlay hidden">
+  <div class="avatar xl ringing" id="in-avatar"></div>
+  <h2 id="in-name">Mor ringer!</h2>
+  <div class="row">
+    <button class="big-btn green" id="answer">📞 Svar</button>
+    <button class="big-btn red" id="decline">✖ Ikke nå</button>
+  </div>
+</div>
+
+<!-- PIN for the parent menu -->
+<div id="pin" class="overlay hidden">
+  <div class="pin-box" id="pin-box">
+    <h3>Skriv inn PIN</h3>
+    <div class="pin-dots" id="pin-dots"></div>
+    <div class="pin-pad" id="pin-pad"></div>
+    <button class="link" id="pin-cancel">Avbryt</button>
+  </div>
+</div>
+
+<!-- Parent menu -->
+<div id="menu" class="overlay hidden">
+  <div class="panel" id="panel">
+    <div class="panel-head">
+      <button id="menu-back" class="icon-btn hidden" aria-label="Tilbake">‹</button>
+      <h3 id="panel-title">Meny</h3>
+      <button id="menu-close" class="icon-btn" aria-label="Lukk">✕</button>
+    </div>
+    <div class="panel-body" id="panel-body">
+
+      <div class="pane" id="pane-home">
+        <div class="tiles">
+          <button class="tile" data-pane="note"><span>📝</span>Ny lapp</button>
+          <button class="tile" data-pane="calendar"><span>📅</span>Kalender</button>
+          <button class="tile" data-pane="lights"><span>💡</span>Lys</button>
+          <button class="tile" data-pane="cams"><span>📷</span>Kamera</button>
+          <button class="tile" data-pane="settings"><span>⚙️</span>Innstillinger</button>
+        </div>
+      </div>
+
+      <div class="pane hidden" id="pane-note">
+        <div class="note-form">
+          <div class="col-left">
+            <div class="preview-wrap"><div class="note c0" id="note-preview" style="--rot:-3deg"><span class="pin"></span><span class="icon">⚽</span><span class="txt"></span><span class="time"></span></div></div>
+            <div class="sub">På tavla nå</div>
+            <div class="chips" id="note-list"></div>
+          </div>
+          <div class="col-right">
+            <div class="sub">Velg bilde</div>
+            <div class="emoji-grid" id="emoji-grid"></div>
+            <div class="time-row">
+              <button class="chip-btn" id="time-toggle">⏰ Klokkeslett: av</button>
+              <div class="stepper hidden" id="stepper">
+                <button data-d="h-">−</button><span id="st-h">17</span><button data-d="h+">+</button>
+                <span>:</span>
+                <button data-d="m-">−</button><span id="st-m">00</span><button data-d="m+">+</button>
+              </div>
+            </div>
+            <div class="sub">Tekst (valgfritt)</div>
+            <input id="note-text" class="inp" placeholder="Skriv her…" maxlength="40" autocomplete="off" spellcheck="false">
+            <button class="big-btn green save" id="note-save">📌 Heng opp lappen</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane hidden" id="pane-calendar">
+        <div class="cal-wrap">
+          <div class="cal-month">
+            <div class="cal-head">
+              <button class="icon-btn" id="cal-prev" aria-label="Forrige måned">‹</button>
+              <h4 id="cal-title"></h4>
+              <button class="icon-btn" id="cal-next" aria-label="Neste måned">›</button>
+            </div>
+            <div class="cal-dow"><span>Man</span><span>Tir</span><span>Ons</span><span>Tor</span><span>Fre</span><span>Lør</span><span>Søn</span></div>
+            <div class="cal-grid" id="cal-grid"></div>
+          </div>
+          <div class="cal-side">
+            <div class="sub" id="cal-selected-label">I dag</div>
+            <div class="chips" id="cal-day-list"></div>
+            <div class="sub">Legg til</div>
+            <div class="emoji-grid" id="cal-emoji"></div>
+            <div class="time-row">
+              <button class="chip-btn" id="cal-time-toggle">⏰ Klokkeslett: av</button>
+              <div class="stepper hidden" id="cal-stepper">
+                <button data-d="h-">−</button><span id="cal-h">17</span><button data-d="h+">+</button>
+                <span>:</span>
+                <button data-d="m-">−</button><span id="cal-m">00</span><button data-d="m+">+</button>
+              </div>
+            </div>
+            <div class="time-row">
+              <span class="sub" style="margin:0 .6rem 0 0">Gjenta</span>
+              <select class="inp" id="cal-repeat" style="max-width:20rem">
+                <option value="none">Ingen</option>
+                <option value="weekly">Hver uke</option>
+                <option value="weekdays">Hverdager (man–fre)</option>
+                <option value="daily">Hver dag</option>
+              </select>
+            </div>
+            <input id="cal-text" class="inp" placeholder="Hva skjer?" maxlength="40" autocomplete="off" spellcheck="false">
+            <button class="big-btn green save" id="cal-add">📅 Legg til</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane hidden" id="pane-lights">
+        <div class="pane-tools"><button class="chip-btn" id="lights-off">Slå av alle lys</button></div>
+        <div class="tiles small" id="lights-grid"></div>
+      </div>
+
+      <div class="pane hidden" id="pane-cams">
+        <div class="tiles small" id="cams-grid"></div>
+        <div id="cam-view" class="hidden">
+          <div class="pane-tools"><button class="chip-btn" id="cam-back">‹ Alle kameraer</button><span class="chip-btn" id="cam-title"></span></div>
+          <img id="cam-img" alt="">
+        </div>
+      </div>
+
+      <div class="pane hidden" id="pane-settings">
+        <div class="status" id="status-grid"></div>
+        <div class="btns">
+          <button class="chip-btn" id="t-mor">📲 Test varsel til mor</button>
+          <button class="chip-btn" id="t-far">📲 Test varsel til far</button>
+          <button class="chip-btn" id="t-ring">🔔 Test ringelyd</button>
+          <button class="chip-btn" id="t-speak">🔊 Test opplesing</button>
+          <button class="chip-btn" id="t-full">⛶ Fullskjerm</button>
+          <button class="chip-btn" id="t-night">🌙 Nattmodus: auto</button>
+          <button class="chip-btn" id="t-reload">🔄 Last inn på nytt</button>
+        </div>
+        <div id="settings-form"></div>
+        <div class="btns save-row">
+          <button class="big-btn green" id="s-save">💾 Lagre</button>
+          <button class="chip-btn danger" id="s-reset">Nullstill til config.js</button>
+        </div>
+        <p class="hint">Innstillingene lagres på denne skjermen og overstyrer config.js. Lapper legges til her under «Ny lapp», eller fra telefonen hvis Home Assistant er koblet til.</p>
+      </div>
+
+    </div>
+    <div class="kbd hidden" id="kbd"></div>
+  </div>
+</div>
+
+<div id="night" class="hidden"></div>
+<div id="toast" class="hidden"></div>
+<canvas id="confetti"></canvas>
+<audio id="tts"></audio>
+<input type="file" id="photo-file" accept="image/*" class="hidden">
+
+<script src="config.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* ---------------- Defaults ---------------- */
+const DEFAULTS = {
+  home: { name: 'Menkerud', subtitle: 'FAMILIE • HJEM • SAMMEN • ALLTID', tagline: 'Samme plass.\nSterkere dager.', footer: 'Et bedre hjem, hver dag', homeSub: 'Gi oss beskjed', background: 'auto' },
+  weather: { place: 'Raufoss', lat: 60.725, lon: 10.617 },
+  people: {
+    mor: { name: 'Mor', photo: 'assets/avatars/mor.png', emoji: '👩', callSub: 'Hun blir så glad!' },
+    far: { name: 'Far', photo: 'assets/avatars/far.png', emoji: '👨', callSub: 'Rett hjem, uansett hvor du er!' }
+  },
+  call: { backend: '', deviceKey: '', timeoutSec: 60 },
+  notify: {
+    provider: 'discord',
+    discord: { webhook: '', userMor: '', userFar: '', botToken: '', ringChannel: '' },
+    ntfy: { server: 'https://ntfy.sh', topicMor: '', topicFar: '', topicKiosk: '', token: '' },
+    webhook: { url: '' }
+  },
+  ha: {
+    url: '', token: '', weatherEntity: '', todoEntity: '', ttsEntity: '', ttsLanguage: 'no', includeSwitches: false,
+    scripts: { mor: 'script.ring_mor', far: 'script.ring_far', home: 'script.jeg_er_hjemme' },
+    callEvent: 'menkerud_call'
+  },
+  pin: '1234',
+  night: { enabled: true, from: '21:00', to: '06:30' },
+  emojis: ['⚽','🏀','🏊','⛷️','🎿','🚲','🥾','🏃','🎒','📚','✏️','🎨','🎵','🎹','🎮','📺','🦷','🛁','🧼','😴','🌙','⏰','🍎','🥪','🍕','🍦','🎂','🎁','🎉','❤️','⭐','😊','🧸','🐶','🐱','🐴','🧥','🧦','👟','🧤','☀️','🌧️','❄️','🚌','🚗','🏠','👵','👴','🎈','🧹']
+};
+const SAMPLE_NOTES = ['⚽ 17:00 Fotball', '🎒 Gymtøy!', '🦷 20:00 Tannpuss', '❤️ Du er flink!', '☀️ Ha en fin dag i morgen!'];
+const ROT = ['-3deg', '2deg', '-1.5deg', '2.5deg', '-2deg', '1.5deg'];
+const WX = {
+  'clear-night': '🌙', cloudy: '☁️', fog: '🌫️', hail: '🌨️', lightning: '🌩️', 'lightning-rainy': '⛈️',
+  partlycloudy: '⛅', pouring: '🌧️', rainy: '🌦️', snowy: '❄️', 'snowy-rainy': '🌨️', sunny: '☀️',
+  windy: '💨', 'windy-variant': '🌬️', exceptional: '⚠️'
+};
+
+/* ---------------- Utils & storage ---------------- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+function deepMerge(a, b) {
+  const out = Object.assign({}, a);
+  for (const k of Object.keys(b || {})) {
+    const v = b[k];
+    out[k] = (v && typeof v === 'object' && !Array.isArray(v)) ? deepMerge(a[k] || {}, v) : v;
+  }
+  return out;
+}
+const getPath = (o, p) => p.split('.').reduce((a, k) => (a == null ? undefined : a[k]), o);
+function setPath(o, p, v) {
+  const ks = p.split('.');
+  let t = o;
+  ks.slice(0, -1).forEach(k => { if (!t[k] || typeof t[k] !== 'object') t[k] = {}; t = t[k]; });
+  t[ks[ks.length - 1]] = v;
+}
+const mem = {};
+const store = {
+  get(k) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return mem[k] || null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { mem[k] = v; } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} delete mem[k]; }
+};
+const SAVED = store.get('menkerud.settings') || {};
+const cfg = deepMerge(deepMerge(DEFAULTS, window.MENKERUD_CONFIG || {}), SAVED);
+cfg.pin = String(cfg.pin == null ? '' : cfg.pin).replace(/\D/g, '');
+const haOn = !!(cfg.ha.url && cfg.ha.token);
+
+let toastTimer = null;
+function toast(msg, ms) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), ms || 3000);
+}
+function showOverlay(sel) { $(sel).classList.remove('hidden'); checkNight(); }
+function hideOverlay(sel) { $(sel).classList.add('hidden'); checkNight(); }
+function overlayOpen() { return $$('.overlay').some(o => !o.classList.contains('hidden')); }
+
+function setAvatar(el, who) {
+  const p = cfg.people[who] || {};
+  el.innerHTML = '';
+  const fallback = () => { el.innerHTML = '<span class="fallback">' + esc(p.emoji || '🙂') + '</span>'; };
+  if (p.photo) {
+    const img = new Image();
+    img.alt = p.name || '';
+    img.onerror = fallback;
+    img.src = p.photo;
+    el.appendChild(img);
+  } else fallback();
+}
+
+
+/* ---------------- Home Assistant (optional) ---------------- */
+class HA {
+  constructor(url, token) {
+    this.base = (url || '').replace(/\/+$/, '');
+    this.token = token || '';
+    this.states = {};
+    this.connected = false;
+    this.ws = null;
+    this.id = 1;
+    this.pending = new Map();
+    this.subs = new Map();
+    this.retryMs = 2000;
+    this.onready = () => {};
+    this.onclose = () => {};
+  }
+  connect() {
+    if (!this.base || !this.token) return;
+    this.id = 1;
+    let ws;
+    try { ws = new WebSocket(this.base.replace(/^http/, 'ws') + '/api/websocket'); }
+    catch (e) { this.onclose(); this.scheduleRetry(); return; }
+    this.ws = ws;
+    ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } this.handle(m); };
+    ws.onclose = () => {
+      this.connected = false;
+      clearInterval(this.pingTimer);
+      this.pending.forEach(p => p.rej(new Error('closed')));
+      this.pending.clear();
+      this.subs.clear();
+      this.onclose();
+      this.scheduleRetry();
+    };
+    ws.onerror = () => {};
+  }
+  scheduleRetry() {
+    clearTimeout(this.retryT);
+    this.retryT = setTimeout(() => this.connect(), this.retryMs);
+    this.retryMs = Math.min(this.retryMs * 1.5, 20000);
+  }
+  handle(m) {
+    if (m.type === 'auth_required') { this.ws.send(JSON.stringify({ type: 'auth', access_token: this.token })); return; }
+    if (m.type === 'auth_ok') {
+      this.connected = true;
+      this.retryMs = 2000;
+      this.pingTimer = setInterval(() => { if (this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify({ id: this.id++, type: 'ping' })); }, 30000);
+      this.onready();
+      return;
+    }
+    if (m.type === 'auth_invalid') { toast('Home Assistant avviste tilgangstokenet – sjekk Innstillinger', 6000); this.token = ''; return; }
+    if (m.type === 'result') {
+      const p = this.pending.get(m.id);
+      if (p) { this.pending.delete(m.id); m.success ? p.res(m.result) : p.rej(new Error((m.error && m.error.message) || 'failed')); }
+      return;
+    }
+    if (m.type === 'event') { const cb = this.subs.get(m.id); if (cb) cb(m.event); }
+  }
+  send(payload) {
+    return new Promise((res, rej) => {
+      if (!this.connected || !this.ws || this.ws.readyState !== 1) return rej(new Error('Home Assistant er ikke tilkoblet'));
+      const id = this.id++;
+      this.pending.set(id, { res, rej });
+      this.ws.send(JSON.stringify(Object.assign({ id }, payload)));
+    });
+  }
+  subscribe(payload, cb) {
+    if (!this.connected) return Promise.reject(new Error('not connected'));
+    const id = this.id++;
+    this.subs.set(id, cb);
+    return new Promise((res, rej) => {
+      this.pending.set(id, { res, rej });
+      this.ws.send(JSON.stringify(Object.assign({ id }, payload)));
+    });
+  }
+  callService(domain, service, data, target) {
+    const p = { type: 'call_service', domain, service };
+    if (data) p.service_data = data;
+    if (target) p.target = target;
+    return this.send(p);
+  }
+  firstEntity(domain) { return Object.keys(this.states).find(id => id.startsWith(domain + '.')) || ''; }
+}
+const ha = new HA(cfg.ha.url, cfg.ha.token);
+let weatherId = '', todoId = '', ttsId = '';
+let haNotes = [];
+
+function setStatusDot() {
+  const d = $('#status');
+  d.className = 'dot ' + (!haOn ? 'off' : ha.connected ? 'on' : '');
+  d.title = !haOn ? 'Home Assistant: ikke i bruk' : ha.connected ? 'Home Assistant: tilkoblet' : 'Home Assistant: ikke tilkoblet';
+}
+
+ha.onready = async () => {
+  setStatusDot();
+  try {
+    const list = await ha.send({ type: 'get_states' });
+    ha.states = {};
+    list.forEach(s => { ha.states[s.entity_id] = s; });
+  } catch (e) { console.warn('get_states', e); }
+  weatherId = cfg.ha.weatherEntity || ha.firstEntity('weather');
+  todoId = cfg.ha.todoEntity || ha.firstEntity('todo');
+  ttsId = cfg.ha.ttsEntity || ha.firstEntity('tts');
+  renderWeather(); renderLights(); renderCams(); renderStatus(); renderEvening();
+
+  ha.subscribe({ type: 'subscribe_events', event_type: 'state_changed' }, ev => {
+    const d = ev.data || {};
+    if (!d.entity_id) return;
+    if (d.new_state) ha.states[d.entity_id] = d.new_state; else delete ha.states[d.entity_id];
+    if (d.entity_id === weatherId) renderWeather();
+    if (d.entity_id.startsWith('light.') || d.entity_id.startsWith('switch.')) renderLights();
+    if (d.entity_id.startsWith('camera.')) renderCams();
+  }).catch(e => console.warn('state sub', e));
+
+  if (todoId) {
+    ha.subscribe({ type: 'todo/item/subscribe', entity_id: todoId }, ev => {
+      haNotes = (ev.items || []).filter(i => i.status !== 'completed');
+      renderNotes(); renderNoteList();
+    }).catch(e => { console.warn('todo sub', e); todoId = ''; renderNotes(); });
+  } else renderNotes();
+
+  if (cfg.ha.callEvent) {
+    ha.subscribe({ type: 'subscribe_events', event_type: cfg.ha.callEvent }, ev => {
+      const who = (ev.data && ev.data.from) || 'mor';
+      if (cfg.people[who]) incomingCall(who);
+    }).catch(e => console.warn('call sub', e));
+  }
+};
+ha.onclose = () => { setStatusDot(); renderNotes(); renderWeather(); renderStatus(); renderEvening(); };
+
+/* ---------------- Clock, weather, night ---------------- */
+function tick() {
+  const d = new Date();
+  $('#clock').textContent = d.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
+  const ds = d.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' });
+  $('#date').textContent = ds.charAt(0).toUpperCase() + ds.slice(1);
+  checkNight(d);
+  const mk = d.getHours() * 60 + d.getMinutes();
+  if (mk !== lastTickMin) { lastTickMin = mk; renderSchedule(); if (((cfg.home && cfg.home.background) || 'auto') === 'auto') pickBackground(); }
+}
+let lastTickMin = -1;
+
+let wxOpen = null;
+function wmoIcon(code, day) {
+  if (code === 0) return day ? '☀️' : '🌙';
+  if (code <= 2) return day ? '⛅' : '☁️';
+  if (code === 3) return '☁️';
+  if (code === 45 || code === 48) return '🌫️';
+  if (code >= 51 && code <= 57) return '🌦️';
+  if (code >= 61 && code <= 67) return '🌧️';
+  if (code >= 71 && code <= 77) return '❄️';
+  if (code >= 80 && code <= 82) return '🌦️';
+  if (code === 85 || code === 86) return '🌨️';
+  if (code >= 95) return '⛈️';
+  return '🌤️';
+}
+function renderWeather() {
+  const s = ha.connected && weatherId ? ha.states[weatherId] : null;
+  let icon = '🌤️', temp = '–';
+  if (s && s.attributes) {
+    icon = WX[s.state] || '🌤️';
+    const t = s.attributes.temperature;
+    temp = (t === undefined || t === null) ? '–' : Math.round(t) + '°';
+  } else if (wxOpen) {
+    icon = wmoIcon(wxOpen.code, wxOpen.day);
+    temp = Math.round(wxOpen.t) + '°';
+  }
+  $('#wx-icon').textContent = icon;
+  $('#wx-temp').textContent = temp;
+  $('#wx-loc').textContent = cfg.weather.place || '';
+}
+async function fetchOpenMeteo() {
+  const lat = Number(cfg.weather.lat), lon = Number(cfg.weather.lon);
+  if (!lat || !lon) return;
+  try {
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current=temperature_2m,weather_code,is_day&timezone=auto');
+    const j = await r.json();
+    if (j && j.current) { wxOpen = { t: j.current.temperature_2m, code: j.current.weather_code, day: j.current.is_day !== 0 }; renderWeather(); }
+  } catch (e) { console.warn('open-meteo', e); }
+}
+async function geocode(name) {
+  const r = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(name) + '&count=1&language=no&format=json');
+  const j = await r.json();
+  const hit = j && j.results && j.results[0];
+  if (!hit) throw new Error('not found');
+  return { lat: hit.latitude, lon: hit.longitude, label: [hit.name, hit.admin1, hit.country].filter(Boolean).join(', ') };
+}
+
+let nightMode = 'auto', awakeUntil = 0;
+function inNight(d) {
+  const [fh, fm] = String(cfg.night.from || '21:00').split(':').map(Number);
+  const [th, tm] = String(cfg.night.to || '06:30').split(':').map(Number);
+  const cur = d.getHours() * 60 + d.getMinutes(), f = fh * 60 + fm, t = th * 60 + tm;
+  return f < t ? (cur >= f && cur < t) : (cur >= f || cur < t);
+}
+function checkNight(d) {
+  d = d || new Date();
+  let on = nightMode === 'on' || (nightMode === 'auto' && cfg.night.enabled && inNight(d));
+  if (Date.now() < awakeUntil || overlayOpen()) on = false;
+  $('#night').classList.toggle('hidden', !on);
+}
+$('#night').addEventListener('pointerdown', e => { e.preventDefault(); awakeUntil = Date.now() + 120000; checkNight(); });
+
+/* ---------------- Sound ---------------- */
+let actx = null;
+function audioCtx() {
+  actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+const ring = (() => {
+  let timer = null;
+  function beep() {
+    try {
+      const ctx = audioCtx(), t = ctx.currentTime;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = 425;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(.25, t + .05);
+      g.gain.setValueAtTime(.25, t + .95);
+      g.gain.linearRampToValueAtTime(0, t + 1);
+      o.connect(g).connect(ctx.destination);
+      o.start(t); o.stop(t + 1.05);
+    } catch (e) {}
+  }
+  return {
+    start() { if (timer) return; beep(); timer = setInterval(beep, 5000); },
+    stop() { clearInterval(timer); timer = null; }
+  };
+})();
+function chime() {
+  try {
+    const ctx = audioCtx(), now = ctx.currentTime;
+    [[523.25, 0], [659.25, .15], [783.99, .3]].forEach(([f, d]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(0, now + d);
+      g.gain.linearRampToValueAtTime(.3, now + d + .02);
+      g.gain.exponentialRampToValueAtTime(.001, now + d + .6);
+      o.connect(g).connect(ctx.destination);
+      o.start(now + d); o.stop(now + d + .65);
+    });
+  } catch (e) {}
+}
+
+/* ---------------- Text to speech (HA if available, otherwise the browser) ---------------- */
+async function speak(text) {
+  if (!text) return;
+  if (ha.connected && ttsId) {
+    try {
+      const id = 'media-source://tts/' + ttsId + '?message=' + encodeURIComponent(text) +
+        (cfg.ha.ttsLanguage ? '&language=' + encodeURIComponent(cfg.ha.ttsLanguage) : '');
+      const r = await ha.send({ type: 'media_source/resolve_media', media_content_id: id });
+      const url = /^https?:/.test(r.url) ? r.url : ha.base + r.url;
+      const a = $('#tts');
+      a.src = url;
+      await a.play();
+      return;
+    } catch (e) { console.warn('HA TTS', e); }
+  }
+  if ('speechSynthesis' in window) {
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'nb-NO'; u.rate = .95;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+}
+
+/* ---------------- Notes (Home Assistant list if connected, otherwise stored on the kiosk) ---------------- */
+let localNotes = store.get('menkerud.notes');
+if (!Array.isArray(localNotes)) {
+  localNotes = SAMPLE_NOTES.map((s, i) => ({ uid: 'l' + i, summary: s }));
+  store.set('menkerud.notes', localNotes);
+}
+let calendar = store.get('menkerud.calendar');
+if (!Array.isArray(calendar)) { calendar = []; store.set('menkerud.calendar', calendar); }
+function saveCalendar() { store.set('menkerud.calendar', calendar); }
+function notesSource() { return (ha.connected && todoId) ? 'ha' : 'local'; }
+function currentNotes() { return notesSource() === 'ha' ? haNotes : localNotes; }
+
+function parseNote(summary) {
+  const s = String(summary || '').trim();
+  const m = s.match(/^(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*)\s*/u);
+  let icon = m ? m[1] : '📝';
+  let rest = m ? s.slice(m[0].length) : s;
+  const t = rest.match(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/);
+  let time = null;
+  if (t) {
+    time = pad(t[1]) + ':' + t[2];
+    rest = (rest.slice(0, t.index) + ' ' + rest.slice(t.index + t[0].length)).replace(/\s+/g, ' ').trim();
+  }
+  return { icon, time, text: rest };
+}
+function spokenTime(time) {
+  const [h, m] = time.split(':').map(Number);
+  const h12 = x => ((x % 12) || 12);
+  if (m === 0) return 'klokka ' + h12(h);
+  if (m === 15) return 'kvart over ' + h12(h);
+  if (m === 30) return 'halv ' + h12(h + 1);
+  if (m === 45) return 'kvart på ' + h12(h + 1);
+  return 'klokka ' + h12(h) + ' ' + m;
+}
+function spokenNote(p) {
+  const parts = [];
+  if (p.text) parts.push(p.text.replace(/:\)|:\(|;\)|:D|[!?.]+/g, ' ').replace(/\s+/g, ' ').trim());
+  if (p.time) parts.push(spokenTime(p.time));
+  return parts.filter(Boolean).join(' ') || 'Husk!';
+}
+function noteHTML(p) {
+  return '<span class="pin"></span><span class="icon">' + esc(p.icon) + '</span>' +
+    (p.text ? '<span class="txt">' + esc(p.text) + '</span>' : '') +
+    (p.time ? '<span class="time">' + p.time + '</span>' : '');
+}
+function renderNotes() {
+  const wrap = $('#notes');
+  const list = currentNotes();
+  wrap.innerHTML = '';
+  if (!list.length) {
+    wrap.innerHTML = '<div class="empty">Ingen lapper på tavla 🙂 (☰ → Ny lapp)</div>';
+    return;
+  }
+  list.forEach((n, i) => {
+    const p = parseNote(n.summary);
+    const el = document.createElement('div');
+    el.className = 'note c' + (i % 5);
+    el.style.setProperty('--rot', ROT[i % ROT.length]);
+    el.innerHTML = noteHTML(p);
+    el.addEventListener('click', () => {
+      el.classList.add('wiggle');
+      setTimeout(() => el.classList.remove('wiggle'), 350);
+      speak(spokenNote(p));
+    });
+    wrap.appendChild(el);
+  });
+  renderSchedule();
+}
+async function addNote(summary) {
+  if (notesSource() === 'ha') {
+    await ha.callService('todo', 'add_item', { item: summary }, { entity_id: todoId });
+  } else {
+    localNotes.push({ uid: 'l' + Date.now(), summary });
+    store.set('menkerud.notes', localNotes);
+    renderNotes(); renderNoteList();
+  }
+}
+async function removeNote(uid) {
+  if (notesSource() === 'ha') {
+    await ha.callService('todo', 'remove_item', { item: uid }, { entity_id: todoId });
+  } else {
+    localNotes = localNotes.filter(n => n.uid !== uid);
+    store.set('menkerud.notes', localNotes);
+    renderNotes(); renderNoteList();
+  }
+}
+
+/* ---------------- Ringing the phones (ntfy / Home Assistant / webhook) ---------------- */
+async function sendPush(target, kind) {
+  const prov = cfg.notify.provider || 'none';
+  if (prov === 'none') return false;
+  const link = '';
+  const whos = target === 'both' ? ['mor', 'far'] : [target];
+  const now = new Date().toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
+  const texts = {
+    call: { title: '📞 Hjemme ringer', message: 'Barna vil snakke med deg – trykk for å svare ❤️' },
+    again: { title: '📞 Hjemme ringer fortsatt…', message: 'Trykk for å svare' },
+    home: { title: '🏠 Barna er hjemme!', message: '«Jeg er hjemme» trykket kl. ' + now + ' ❤️' },
+    test: { title: '✅ Test fra ' + cfg.home.name + ' Home', message: 'Varsling virker! Trykk for å åpne videorommet.' }
+  }[kind];
+
+  if (prov === 'ha') {
+    if (!ha.connected) throw new Error('Home Assistant er ikke tilkoblet');
+    if (kind === 'home') await ha.callService('script', 'turn_on', null, { entity_id: cfg.ha.scripts.home });
+    else for (const w of whos) await ha.callService('script', 'turn_on', null, { entity_id: cfg.ha.scripts[w] });
+    return true;
+  }
+  if (prov === 'discord') {
+    const d = cfg.notify.discord;
+    if (!d.webhook) throw new Error('Discord-webhook mangler (Innstillinger)');
+    const ids = whos.map(w => w === 'mor' ? d.userMor : d.userFar).filter(Boolean);
+    const mention = ids.length ? ids.map(id => '<@' + id + '>').join(' ') : '@here';
+    const content = kind === 'home'
+      ? mention + ' 🏠 **Barna er hjemme!** (' + now + ') ❤️'
+      : kind === 'test'
+        ? mention + ' ✅ Test fra ' + cfg.home.name + ' Home – varsling virker!' + (link ? ' Videorommet: ' + link : '')
+        : mention + ' 📞 **' + (kind === 'again' ? 'Barna ringer fortsatt…' : 'Barna ringer deg!') + '** Trykk for å svare: ' + (link || '(videorom ikke satt opp)');
+    const r = await fetch(d.webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, username: cfg.home.name + ' Home' }) });
+    if (!r.ok) throw new Error('Discord svarte ' + r.status);
+    return true;
+  }
+  if (prov === 'webhook') {
+    const url = cfg.notify.webhook.url;
+    if (!url) throw new Error('webhook-adresse mangler');
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: kind, to: whos, title: texts.title, message: texts.message, link }) });
+    if (!r.ok) throw new Error('webhook svarte ' + r.status);
+    return true;
+  }
+  // ntfy
+  const n = cfg.notify.ntfy;
+  const server = (n.server || 'https://ntfy.sh').replace(/\/+$/, '');
+  const topics = Array.from(new Set(whos.map(w => w === 'mor' ? n.topicMor : n.topicFar).filter(Boolean)));
+  if (!topics.length) throw new Error('ntfy-emne mangler (Innstillinger)');
+  const headers = {};
+  if (n.token) headers.Authorization = 'Bearer ' + n.token;
+  for (const topic of topics) {
+    const body = { topic, title: texts.title, message: texts.message, priority: (kind === 'call' || kind === 'again') ? 5 : kind === 'test' ? 4 : 3 };
+    if (link) {
+      body.click = link;
+      if (kind !== 'home') body.actions = [{ action: 'view', label: 'Svar', url: link, clear: true }];
+    }
+    const r = await fetch(server + '/', { method: 'POST', headers, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error('ntfy svarte ' + r.status);
+  }
+  return true;
+}
+
+/* Incoming calls: the kiosk listens on its own ntfy topic (and on a Home Assistant event if HA is connected) */
+let ntfyWs = null, ntfyRetry = 2000, ntfyState = 'off';
+function listenNtfy() {
+  const n = cfg.notify.ntfy;
+  if (!n.topicKiosk) { ntfyState = 'off'; return; }
+  const server = (n.server || 'https://ntfy.sh').replace(/\/+$/, '').replace(/^http/, 'ws');
+  let url = server + '/' + encodeURIComponent(n.topicKiosk) + '/ws';
+  if (n.token) url += '?auth=' + btoa('Bearer ' + n.token).replace(/=+$/, '');
+  ntfyState = 'connecting'; renderStatus();
+  let ws;
+  try { ws = new WebSocket(url); } catch (e) { ntfyState = 'off'; renderStatus(); setTimeout(listenNtfy, ntfyRetry); return; }
+  ntfyWs = ws;
+  ws.onopen = () => { ntfyState = 'on'; ntfyRetry = 2000; renderStatus(); };
+  ws.onmessage = e => {
+    let m; try { m = JSON.parse(e.data); } catch (err) { return; }
+    if (m.event !== 'message') return;
+    const txt = ((m.message || '') + ' ' + (m.title || '')).toLowerCase();
+    const who = /\bfar\b|pappa/.test(txt) ? 'far' : /\bmor\b|mamma/.test(txt) ? 'mor' : null;
+    if (who) incomingCall(who);
+  };
+  ws.onerror = () => {};
+  ws.onclose = () => {
+    ntfyState = 'off'; renderStatus();
+    ntfyRetry = Math.min(ntfyRetry * 1.5, 30000);
+    setTimeout(listenNtfy, ntfyRetry);
+  };
+}
+
+/* Discord: a bot on the kiosk listens in one channel; any message there from a parent rings the kiosk */
+let dcState = 'off', dcRetry = 3000, dcHb = null, dcSeq = null, dcAcked = true;
+function listenDiscord() {
+  const d = cfg.notify.discord;
+  if (!d.botToken || !d.ringChannel) { dcState = 'off'; return; }
+  dcState = 'connecting'; renderStatus();
+  let ws;
+  try { ws = new WebSocket('wss://gateway.discord.gg/?v=10&encoding=json'); }
+  catch (e) { dcState = 'off'; renderStatus(); setTimeout(listenDiscord, dcRetry); return; }
+  dcSeq = null; dcAcked = true;
+  const send = o => { if (ws.readyState === 1) ws.send(JSON.stringify(o)); };
+  const stopHb = () => { clearInterval(dcHb); dcHb = null; };
+  ws.onmessage = e => {
+    let m; try { m = JSON.parse(e.data); } catch (err) { return; }
+    if (m.s !== undefined && m.s !== null) dcSeq = m.s;
+    if (m.op === 10) {
+      stopHb();
+      const iv = (m.d && m.d.heartbeat_interval) || 41250;
+      dcHb = setInterval(() => { if (!dcAcked) { ws.close(); return; } dcAcked = false; send({ op: 1, d: dcSeq }); }, iv);
+      send({ op: 2, d: { token: d.botToken, intents: 513, properties: { os: 'linux', browser: 'menkerud-home', device: 'menkerud-home' } } });
+    } else if (m.op === 11) dcAcked = true;
+    else if (m.op === 1) send({ op: 1, d: dcSeq });
+    else if (m.op === 7 || m.op === 9) ws.close();
+    else if (m.op === 0 && m.t === 'READY') { dcState = 'on'; dcRetry = 3000; renderStatus(); }
+    else if (m.op === 0 && m.t === 'MESSAGE_CREATE') {
+      const msg = m.d || {};
+      if (String(msg.channel_id) !== String(d.ringChannel)) return;
+      if (msg.webhook_id || (msg.author && msg.author.bot)) return;
+      const aid = msg.author ? String(msg.author.id) : '';
+      const who = (d.userFar && aid === String(d.userFar)) ? 'far'
+        : (d.userMor && aid === String(d.userMor)) ? 'mor'
+        : /\bfar\b|pappa/i.test(msg.content || '') ? 'far' : 'mor';
+      incomingCall(who);
+    }
+  };
+  ws.onerror = () => {};
+  ws.onclose = () => {
+    stopHb(); dcState = 'off'; renderStatus();
+    dcRetry = Math.min(dcRetry * 1.5, 60000);
+    setTimeout(listenDiscord, dcRetry);
+  };
+}
+
+/* ---------------- "Jeg er hjemme" ---------------- */
+async function imHome() {
+  chime(); confetti();
+  $('#celebrate-sub').textContent = '';
+  showOverlay('#celebrate');
+  speak('Velkommen hjem!');
+  let sub = '';
+  if ((cfg.notify.provider || 'none') !== 'none') {
+    try { await sendPush('both', 'home'); sub = cfg.people.mor.name + ' og ' + cfg.people.far.name.toLowerCase() + ' har fått beskjed 💌'; }
+    catch (e) { sub = 'Fikk ikke sendt beskjed: ' + e.message; }
+  }
+  $('#celebrate-sub').textContent = sub;
+  setTimeout(() => hideOverlay('#celebrate'), 4500);
+}
+
+/* ---------------- Calls (video overlay) ---------------- */
+let currentCall = null;
+let lkRoom = null, currentCallId = null, lkTimer = null;
+
+function startCall(who) { return startCallLiveKit(who); }
+
+function endCall() {
+  ring.stop();
+  clearTimeout(lkTimer); lkTimer = null;
+  const cid = currentCallId; currentCallId = null;
+  currentCall = null;
+  if (lkRoom) { const r = lkRoom; lkRoom = null; try { r.disconnect(); } catch (e) {} }
+  if (cid && cfg.call) {
+    try { fetch((cfg.call.backend || '').replace(/\/+$/, '') + '/api/calls/' + cid + '/end', { method: 'POST' }); } catch (e) {}
+  }
+  $('#callvideo').innerHTML = '';
+  hideOverlay('#call');
+}
+
+let incomingWho = null, incomingTimer = null;
+function incomingCall(who) {
+  if (currentCall || incomingWho) return;
+  const p = cfg.people[who];
+  if (!p) return;
+  incomingWho = who;
+  awakeUntil = Date.now() + 120000;
+  setAvatar($('#in-avatar'), who);
+  $('#in-name').textContent = p.name + ' ringer!';
+  showOverlay('#incoming');
+  ring.start();
+  speak(p.name + ' ringer!');
+  incomingTimer = setTimeout(dismissIncoming, 45000);
+}
+function dismissIncoming() {
+  clearTimeout(incomingTimer);
+  ring.stop();
+  incomingWho = null;
+  hideOverlay('#incoming');
+}
+
+/* ---------------- Calls via LiveKit (opt-in; the call-backend does the Discord DM) ---------------- */
+function loadLiveKit() {
+  if (window.LivekitClient) return Promise.resolve();
+  if (loadLiveKit._p) return loadLiveKit._p;
+  loadLiveKit._p = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/livekit-client@2.22.3/dist/livekit-client.umd.min.js';
+    s.onload = res;
+    s.onerror = () => { loadLiveKit._p = null; rej(new Error('load')); };
+    document.head.appendChild(s);
+  });
+  return loadLiveKit._p;
+}
+async function startCallLiveKit(who) {
+  if (currentCall || lkRoom) return;
+  const p = cfg.people[who]; if (!p) return;
+  currentCall = who;
+  awakeUntil = Date.now() + 120000;
+  $('#call-name').textContent = p.name;
+  setAvatar($('#call-avatar'), who);
+  $('#call-status').textContent = 'Ringer ' + p.name.toLowerCase() + '…';
+  $('#calling').classList.remove('hidden');
+  showOverlay('#call');
+  ring.start();
+  speak('Ringer ' + p.name);
+
+  const base = String((cfg.call && cfg.call.backend) || '').replace(/\/+$/, '');  // '' = same-origin /api (nginx proxies to the local backend)
+  let data;
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (cfg.call.deviceKey) headers['X-Device-Key'] = cfg.call.deviceKey;
+    const r = await fetch(base + '/api/calls', { method: 'POST', headers, body: JSON.stringify({ target: who }) });
+    data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((data && data.error) || ('svarte ' + r.status));
+  } catch (e) {
+    if (!currentCall) return;
+    ring.stop();
+    $('#call-status').textContent = 'Fikk ikke ringt ' + p.name.toLowerCase() + ' 😕';
+    lkTimer = setTimeout(endCall, 5000);
+    return;
+  }
+  if (!currentCall) return;
+  currentCallId = data.callId;
+
+  try { await loadLiveKit(); }
+  catch (e) {
+    if (!currentCall) return;
+    ring.stop();
+    $('#call-status').textContent = 'Kunne ikke laste videosamtalen 😕';
+    lkTimer = setTimeout(endCall, 5000);
+    return;
+  }
+  if (!currentCall) return;
+
+  const LK = window.LivekitClient;
+  try {
+    lkRoom = new LK.Room({ adaptiveStream: true, dynacast: true });
+    lkRoom.on(LK.RoomEvent.TrackSubscribed, track => {
+      if (track.kind === 'video') {
+        const v = document.createElement('video');
+        v.autoplay = true; v.playsInline = true; v.muted = false;
+        v.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#04070f';
+        const j = $('#callvideo'); j.innerHTML = ''; j.appendChild(v);
+        track.attach(v);
+        ring.stop(); clearTimeout(lkTimer);
+        $('#calling').classList.add('hidden');
+      } else if (track.kind === 'audio') { track.attach(); }
+    });
+    lkRoom.on(LK.RoomEvent.Disconnected, () => { if (currentCall) endCall(); });
+    await lkRoom.connect(data.livekit.url, data.livekit.token);
+    await lkRoom.localParticipant.enableCameraAndMicrophone();
+  } catch (e) {
+    if (!currentCall) return;
+    ring.stop();
+    $('#call-status').textContent = 'Klarte ikke å starte samtalen 😕';
+    lkTimer = setTimeout(endCall, 4000);
+    return;
+  }
+
+  lkTimer = setTimeout(() => {
+    if (currentCall === who && !$('#calling').classList.contains('hidden')) {
+      ring.stop();
+      $('#call-status').textContent = p.name + ' kunne ikke svare nå 😢';
+      speak(p.name + ' kunne ikke svare nå. Prøv igjen litt senere.');
+      lkTimer = setTimeout(endCall, 4500);
+    }
+  }, (Number(cfg.call.timeoutSec) || 60) * 1000);
+}
+
+/* ---------------- Confetti ---------------- */
+let confettiRaf = null;
+function confetti() {
+  const c = $('#confetti'), ctx = c.getContext('2d');
+  if (!ctx) return;
+  c.width = window.innerWidth; c.height = window.innerHeight;
+  const colors = ['#ff4d7d', '#ffd166', '#2ec26b', '#2f7cff', '#c77dff', '#ffffff'];
+  const parts = Array.from({ length: 160 }, () => ({
+    x: Math.random() * c.width, y: -20 - Math.random() * c.height * .6,
+    w: 8 + Math.random() * 10, h: 5 + Math.random() * 6,
+    c: colors[Math.floor(Math.random() * colors.length)],
+    vy: 3 + Math.random() * 4, vx: -2 + Math.random() * 4,
+    a: Math.random() * Math.PI, va: -.2 + Math.random() * .4
+  }));
+  const t0 = performance.now();
+  cancelAnimationFrame(confettiRaf);
+  (function frame(t) {
+    ctx.clearRect(0, 0, c.width, c.height);
+    parts.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.a += p.va;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+    if (t - t0 < 3800) confettiRaf = requestAnimationFrame(frame);
+    else ctx.clearRect(0, 0, c.width, c.height);
+  })(t0);
+}
+
+/* ---------------- PIN ---------------- */
+let pinBuf = '';
+function renderPinDots() {
+  const n = cfg.pin.length;
+  $('#pin-dots').innerHTML = Array.from({ length: n }, (_, i) => '<span class="' + (i < pinBuf.length ? 'full' : '') + '"></span>').join('');
+}
+function pinKey(k) {
+  if (k === '⌫') pinBuf = pinBuf.slice(0, -1);
+  else if (pinBuf.length < cfg.pin.length) pinBuf += k;
+  renderPinDots();
+  if (pinBuf.length === cfg.pin.length) {
+    if (pinBuf === cfg.pin) { pinBuf = ''; hideOverlay('#pin'); openMenu(); }
+    else {
+      const box = $('#pin-box');
+      box.classList.add('shake');
+      setTimeout(() => { box.classList.remove('shake'); pinBuf = ''; renderPinDots(); }, 450);
+    }
+  }
+}
+function openMenuGate() {
+  if (overlayOpen()) return;
+  if (!cfg.pin) { openMenu(); return; }
+  pinBuf = ''; renderPinDots();
+  showOverlay('#pin');
+}
+
+/* ---------------- Menu ---------------- */
+const PANES = { home: 'Meny', note: 'Ny lapp', calendar: 'Kalender', lights: 'Lys', cams: 'Kamera', settings: 'Innstillinger' };
+function showPane(name) {
+  hideKbd();
+  $$('.pane').forEach(p => p.classList.toggle('hidden', p.id !== 'pane-' + name));
+  $('#panel-title').textContent = PANES[name] || 'Meny';
+  $('#menu-back').classList.toggle('hidden', name === 'home');
+  $('#panel-body').scrollTop = 0;
+  if (name === 'lights') renderLights();
+  if (name === 'cams') { closeCam(); renderCams(); }
+  if (name === 'settings') { renderStatus(); buildForm(); }
+  if (name === 'note') { renderNoteList(); updatePreview(); }
+  if (name === 'calendar') renderCalendar();
+}
+function openMenu() { showOverlay('#menu'); showPane('home'); }
+function closeMenu() { closeCam(); hideKbd(); hideOverlay('#menu'); }
+
+/* Docked on-screen keyboard: works for every text field inside the menu */
+const KB = {
+  abc: [['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+        ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', 'å'],
+        ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'ø', 'æ'],
+        ['⇧', 'z', 'x', 'c', 'v', 'b', 'n', 'm', '!', '?', '⌫'],
+        ['?#/', 'mellomrom', '.', '⌄']],
+  sym: [['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+        ['-', '_', '/', ':', '.', ',', '@', '#', '&', '%'],
+        ['(', ')', '=', '+', '*', '"', "'", ';', '!', '?'],
+        ['ABC', 'mellomrom', '⌫', '⌄']]
+};
+let kbLayout = 'abc', kbShift = false, kbTarget = null;
+function renderKbd() {
+  const k = $('#kbd');
+  k.innerHTML = '';
+  KB[kbLayout].forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'krow';
+    r.forEach(key => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      const letter = key.length === 1 && /[a-zæøå]/.test(key);
+      b.className = 'key' + (key === 'mellomrom' ? ' space' : '') + ((key === '?#/' || key === 'ABC') ? ' wide' : '') + (key === '⇧' && kbShift ? ' active' : '');
+      b.textContent = letter && kbShift ? key.toUpperCase() : key;
+      b.addEventListener('pointerdown', e => e.preventDefault());
+      b.addEventListener('click', () => kbPress(key));
+      row.appendChild(b);
+    });
+    k.appendChild(row);
+  });
+}
+function showKbd() { renderKbd(); $('#kbd').classList.remove('hidden'); }
+function hideKbd() { $('#kbd').classList.add('hidden'); kbTarget = null; }
+function insertAtCaret(t, ch) {
+  const max = t.maxLength > 0 ? t.maxLength : Infinity;
+  if (t.value.length >= max) return;
+  try {
+    const s = t.selectionStart, e = t.selectionEnd;
+    if (s === null) throw new Error('no selection');
+    t.setRangeText(ch, s, e, 'end');
+  } catch (err) { t.value += ch; }
+}
+function deleteAtCaret(t) {
+  try {
+    const s = t.selectionStart, e = t.selectionEnd;
+    if (s === null) throw new Error('no selection');
+    if (s !== e) t.setRangeText('', s, e, 'end');
+    else if (s > 0) t.setRangeText('', s - 1, s, 'end');
+  } catch (err) { t.value = t.value.slice(0, -1); }
+}
+function kbPress(key) {
+  if (key === '⌄') { if (kbTarget) kbTarget.blur(); hideKbd(); return; }
+  if (key === '⇧') { kbShift = !kbShift; renderKbd(); return; }
+  if (key === '?#/') { kbLayout = 'sym'; renderKbd(); return; }
+  if (key === 'ABC') { kbLayout = 'abc'; renderKbd(); return; }
+  const t = kbTarget;
+  if (!t) return;
+  if (key === '⌫') deleteAtCaret(t);
+  else {
+    let ch = key === 'mellomrom' ? ' ' : key;
+    if (kbShift && /^[a-zæøå]$/.test(ch)) { ch = ch.toUpperCase(); kbShift = false; renderKbd(); }
+    insertAtCaret(t, ch);
+  }
+  if (kbLayout === 'abc' && !t.dataset.num && t.value.length === 0 && !kbShift) { kbShift = true; renderKbd(); }
+  t.dispatchEvent(new Event('input', { bubbles: true }));
+}
+$('#panel').addEventListener('focusin', e => {
+  const t = e.target;
+  if (!(t && t.matches && t.matches('input.inp'))) return;
+  kbTarget = t;
+  kbLayout = t.dataset.num ? 'sym' : 'abc';
+  kbShift = !t.dataset.num && t.value.length === 0;
+  showKbd();
+  setTimeout(() => { try { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (err) {} }, 60);
+});
+
+/* Lights */
+function renderLights() {
+  const grid = $('#lights-grid');
+  if (!ha.connected) { grid.innerHTML = '<div class="empty">' + (haOn ? 'Home Assistant er ikke tilkoblet akkurat nå.' : 'Lys styres via Home Assistant. Legg inn adresse og token under Innstillinger.') + '</div>'; return; }
+  const ids = Object.keys(ha.states).filter(id => id.startsWith('light.') || (cfg.ha.includeSwitches && id.startsWith('switch.'))).sort();
+  if (!ids.length) { grid.innerHTML = '<div class="empty">Ingen lys funnet ennå. Legg til lysene dine i Home Assistant, så dukker de opp her.</div>'; return; }
+  grid.innerHTML = '';
+  ids.forEach(id => {
+    const s = ha.states[id], on = s.state === 'on';
+    const b = document.createElement('button');
+    b.className = 'tile' + (on ? ' on' : '');
+    b.innerHTML = '<span>' + (on ? '💡' : '🔅') + '</span>' + esc((s.attributes && s.attributes.friendly_name) || id);
+    b.addEventListener('click', () => ha.callService('homeassistant', 'toggle', null, { entity_id: id }).catch(() => toast('Kunne ikke styre ' + id)));
+    grid.appendChild(b);
+  });
+}
+$('#lights-off').addEventListener('click', () => {
+  const ids = Object.keys(ha.states).filter(id => id.startsWith('light.') && ha.states[id].state === 'on');
+  if (!ids.length) { toast('Alle lys er allerede av'); return; }
+  ha.callService('light', 'turn_off', null, { entity_id: ids }).then(() => toast('Lysene er slått av')).catch(() => toast('Kunne ikke slå av lysene'));
+});
+
+/* Cameras */
+function renderCams() {
+  const grid = $('#cams-grid');
+  if (!ha.connected) { grid.innerHTML = '<div class="empty">' + (haOn ? 'Home Assistant er ikke tilkoblet akkurat nå.' : 'Kameraer vises via Home Assistant. Legg inn adresse og token under Innstillinger.') + '</div>'; return; }
+  const ids = Object.keys(ha.states).filter(id => id.startsWith('camera.')).sort();
+  if (!ids.length) { grid.innerHTML = '<div class="empty">Ingen kameraer funnet ennå. Legg til kameraene i Home Assistant, så dukker de opp her.</div>'; return; }
+  grid.innerHTML = '';
+  ids.forEach(id => {
+    const s = ha.states[id];
+    const b = document.createElement('button');
+    b.className = 'tile';
+    b.innerHTML = '<span>📷</span>' + esc((s.attributes && s.attributes.friendly_name) || id);
+    b.addEventListener('click', () => openCam(id));
+    grid.appendChild(b);
+  });
+}
+function openCam(id) {
+  const s = ha.states[id];
+  if (!s) return;
+  const tok = (s.attributes && s.attributes.access_token) || '';
+  $('#cam-img').src = ha.base + '/api/camera_proxy_stream/' + id + '?token=' + encodeURIComponent(tok);
+  $('#cam-title').textContent = (s.attributes && s.attributes.friendly_name) || id;
+  $('#cams-grid').classList.add('hidden');
+  $('#cam-view').classList.remove('hidden');
+}
+function closeCam() {
+  $('#cam-img').removeAttribute('src');
+  $('#cam-view').classList.add('hidden');
+  $('#cams-grid').classList.remove('hidden');
+}
+$('#cam-back').addEventListener('click', closeCam);
+
+/* Settings: status, tests, editable form */
+function renderStatus() {
+  if ($('#pane-settings').classList.contains('hidden')) return;
+  const p = cfg.notify.provider || 'none', n = cfg.notify.ntfy;
+  const rows = [
+    ['Home Assistant', !haOn ? 'Ikke i bruk (valgfritt)' : ha.connected ? 'Tilkoblet ✓' : 'Ikke tilkoblet – ' + cfg.ha.url],
+    ['Videosamtale', cfg.call.backend ? 'LiveKit (' + cfg.call.backend.replace(/^https?:\/\//, '') + ')' : 'Ikke satt opp'],
+    ['Ringer telefonene via', p === 'discord' ? (cfg.notify.discord.webhook ? 'Discord ✓' : 'Discord – webhook mangler') : p === 'ntfy' ? ((n.topicMor || n.topicFar) ? 'ntfy ✓' : 'ntfy – emner mangler') : p === 'ha' ? 'Home Assistant' : p === 'webhook' ? 'Webhook' : 'Av'],
+    [cfg.people.mor.name + '/' + cfg.people.far.name.toLowerCase() + ' ringer hjem',
+      dcState === 'on' ? 'Discord-bot lytter ✓' : dcState === 'connecting' ? 'Kobler til Discord…'
+      : ntfyState === 'on' ? 'ntfy: lytter på «' + n.topicKiosk + '» ✓' : ntfyState === 'connecting' ? 'Kobler til ntfy…'
+      : ha.connected ? 'Via Home Assistant-hendelse' : 'Av – legg inn bot-token og kanal-ID'],
+    ['Lapper', notesSource() === 'ha' ? 'Home Assistant (' + todoId + ')' : 'Lagres på kiosken'],
+    ['Vær', (ha.connected && weatherId) ? 'Home Assistant (' + weatherId + ')' : 'Open-Meteo' + (cfg.weather.place ? ' (' + cfg.weather.place + ')' : '')],
+    ['Opplesing', (ha.connected && ttsId) ? ttsId : 'Nettleserens stemme']
+  ];
+  $('#status-grid').innerHTML = rows.map(r => '<div class="srow"><span>' + esc(r[0]) + '</span><span>' + esc(r[1]) + '</span></div>').join('');
+  $('#t-night').textContent = '🌙 Nattmodus: ' + (nightMode === 'auto' ? 'auto' : nightMode === 'on' ? 'på' : 'av');
+  $('#t-mor').textContent = '📲 Test varsel til ' + cfg.people.mor.name.toLowerCase();
+  $('#t-far').textContent = '📲 Test varsel til ' + cfg.people.far.name.toLowerCase();
+}
+async function testPush(who) {
+  const p = cfg.people[who];
+  try { await sendPush(who, 'test'); toast('Sendt! Sjekk ' + p.name.toLowerCase() + 's telefon 📲'); }
+  catch (e) { toast('Fikk ikke sendt: ' + e.message, 6000); }
+}
+$('#t-mor').addEventListener('click', () => testPush('mor'));
+$('#t-far').addEventListener('click', () => testPush('far'));
+$('#t-ring').addEventListener('click', () => { ring.start(); setTimeout(ring.stop, 3200); });
+$('#t-speak').addEventListener('click', () => speak('Hei! Jeg er ' + cfg.home.name + ' Home. Velkommen hjem!'));
+$('#t-full').addEventListener('click', () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(() => toast('Fullskjerm er ikke tilgjengelig her'));
+});
+$('#t-night').addEventListener('click', () => {
+  nightMode = nightMode === 'auto' ? 'on' : nightMode === 'on' ? 'off' : 'auto';
+  renderStatus();
+});
+$('#t-reload').addEventListener('click', () => location.reload());
+
+const SETTINGS = [
+  { sec: 'Familie' },
+  { k: 'home.name', l: 'Hjemmet heter', hint: 'Vises i toppen som «… HOME»' },
+  { k: 'people.mor.name', l: 'Mor heter' },
+  { photo: 'mor', l: 'Bilde av mor' },
+  { k: 'people.far.name', l: 'Far heter' },
+  { photo: 'far', l: 'Bilde av far' },
+  { k: 'pin', l: 'PIN til menyen', hint: 'Bare tall. Tom = ingen PIN', num: true },
+  { k: 'weather.place', l: 'Sted for været', geocode: true, hint: 'Skriv stedet og trykk «Slå opp»' },
+  { k: 'people.mor.callSub', l: 'Undertekst, Mor-kortet', hint: 'Liten tekst under «Ring Mor»' },
+  { k: 'people.far.callSub', l: 'Undertekst, Far-kortet' },
+  { k: 'home.homeSub', l: 'Undertekst, Hjemme-kortet' },
+  { k: 'home.background', l: 'Bakgrunnsbilde', select: [['auto', 'Automatisk (tid på døgnet)'], ['evening', 'Kveld'], ['day', 'Dag'], ['night', 'Natt'], ['none', 'Ingen (mørk)']] },
+  { sec: 'Videosamtale (LiveKit)' },
+  { k: 'call.backend', l: 'Call-backend URL', hint: 'Tom = lokal backend via nginx (/api). Ellers full URL. Se DEPLOYMENT.md' },
+  { k: 'call.deviceKey', l: 'Enhetsnøkkel (valgfritt)', hint: 'Må matche DEVICE_KEY i backend .env hvis satt' },
+  { k: 'call.timeoutSec', l: 'Gi opp etter (sekunder)', num: true, number: true },
+  { sec: 'Ring telefonene' },
+  { k: 'notify.provider', l: 'Hvordan varsle', select: [['discord', 'Discord (ingen ny app)'], ['ntfy', 'ntfy-appen (ringer også på lydløs)'], ['ha', 'Home Assistant-appen'], ['webhook', 'Webhook (POST JSON)'], ['none', 'Ikke varsle']] },
+  { k: 'notify.discord.webhook', l: 'Discord-webhook', show: 'discord', hint: 'Kanal → Rediger kanal → Integrasjoner → Webhooks → Kopier URL' },
+  { k: 'notify.discord.userMor', l: 'Mors Discord-bruker-ID', show: 'discord', num: true, hint: 'Gjør at telefonen varsler selv om kanalen står på «bare @-nevnelser». Utviklermodus → trykk på brukeren → Kopier bruker-ID' },
+  { k: 'notify.discord.userFar', l: 'Fars Discord-bruker-ID', show: 'discord', num: true },
+  { k: 'notify.discord.botToken', l: 'Bot-token', show: 'discord', hint: 'Bare for «ring hjem» fra telefonen – se SETUP.md' },
+  { k: 'notify.discord.ringChannel', l: 'Kanal-ID kiosken lytter på', show: 'discord', num: true, hint: 'Alt mor/far skriver i denne kanalen ringer kiosken' },
+  { k: 'notify.ntfy.server', l: 'ntfy-server', show: 'ntfy', hint: 'https://ntfy.sh eller din egen' },
+  { k: 'notify.ntfy.topicMor', l: 'Emne for mors telefon', show: 'ntfy', hint: 'Det hun abonnerer på i ntfy-appen' },
+  { k: 'notify.ntfy.topicFar', l: 'Emne for fars telefon', show: 'ntfy' },
+  { k: 'notify.ntfy.topicKiosk', l: 'Emne kiosken lytter på', show: 'ntfy', hint: 'Brukes når mor/far ringer hjem (ring.html)' },
+  { k: 'notify.ntfy.token', l: 'Tilgangstoken', show: 'ntfy', hint: 'Bare hvis emnene er låst på serveren' },
+  { k: 'notify.webhook.url', l: 'Webhook-adresse', show: 'webhook', hint: 'Får POST med {event, to, title, message, link}' },
+  { sec: 'Home Assistant (valgfritt – lys, kamera, lapper fra telefonen, bedre stemme)' },
+  { k: 'ha.url', l: 'Adresse', hint: 'F.eks. http://192.168.1.10:8123 – tom = ikke i bruk' },
+  { k: 'ha.token', l: 'Tilgangstoken', hint: 'Lang – enklest med USB-tastatur eller i config.js' },
+  { k: 'ha.weatherEntity', l: 'Vær-entitet', hint: 'Tom = første weather.*' },
+  { k: 'ha.todoEntity', l: 'Lappeliste', hint: 'Tom = første todo.*' },
+  { k: 'ha.ttsEntity', l: 'Opplesing', hint: 'Tom = første tts.*' },
+  { sec: 'Nattmodus' },
+  { k: 'night.enabled', l: 'Demp skjermen om natten', toggle: true },
+  { k: 'night.from', l: 'Fra klokka', hint: 'TT:MM', num: true },
+  { k: 'night.to', l: 'Til klokka', hint: 'TT:MM', num: true }
+];
+let draft = null;
+function buildForm(keepDraft) {
+  if (!keepDraft || !draft) draft = JSON.parse(JSON.stringify(cfg));
+  const f = $('#settings-form');
+  f.innerHTML = '';
+  SETTINGS.forEach(fd => {
+    if (fd.sec) { const h = document.createElement('div'); h.className = 'sec'; h.textContent = fd.sec; f.appendChild(h); return; }
+    if (fd.show && fd.show !== draft.notify.provider) return;
+    const row = document.createElement('div');
+    row.className = 'frow';
+    const lab = document.createElement('div');
+    lab.className = 'flabel';
+    lab.innerHTML = esc(fd.l) + (fd.hint ? '<small>' + esc(fd.hint) + '</small>' : '');
+    row.appendChild(lab);
+    const ctl = document.createElement('div');
+    ctl.className = 'fctl';
+
+    if (fd.photo) {
+      const who = fd.photo, key = 'people.' + who + '.photo';
+      const thumb = document.createElement('div');
+      thumb.className = 'thumb';
+      const setThumb = () => {
+        thumb.innerHTML = '';
+        const src = getPath(draft, key);
+        if (src) { const im = new Image(); im.onerror = () => { thumb.textContent = draft.people[who].emoji || '🙂'; }; im.src = src; thumb.appendChild(im); }
+        else thumb.textContent = draft.people[who].emoji || '🙂';
+      };
+      setThumb();
+      const pick = document.createElement('button');
+      pick.type = 'button'; pick.className = 'chip-btn'; pick.textContent = '📁 Velg bilde';
+      pick.addEventListener('click', () => {
+        const fi = $('#photo-file');
+        fi.value = '';
+        fi.onchange = () => { const file = fi.files && fi.files[0]; if (file) resizePhoto(file, url => { setPath(draft, key, url); setThumb(); }); };
+        fi.click();
+      });
+      const rm = document.createElement('button');
+      rm.type = 'button'; rm.className = 'chip-btn'; rm.textContent = 'Fjern';
+      rm.addEventListener('click', () => { setPath(draft, key, ''); setThumb(); });
+      ctl.appendChild(thumb); ctl.appendChild(pick); ctl.appendChild(rm);
+    } else if (fd.select) {
+      const s = document.createElement('select');
+      s.className = 'inp';
+      fd.select.forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; s.appendChild(o); });
+      s.value = getPath(draft, fd.k) || fd.select[0][0];
+      s.addEventListener('change', () => { setPath(draft, fd.k, s.value); buildForm(true); });
+      ctl.appendChild(s);
+    } else if (fd.toggle) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      const paint = () => { const on = !!getPath(draft, fd.k); b.className = 'chip-btn' + (on ? ' on' : ''); b.textContent = on ? 'På ✓' : 'Av'; };
+      paint();
+      b.addEventListener('click', () => { setPath(draft, fd.k, !getPath(draft, fd.k)); paint(); });
+      ctl.appendChild(b);
+    } else {
+      const i = document.createElement('input');
+      i.type = 'text'; i.className = 'inp'; i.autocomplete = 'off'; i.spellcheck = false;
+      if (fd.num) { i.inputMode = 'numeric'; i.dataset.num = '1'; }
+      const v = getPath(draft, fd.k);
+      i.value = v == null ? '' : String(v);
+      i.addEventListener('input', () => setPath(draft, fd.k, i.value));
+      ctl.appendChild(i);
+      if (fd.geocode) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'chip-btn'; b.textContent = '🔎 Slå opp';
+        b.addEventListener('click', async () => {
+          const name = i.value.trim();
+          if (!name) return;
+          b.textContent = '…';
+          try { const g = await geocode(name); draft.weather.lat = g.lat; draft.weather.lon = g.lon; b.textContent = '✓ ' + g.label.split(',')[0]; toast('Fant ' + g.label); }
+          catch (e) { b.textContent = '🔎 Slå opp'; toast('Fant ikke «' + name + '» – prøv et annet navn'); }
+        });
+        ctl.appendChild(b);
+      }
+    }
+    row.appendChild(ctl);
+    f.appendChild(row);
+  });
+}
+function resizePhoto(file, cb) {
+  const r = new FileReader();
+  r.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const S = 480, c = document.createElement('canvas');
+        c.width = S; c.height = S;
+        const x = c.getContext('2d');
+        const s = Math.min(img.width, img.height);
+        x.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, S, S);
+        cb(c.toDataURL('image/jpeg', .82));
+      } catch (e) { toast('Kunne ikke bruke bildet'); }
+    };
+    img.onerror = () => toast('Kunne ikke lese bildet');
+    img.src = r.result;
+  };
+  r.readAsDataURL(file);
+}
+function saveSettings() {
+  const saved = {};
+  SETTINGS.forEach(fd => {
+    if (fd.k) {
+      let v = getPath(draft, fd.k);
+      if (fd.number) v = Number(v) || 60;
+      if (typeof v === 'string') v = v.trim();
+      setPath(saved, fd.k, v);
+    }
+    if (fd.photo) setPath(saved, 'people.' + fd.photo + '.photo', getPath(draft, 'people.' + fd.photo + '.photo') || '');
+  });
+  saved.ha.url = String(saved.ha.url || '').replace(/\/+$/, '');
+  setPath(saved, 'weather.lat', draft.weather.lat);
+  setPath(saved, 'weather.lon', draft.weather.lon);
+  store.set('menkerud.settings', saved);
+  toast('Lagret – laster inn på nytt…');
+  setTimeout(() => location.reload(), 700);
+}
+let resetArmed = null;
+$('#s-save').addEventListener('click', saveSettings);
+$('#s-reset').addEventListener('click', () => {
+  if (resetArmed && Date.now() - resetArmed < 5000) { store.del('menkerud.settings'); toast('Nullstilt – laster inn på nytt…'); setTimeout(() => location.reload(), 700); return; }
+  resetArmed = Date.now();
+  toast('Trykk en gang til for å slette alle innstillinger på denne skjermen', 5000);
+});
+
+/* New note */
+const form = { emoji: (cfg.emojis && cfg.emojis[0]) || '📝', timeOn: false, h: 17, m: 0 };
+function renderEmojiGrid() {
+  const g = $('#emoji-grid');
+  g.innerHTML = '';
+  (cfg.emojis || []).forEach(e => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = e;
+    b.className = e === form.emoji ? 'sel' : '';
+    b.addEventListener('click', () => {
+      form.emoji = e;
+      $$('#emoji-grid button').forEach(x => x.classList.toggle('sel', x === b));
+      updatePreview();
+    });
+    g.appendChild(b);
+  });
+}
+function fmtTime() { return pad(form.h) + ':' + pad(form.m); }
+function composeSummary() {
+  const text = $('#note-text').value.trim();
+  return [form.emoji, form.timeOn ? fmtTime() : '', text].filter(Boolean).join(' ');
+}
+function updatePreview() {
+  const p = parseNote(composeSummary());
+  $('#note-preview').innerHTML = noteHTML(p);
+  $('#time-toggle').textContent = '⏰ Klokkeslett: ' + (form.timeOn ? fmtTime() : 'av');
+  $('#time-toggle').classList.toggle('on', form.timeOn);
+  $('#stepper').classList.toggle('hidden', !form.timeOn);
+  $('#st-h').textContent = pad(form.h);
+  $('#st-m').textContent = pad(form.m);
+}
+$('#time-toggle').addEventListener('click', () => { form.timeOn = !form.timeOn; updatePreview(); });
+$$('#stepper button').forEach(b => b.addEventListener('click', () => {
+  const d = b.dataset.d;
+  if (d === 'h+') form.h = (form.h + 1) % 24;
+  if (d === 'h-') form.h = (form.h + 23) % 24;
+  if (d === 'm+') form.m = (form.m + 5) % 60;
+  if (d === 'm-') form.m = (form.m + 55) % 60;
+  updatePreview();
+}));
+$('#note-text').addEventListener('input', updatePreview);
+$('#note-save').addEventListener('click', async () => {
+  const summary = composeSummary();
+  try {
+    await addNote(summary);
+    toast('Lappen er hengt opp 📌');
+    $('#note-text').value = '';
+    form.timeOn = false;
+    updatePreview();
+  } catch (e) { toast('Kunne ikke lagre lappen: ' + ((e && e.message) || 'ukjent feil'), 5000); }
+});
+function renderNoteList() {
+  const wrap = $('#note-list');
+  const list = currentNotes();
+  wrap.innerHTML = '';
+  if (!list.length) { wrap.innerHTML = '<div class="empty">Tavla er tom.</div>'; return; }
+  list.forEach(n => {
+    const p = parseNote(n.summary);
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = '<span>' + esc(p.icon) + '</span><span class="t">' + esc([p.time, p.text].filter(Boolean).join(' ') || '–') + '</span>';
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.textContent = '✕';
+    del.setAttribute('aria-label', 'Ta ned lappen');
+    del.addEventListener('click', async () => {
+      try { await removeNote(n.uid); toast('Lappen er tatt ned'); }
+      catch (e) { toast('Kunne ikke ta ned lappen'); }
+    });
+    chip.appendChild(del);
+    wrap.appendChild(chip);
+  });
+}
+
+/* ---------------- I DAG schedule + KVELD actions + background (redesign) ---------------- */
+function renderSchedule() {
+  const listEl = $('#today-list'); if (!listEl) return;
+  const now = new Date();
+  const curMin = now.getHours() * 60 + now.getMinutes();
+  const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+  const items = [];
+  currentNotes().forEach(n => { const p = parseNote(n.summary); if (p.time) items.push({ time: p.time, icon: p.icon, text: p.text }); });
+  eventsOn(ymd(now)).forEach(ev => items.push({ time: ev.time || null, icon: ev.icon || '📅', text: ev.text || '' }));
+  items.sort((a, b) => (a.time ? 1 : 0) - (b.time ? 1 : 0) || (a.time || '').localeCompare(b.time || ''));
+  if (!items.length) listEl.innerHTML = '<div class="empty">Ingen planer i dag 🙂</div>';
+  else listEl.innerHTML = items.map(p => {
+    if (!p.time) return '<div class="srow-day"><span class="t allday">·</span><span class="i">' + esc(p.icon) + '</span><span class="n">' + esc(p.text || '') + '</span></div>';
+    const done = toMin(p.time) < curMin - 5;
+    const soon = !done && Math.abs(toMin(p.time) - curMin) <= 30;
+    return '<div class="srow-day' + (done ? ' done' : '') + (soon ? ' now' : '') + '">' +
+      '<span class="t">' + p.time + '</span><span class="i">' + esc(p.icon) + '</span>' +
+      '<span class="n">' + esc(p.text || '') + '</span></div>';
+  }).join('');
+  const start = 6 * 60, end = 21 * 60, frac = Math.max(0, Math.min(1, (curMin - start) / (end - start)));
+  const bar = $('#today-progress > span'); if (bar) bar.style.width = (frac * 100).toFixed(1) + '%';
+  const dw = now.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'short' });
+  const when = $('#today-when'); if (when) when.textContent = dw.charAt(0).toUpperCase() + dw.slice(1);
+  const foot = $('#today-foot'); if (foot) foot.textContent = '🌱 Du gjør en super jobb! 💚';
+}
+
+function eveningActions() {
+  const allLights = Object.keys(ha.states).filter(id => id.startsWith('light.'));
+  const onLights = allLights.filter(id => ha.states[id].state === 'on');
+  const locks = Object.keys(ha.states).filter(id => id.startsWith('lock.'));
+  const acts = [];
+  if (allLights.length) acts.push({ ic: '💡', label: 'Demp belysning', run: () =>
+    ha.callService('light', 'turn_on', { brightness_pct: 30 }, { entity_id: onLights.length ? onLights : allLights })
+      .then(() => toast('Dempet lyset')).catch(() => toast('Kunne ikke dempe lyset')) });
+  acts.push({ ic: '🌙', label: 'God natt', run: () => {
+    if (onLights.length) ha.callService('light', 'turn_off', null, { entity_id: onLights }).catch(() => {});
+    nightMode = 'on'; checkNight(); renderStatus(); toast('God natt 🌙');
+  } });
+  if (locks.length) acts.push({ ic: '🔒', label: 'Lås dører', run: () =>
+    ha.callService('lock', 'lock', null, { entity_id: locks }).then(() => toast('Låser dørene')).catch(() => toast('Kunne ikke låse')) });
+  return acts;
+}
+function renderEvening() {
+  const panel = $('#evening-panel'), grid = $('#bottom-grid'), wrap = $('#evening-actions');
+  if (!panel || !grid || !wrap) return;
+  if (!ha.connected) { panel.classList.add('hidden'); grid.classList.add('no-evening'); return; }
+  panel.classList.remove('hidden'); grid.classList.remove('no-evening');
+  wrap.innerHTML = '';
+  eveningActions().forEach(a => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'evening-action';
+    b.innerHTML = '<span class="ea-ic">' + a.ic + '</span><span>' + esc(a.label) + '</span><span class="ea-ar">›</span>';
+    b.addEventListener('click', a.run);
+    wrap.appendChild(b);
+  });
+}
+
+const BG_IMG = { day: 'assets/backgrounds/home-day.png', evening: 'assets/backgrounds/home-evening.png', night: 'assets/backgrounds/home-night.png' };
+function pickBackground() {
+  const bg = $('#bg'); if (!bg) return;
+  let mode = (cfg.home && cfg.home.background) || 'auto';
+  if (mode === 'none') { bg.style.removeProperty('--bg-img'); bg.style.opacity = '0'; return; }
+  if (mode === 'auto') { const hr = new Date().getHours(); mode = (hr >= 7 && hr < 17) ? 'day' : (hr >= 17 && hr < 21) ? 'evening' : 'night'; }
+  bg.style.opacity = '1';
+  bg.style.setProperty('--bg-img', "url('" + (BG_IMG[mode] || BG_IMG.evening) + "')");
+}
+
+/* ---------------- Calendar (Kalender pane) ---------------- */
+function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function parseYMD(s) { const [y, m, dd] = s.split('-').map(Number); return new Date(y, m - 1, dd); }
+function occursOn(ev, dateStr) {
+  if (dateStr < ev.date) return false;
+  const r = ev.repeat || 'none';
+  if (r === 'none') return dateStr === ev.date;
+  if (r === 'daily') return true;
+  const d = parseYMD(dateStr);
+  if (r === 'weekly') return d.getDay() === parseYMD(ev.date).getDay();
+  if (r === 'weekdays') { const wd = d.getDay(); return wd >= 1 && wd <= 5; }
+  return false;
+}
+function eventsOn(dateStr) {
+  return calendar.filter(ev => occursOn(ev, dateStr))
+    .sort((a, b) => (a.time ? 1 : 0) - (b.time ? 1 : 0) || (a.time || '').localeCompare(b.time || ''));
+}
+
+let calCursor = null, calSelected = null, calForm = null;
+function calInit() {
+  const t = new Date();
+  calCursor = new Date(t.getFullYear(), t.getMonth(), 1);
+  calSelected = ymd(t);
+  calForm = { emoji: (cfg.emojis && cfg.emojis[0]) || '📅', timeOn: false, h: 17, m: 0, repeat: 'none' };
+}
+function renderCalendar() {
+  if (!calCursor) calInit();
+  const y = calCursor.getFullYear(), mo = calCursor.getMonth();
+  const title = calCursor.toLocaleDateString('nb-NO', { month: 'long', year: 'numeric' });
+  $('#cal-title').textContent = title.charAt(0).toUpperCase() + title.slice(1);
+  const lead = (new Date(y, mo, 1).getDay() + 6) % 7;
+  const days = new Date(y, mo + 1, 0).getDate();
+  const todayStr = ymd(new Date());
+  let html = '';
+  for (let i = 0; i < lead; i++) html += '<span class="cal-cell empty"></span>';
+  for (let dd = 1; dd <= days; dd++) {
+    const ds = y + '-' + pad(mo + 1) + '-' + pad(dd);
+    const n = eventsOn(ds).length;
+    html += '<button type="button" class="cal-cell' + (ds === calSelected ? ' sel' : '') + (ds === todayStr ? ' today' : '') + '" data-d="' + ds + '">' +
+      '<span>' + dd + '</span>' + (n ? '<i class="dot' + (n > 1 ? ' many' : '') + '"></i>' : '') + '</button>';
+  }
+  const grid = $('#cal-grid');
+  grid.innerHTML = html;
+  $$('#cal-grid .cal-cell[data-d]').forEach(b => b.addEventListener('click', () => { calSelected = b.dataset.d; renderCalendar(); }));
+  renderCalDay();
+  renderCalEmoji();
+  updateCalTime();
+}
+function renderCalDay() {
+  const wrap = $('#cal-day-list');
+  const sel = parseYMD(calSelected);
+  const lbl = sel.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' });
+  $('#cal-selected-label').textContent = lbl.charAt(0).toUpperCase() + lbl.slice(1);
+  const list = eventsOn(calSelected);
+  wrap.innerHTML = '';
+  if (!list.length) { wrap.innerHTML = '<div class="empty">Ingen hendelser.</div>'; return; }
+  list.forEach(ev => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    const rep = (ev.repeat && ev.repeat !== 'none') ? ' ↻' : '';
+    chip.innerHTML = '<span>' + esc(ev.icon || '📅') + '</span><span class="t">' + esc([ev.time, ev.text].filter(Boolean).join(' ') || '–') + rep + '</span>';
+    const del = document.createElement('button');
+    del.type = 'button'; del.textContent = '✕'; del.setAttribute('aria-label', 'Slett hendelsen');
+    del.addEventListener('click', () => removeEvent(ev.uid));
+    chip.appendChild(del);
+    wrap.appendChild(chip);
+  });
+}
+function renderCalEmoji() {
+  const g = $('#cal-emoji');
+  g.innerHTML = '';
+  (cfg.emojis || []).forEach(e => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = e; b.className = e === calForm.emoji ? 'sel' : '';
+    b.addEventListener('click', () => { calForm.emoji = e; $$('#cal-emoji button').forEach(x => x.classList.toggle('sel', x === b)); });
+    g.appendChild(b);
+  });
+}
+function updateCalTime() {
+  $('#cal-time-toggle').textContent = '⏰ Klokkeslett: ' + (calForm.timeOn ? pad(calForm.h) + ':' + pad(calForm.m) : 'av');
+  $('#cal-time-toggle').classList.toggle('on', calForm.timeOn);
+  $('#cal-stepper').classList.toggle('hidden', !calForm.timeOn);
+  $('#cal-h').textContent = pad(calForm.h);
+  $('#cal-m').textContent = pad(calForm.m);
+  $('#cal-repeat').value = calForm.repeat;
+}
+function addEvent() {
+  if (!calSelected) calInit();
+  const text = $('#cal-text').value.trim();
+  const ev = { uid: 'e' + Date.now(), date: calSelected, icon: calForm.emoji, text: text, repeat: $('#cal-repeat').value || 'none' };
+  if (calForm.timeOn) ev.time = pad(calForm.h) + ':' + pad(calForm.m);
+  if (!text && !ev.time) { toast('Skriv hva som skjer'); return; }
+  calendar.push(ev); saveCalendar();
+  $('#cal-text').value = ''; calForm.timeOn = false;
+  renderCalendar(); renderSchedule();
+  toast('Lagt til i kalenderen 📅');
+}
+function removeEvent(uid) {
+  calendar = calendar.filter(e => e.uid !== uid); saveCalendar();
+  renderCalendar(); renderSchedule();
+  toast('Hendelsen er fjernet');
+}
+$('#cal-prev').addEventListener('click', () => { if (!calCursor) calInit(); calCursor.setMonth(calCursor.getMonth() - 1); renderCalendar(); });
+$('#cal-next').addEventListener('click', () => { if (!calCursor) calInit(); calCursor.setMonth(calCursor.getMonth() + 1); renderCalendar(); });
+$('#cal-time-toggle').addEventListener('click', () => { if (calForm) { calForm.timeOn = !calForm.timeOn; updateCalTime(); } });
+$$('#cal-stepper button').forEach(b => b.addEventListener('click', () => {
+  if (!calForm) return;
+  const d = b.dataset.d;
+  if (d === 'h+') calForm.h = (calForm.h + 1) % 24;
+  if (d === 'h-') calForm.h = (calForm.h + 23) % 24;
+  if (d === 'm+') calForm.m = (calForm.m + 5) % 60;
+  if (d === 'm-') calForm.m = (calForm.m + 55) % 60;
+  updateCalTime();
+}));
+$('#cal-repeat').addEventListener('change', () => { if (calForm) calForm.repeat = $('#cal-repeat').value; });
+$('#cal-add').addEventListener('click', addEvent);
+
+/* ---------------- Wire up ---------------- */
+function init() {
+  $('#home-name').textContent = String(cfg.home.name || '').toUpperCase();
+  $('#home-sub').textContent = cfg.home.subtitle || '';
+  $('#tagline').innerHTML = String(cfg.home.tagline || '').split('\n').map(esc).join('<br>') + (cfg.home.tagline ? ' ♥' : '');
+  $('#footer-text').textContent = cfg.home.footer || '';
+  $('#footer-brand').textContent = (cfg.home.name + ' HOME').toUpperCase();
+  $('#sub-mor').textContent = (cfg.people.mor || {}).callSub || '';
+  $('#sub-far').textContent = (cfg.people.far || {}).callSub || '';
+  $('#sub-home').textContent = cfg.home.homeSub || '';
+  document.title = cfg.home.name + ' Home';
+  $$('[data-name]').forEach(el => { el.textContent = String((cfg.people[el.dataset.name] || {}).name || '').toUpperCase(); });
+  $$('.avatar[data-who]').forEach(el => setAvatar(el, el.dataset.who));
+
+  $('#card-mor').addEventListener('click', () => startCall('mor', true));
+  $('#card-far').addEventListener('click', () => startCall('far', true));
+  $('#card-home').addEventListener('click', imHome);
+  $('#hangup').addEventListener('click', endCall);
+  $('#answer').addEventListener('click', () => { const who = incomingWho; dismissIncoming(); startCall(who, false); });
+  $('#decline').addEventListener('click', dismissIncoming);
+  $('#menu-btn').addEventListener('click', openMenuGate);
+  $('#footer-gear').addEventListener('click', openMenuGate);
+  $('#home-btn').addEventListener('click', () => { if (!$('#menu').classList.contains('hidden')) closeMenu(); });
+  $('#pin-cancel').addEventListener('click', () => { pinBuf = ''; hideOverlay('#pin'); });
+  $('#menu-close').addEventListener('click', closeMenu);
+  $('#menu-back').addEventListener('click', () => showPane('home'));
+  $$('.tile[data-pane]').forEach(t => t.addEventListener('click', () => showPane(t.dataset.pane)));
+  ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].forEach(k => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = k;
+    if (!k) b.disabled = true; else b.addEventListener('click', () => pinKey(k));
+    $('#pin-pad').appendChild(b);
+  });
+  renderEmojiGrid(); updatePreview();
+
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (!$('#call').classList.contains('hidden')) endCall();
+    else if (!$('#menu').classList.contains('hidden')) closeMenu();
+    else if (!$('#pin').classList.contains('hidden')) hideOverlay('#pin');
+  });
+  window.addEventListener('resize', () => { const c = $('#confetti'); c.width = window.innerWidth; c.height = window.innerHeight; });
+
+  tick(); setInterval(tick, 1000);
+  pickBackground(); setInterval(pickBackground, 10 * 60 * 1000);
+  renderSchedule(); renderEvening();
+  renderNotes(); renderWeather(); setStatusDot();
+  fetchOpenMeteo(); setInterval(fetchOpenMeteo, 15 * 60 * 1000);
+  if (haOn) ha.connect();
+  listenNtfy();
+  listenDiscord();
+}
+init();
+})();
+</script>
+</body>
+</html>

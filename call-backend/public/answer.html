@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#07162f">
+<title>Svar på anrop</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:#07162f;color:#fff;font-family:'Nunito','Segoe UI',system-ui,sans-serif;overflow:hidden}
+  #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
+  #remote{position:fixed;inset:0;width:100%;height:100%;background:#04070f;object-fit:cover;display:none}
+  #local{position:fixed;right:16px;top:16px;width:22vw;max-width:220px;aspect-ratio:3/4;border-radius:14px;object-fit:cover;background:#0c2856;border:2px solid rgba(255,255,255,.7);box-shadow:0 8px 22px rgba(0,0,0,.4);display:none;z-index:3}
+  .card{max-width:420px}
+  .house{font-size:72px;line-height:1;animation:pulse 1.3s ease-in-out infinite alternate}
+  @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.07)}}
+  h1{font-size:26px;font-weight:900;margin:14px 0 6px}
+  p{font-weight:700;opacity:.82;font-size:17px;line-height:1.4}
+  .btn{display:inline-flex;align-items:center;gap:10px;margin-top:22px;padding:16px 30px;border:0;border-radius:40px;background:#22c55e;color:#fff;font:inherit;font-weight:900;font-size:20px;cursor:pointer}
+  .btn.red{background:#ff3b3b}
+  #hangup{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:4;display:none}
+  .spin{width:54px;height:54px;border:6px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;margin:0 auto 8px;animation:rot 1s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<video id="remote" autoplay playsinline></video>
+<video id="local" autoplay playsinline muted></video>
+<button class="btn red" id="hangup">📞 Legg på</button>
+<div id="stage">
+  <div class="card" id="card">
+    <div class="house">🏠</div>
+    <h1 id="t">Svar på anrop</h1>
+    <p id="s">Kobler til…</p>
+    <div id="cta"></div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/livekit-client@2.22.3/dist/livekit-client.umd.min.js"></script>
+<script>
+(function () {
+  var LK = window.LivekitClient;
+  var t = document.getElementById('t'), s = document.getElementById('s'), cta = document.getElementById('cta'),
+      card = document.getElementById('card'), stage = document.getElementById('stage'),
+      remote = document.getElementById('remote'), local = document.getElementById('local'), hangup = document.getElementById('hangup');
+  var token = decodeURIComponent((location.pathname.split('/answer/')[1] || '').replace(/\/+$/, ''));
+  var room = null, callId = null, ending = false;
+
+  function show(title, sub, spinner) {
+    stage.style.display = 'flex';
+    card.innerHTML = (spinner ? '<div class="spin"></div>' : '<div class="house">🏠</div>') +
+      '<h1>' + title + '</h1><p>' + sub + '</p><div id="cta"></div>';
+    cta = document.getElementById('cta');
+  }
+  function fail(title, sub) { show(title, sub || '', false); }
+
+  if (!token) { fail('Mangler lenke', 'Åpne lenken fra meldingen på nytt.'); return; }
+  if (!LK) { fail('Kunne ikke laste', 'Sjekk nettforbindelsen og prøv igjen.'); return; }
+
+  show('Svarer…', 'Kobler til samtalen', true);
+
+  fetch('/api/calls/answer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answerToken: token }) })
+    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+    .then(function (res) {
+      if (!res.ok) { fail('Anropet er ikke aktivt', (res.j && res.j.error) || 'Prøv igjen når det ringer.'); return; }
+      callId = res.j.callId;
+      return connect(res.j.livekit.url, res.j.livekit.token);
+    })
+    .catch(function () { fail('Noe gikk galt', 'Prøv igjen om litt.'); });
+
+  async function connect(url, tok) {
+    room = new LK.Room({ adaptiveStream: true, dynacast: true });
+    room.on(LK.RoomEvent.TrackSubscribed, function (track) {
+      if (track.kind === 'video') { track.attach(remote); remote.style.display = 'block'; stage.style.display = 'none'; }
+      else if (track.kind === 'audio') { track.attach(); }
+    });
+    room.on(LK.RoomEvent.Disconnected, function () { if (!ending) closed('Samtalen er avsluttet'); });
+    try {
+      await room.connect(url, tok);
+      await room.localParticipant.enableCameraAndMicrophone();
+      var cam = room.localParticipant.getTrackPublication(LK.Track.Source.Camera);
+      if (cam && cam.videoTrack) { cam.videoTrack.attach(local); local.style.display = 'block'; }
+      hangup.style.display = 'inline-flex';
+      // If the tablet is already here, the remote track handler hides the stage; otherwise show "waiting".
+      if (!remote.srcObject && remote.style.display !== 'block') show('Tilkoblet', 'Venter på bildet…', true);
+    } catch (e) { fail('Får ikke tilgang til kamera/mikrofon', 'Tillat kamera og mikrofon i nettleseren og åpne lenken på nytt.'); }
+  }
+
+  function closed(msg) {
+    ending = true;
+    try { if (room) room.disconnect(); } catch (e) {}
+    remote.style.display = 'none'; local.style.display = 'none'; hangup.style.display = 'none';
+    show(msg, 'Du kan lukke denne siden.', false);
+  }
+  hangup.addEventListener('click', function () {
+    ending = true;
+    if (callId) fetch('/api/calls/' + callId + '/end', { method: 'POST' }).catch(function () {});
+    closed('Samtalen er avsluttet');
+  });
+})();
+</script>
+</body>
+</html>
