@@ -63,8 +63,11 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(!q('#night').classList.contains('hidden') && q('#night').classList.contains('dark'), 'Skjerm av shows the black overlay');
   assert(helperCalls().slice(-1)[0] === '/off', 'helper asked for display off: ' + helperCalls().join());
   q('#night').dispatchEvent(new w.Event('pointerdown', { bubbles: true, cancelable: true }));
+  assert(!q('#night').classList.contains('hidden'), 'overlay stays through the touch-down (no click-through to the cards)');
+  click(q('#night'));
   await wait(20);
-  assert(q('#night').classList.contains('hidden') && helperCalls().slice(-1)[0] === '/on', 'touch hides the overlay and asks for display on: ' + helperCalls().join());
+  assert(q('#night').classList.contains('hidden') && helperCalls().slice(-1)[0] === '/on', 'completed tap hides the overlay and asks for display on: ' + helperCalls().join());
+  assert(q('#call').classList.contains('hidden'), 'waking the screen did not start a call');
 
   // Bilderamme: folder walked through the (mocked) nginx listing, subfolder included, clutter skipped; shown full-screen until touched
   click(q('#frame-btn'));
@@ -74,7 +77,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(!!slideImg && /^photos\/(a\.jpg|2025\/b\.jpg)$/.test(slideImg.getAttribute('src')), 'first photo shown (clutter and non-images skipped): ' + (slideImg && slideImg.getAttribute('src')));
   assert(fetchCalls.some(c => c.url === 'photos/2025/') && !fetchCalls.some(c => /@eaDir/.test(c.url)), 'subfolder walked, @eaDir skipped');
   q('#frame').dispatchEvent(new w.Event('pointerdown', { bubbles: true, cancelable: true }));
-  assert(q('#frame').classList.contains('hidden') && qa('#frame .slide').length === 0, 'touch closes the photo frame');
+  assert(!q('#frame').classList.contains('hidden'), 'frame stays through the touch-down');
+  click(q('#frame'));
+  assert(q('#frame').classList.contains('hidden') && qa('#frame .slide').length === 0, 'completed tap closes the photo frame');
 
   // PIN + menu
   click(q('#menu-btn'));
@@ -168,7 +173,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const img2 = q2('#frame .slide img');
   assert(!!img2 && /^bilder\/(c\.jpg|tur\/d\.jpg)$/.test(img2.getAttribute('src')), 'manifest photos from the saved folder: ' + (img2 && img2.getAttribute('src')));
   assert(!second.fetchCalls.some(c => c.url === 'bilder/'), 'no folder walk when the manifest lists pictures');
-  q2('#frame').dispatchEvent(new w2.Event('pointerdown', { bubbles: true, cancelable: true }));
+  click2(q2('#frame'));
   assert(q2('#frame').classList.contains('hidden'), 'frame closed before the call test');
   // Ring mamma -> LiveKit call: POST to the call backend + ringing overlay (no ntfy/discord push from the kiosk)
   click2(q2('#card-mor'));

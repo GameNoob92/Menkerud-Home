@@ -128,6 +128,8 @@ Person keys are `mor` / `far` throughout (`cfg.people`, `data-who`, `data-name`,
 - Names/ids: `mor`/`far` internal keys; `cfg` is the single source of truth after load; settings changes reload the page.
 - Secrets (HA token, Discord bot token) are stored in plain text in `localStorage`/`config.js` on a LAN-only device. Never host the folder publicly. Say so in docs if you add new secrets.
 
+- Full-screen layers that go away on a touch (`#night`, `#frame`) act on `click`, never on `pointerdown`: hiding a layer on the touch-down lets the pointerup/click of that same tap fall through to the card underneath – on the kiosk that placed a call at night.
+
 ## 7. Testing
 
 ```

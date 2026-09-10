@@ -944,7 +944,10 @@ function checkNight(d) {
   if (dark !== lastDark) { lastDark = dark; screenPower(!dark); }
 }
 function screenOff() { restMode = true; awakeUntil = 0; checkNight(); }
-$('#night').addEventListener('pointerdown', e => { e.preventDefault(); restMode = false; awakeUntil = Date.now() + 120000; checkNight(); });
+// The overlay swallows the whole tap and only goes away on the completed click: hiding it on pointerdown would let the
+// pointerup/click of that same tap fall through to whatever card lies underneath (= an accidental call at night).
+$('#night').addEventListener('pointerdown', e => e.preventDefault());
+$('#night').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); restMode = false; awakeUntil = Date.now() + 120000; checkNight(); });
 
 /* ---------------- Bilderamme (photo frame) ---------------- */
 let frameTimer = null, framePhotos = [], frameIdx = 0, frameToken = 0;
@@ -1036,7 +1039,8 @@ function stopFrame() {
   $('#frame').classList.add('hidden');
   $$('#frame .slide').forEach(s => s.remove());
 }
-$('#frame').addEventListener('pointerdown', e => { e.preventDefault(); stopFrame(); awakeUntil = Date.now() + 120000; checkNight(); });
+$('#frame').addEventListener('pointerdown', e => e.preventDefault());   // same as #night: close on the completed tap, never on the touch-down
+$('#frame').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); stopFrame(); awakeUntil = Date.now() + 120000; checkNight(); });
 
 /* ---------------- Sound ---------------- */
 let actx = null;
