@@ -1,4 +1,4 @@
 node_modules/
-photos/*.jpg
-photos/*.png
+photos/*
+!photos/README.txt
 config.js

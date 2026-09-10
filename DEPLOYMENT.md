@@ -46,6 +46,16 @@ sudo nginx -t && sudo systemctl reload nginx
 
 Bound to `127.0.0.1` so `config.js` (which holds the Discord token) never leaves the machine and the page is served from `http://localhost` — a secure context, required for camera/mic. The kiosk reaches the backend over the internet at `https://call.noobventure.com`.
 
+### Screen off + photo frame (as the kiosk user, no sudo)
+
+```bash
+gsettings set org.gnome.desktop.session idle-delay 15                                   # display off 15 s after the page drops its wake lock
+gsettings set org.gnome.desktop.screensaver lock-enabled false                          # no lock screen on wake
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type nothing    # never suspend the PC itself
+```
+
+The page holds a Screen Wake Lock while it should be visible, so the display only blanks when the page lets it (⏻ button or the «Skjerm av» window). Pictures for the photo frame go in `/var/www/menkerud-home/photos/` (gitignored); the nginx conf above enables the folder listing for `/photos/`. Details in SETUP.md §3.
+
 ### Firefox (fullscreen appliance) + GDM autologin
 
 ```bash

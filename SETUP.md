@@ -12,9 +12,9 @@ LiveKit + call-backend (Docker on Unraid, rtc./call.noobventure.com)  – the vi
 Home Assistant (optional)  – lights, cameras, notes from the phone, natural TTS voice
 ```
 
-Files: `index.html` (the app), `config.js` (optional defaults), `assets/` (backgrounds, avatars and icons the screen shows – copy it along), `ring.html` (only needed with ntfy), `photos/` (optional – photos can also be picked on-screen).
+Files: `index.html` (the app), `config.js` (optional defaults), `assets/` (backgrounds, avatars and icons the screen shows – copy it along), `ring.html` (only needed with ntfy), `photos/` (pictures for the photo frame; also where mor.jpg/far.jpg can live – avatars can be picked on-screen too).
 
-All settings live on the screen: **☰ → PIN 1234 → Innstillinger**. Names, photos, PIN, place for the weather, call-backend URL, how to ring the phones, night dimming. Anything saved there overrides `config.js`. The one thing that's painful to type on a touchscreen is a token (Discord bot or HA), so those are happier in `config.js`, or plug in a USB keyboard for a minute.
+All settings live on the screen: **☰ → PIN 1234 → Innstillinger**. Names, photos, PIN, place for the weather, call-backend URL, how to ring the phones, night dimming, the screen-off window, the photo frame. Anything saved there overrides `config.js`. The one thing that's painful to type on a touchscreen is a token (Discord bot or HA), so those are happier in `config.js`, or plug in a USB keyboard for a minute.
 
 Note format on the board: `<emoji> [HH:MM] [text]`, e.g. `⚽ 17:00 Fotball`. The emoji is the big picture, tapping the note reads it aloud ("Fotball klokka fem", "Tannpuss halv ni"). Notes are added under **☰ → Ny lapp** (with an on-screen keyboard), or from your phone if you later connect Home Assistant. Dated events (birthdays, matches) go under **☰ → Kalender** — pick a day, add an emoji, optional time and repeat — and show up under **I DAG** on the day.
 
@@ -96,7 +96,19 @@ sudo tee /etc/firefox/policies/policies.json >/dev/null <<'POLICY'
 POLICY
 ```
 
-Also: Settings → Power → never blank the screen (or use the page's night dimming), and check the default audio device (`pavucontrol` / `wpctl status`) so the call uses the right mic and speakers.
+Check the default audio device (`pavucontrol` / `wpctl status`) so the call uses the right mic and speakers.
+
+**Screen off (⏻ in the top bar) and the night window.** The page holds a browser *Screen Wake Lock* while it should be visible and releases it when ⏻ is pressed or during the «Skjerm av» window (Innstillinger → Skjerm av, default 23:00–06:00). GNOME does the actual blanking, so give it a short idle delay (run as the kiosk user, no sudo):
+
+```bash
+gsettings set org.gnome.desktop.session idle-delay 15                                   # display off 15 s after the page drops its wake lock
+gsettings set org.gnome.desktop.screensaver lock-enabled false                          # no lock screen on wake
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type nothing    # never suspend the PC itself
+```
+
+Any touch wakes the display; the touch lands on the black overlay and brings the page back (for two minutes inside the night window, for good after ⏻). Because of the wake lock the screen never blanks during the day. Two things to know: the page cannot switch a blanked display back *on*, so an incoming call at night rings audibly and the picture appears at the first touch; and if the page is ever run in a browser without the Wake Lock API (or from `file://`), set `idle-delay` back to `0` or the screen blanks every 15 s.
+
+**Bilderamme (🖼 in the top bar).** Shows the pictures in `photos/` full-screen – shuffled, crossfading, «Sekunder per bilde» in Innstillinger – until the screen is touched. Drop `.jpg`/`.png`/`.webp` files in `/var/www/menkerud-home/photos/` (gitignored; `scp` them there as `menkerud-hjem`). The page finds them through nginx's folder listing, which `call-backend/deploy/nginx-menkerud.conf` enables for `/photos/` (`autoindex on; autoindex_format json;`) – re-copy the conf and `sudo nginx -t && sudo systemctl reload nginx` after updating. Without such a listing (another web server, `file://`) put a `photos/index.json` next to the pictures instead: `["ferie1.jpg", "bursdag.png"]`.
 
 ## 4. Optional: Home Assistant
 

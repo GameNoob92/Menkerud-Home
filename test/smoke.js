@@ -8,17 +8,20 @@ function mkdom(beforeParse) {
   vc.on('jsdomError', e => { if (!/Could not load|not implemented/i.test(e.message)) errors.push(e.message); });
   vc.on('error', m => errors.push(String(m)));
   const fetchCalls = [];
+  const wl = { requests: 0, releases: 0, held: false };   // Screen Wake Lock stub (jsdom has none)
   const dom = new JSDOM(html, {
     runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/menkerud/index.html', virtualConsole: vc,
     beforeParse(window) {
       window.fetch = (url, opts) => {
         fetchCalls.push({ url, opts });
         if (/open-meteo.*forecast/.test(url)) return Promise.resolve({ ok: true, json: async () => ({ current: { temperature_2m: 13.6, weather_code: 61, is_day: 1 } }) });
+        if (/photos\/index\.json$/.test(url)) return Promise.resolve({ ok: true, json: async () => ['a.jpg', 'b.jpg', 'notes.txt'] });
         if (/geocoding/.test(url)) return Promise.resolve({ ok: true, json: async () => ({ results: [{ name: 'Raufoss', admin1: 'Innlandet', country: 'Norge', latitude: 60.72, longitude: 10.61 }] }) });
         if (/\/api\/calls$/.test(url) && opts && opts.method === 'POST') return Promise.resolve({ ok: true, json: async () => ({ callId: 'c_test', status: 'ringing', livekit: { url: 'wss://rtc.test', token: 'tok' } }) });
         return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
       };
       window.HTMLMediaElement.prototype.play = () => Promise.resolve();
+      Object.defineProperty(window.navigator, 'wakeLock', { configurable: true, value: { request: async () => { wl.requests++; wl.held = true; return { release: async () => { wl.releases++; wl.held = false; }, addEventListener() {} }; } } });
       window.HTMLCanvasElement.prototype.getContext = () => ({ clearRect(){}, save(){}, restore(){}, translate(){}, rotate(){}, fillRect(){}, drawImage(){} });
       // Minimal LiveKit client stub so the call path runs without the real CDN library.
       window.LivekitClient = {
@@ -29,13 +32,13 @@ function mkdom(beforeParse) {
       if (beforeParse) beforeParse(window);
     }
   });
-  return { dom, fetchCalls };
+  return { dom, fetchCalls, wl };
 }
 const assert = (c, m) => { if (!c) errors.push('ASSERT: ' + m); else console.log('ok -', m); };
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 (async () => {
-  const { dom, fetchCalls } = mkdom();
+  const { dom, fetchCalls, wl } = mkdom();
   const w = dom.window, d = w.document;
   const q = s => d.querySelector(s), qa = s => [...d.querySelectorAll(s)];
   const click = el => el.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
@@ -46,6 +49,27 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(q('#evening-panel').classList.contains('hidden') && q('#bottom-grid').classList.contains('no-evening'), 'KVELD panel hidden when Home Assistant not connected');
   assert(q('#wx-temp').textContent === '14°' && q('#wx-icon').textContent === '🌧️', 'Open-Meteo weather shown: ' + q('#wx-temp').textContent + ' ' + q('#wx-icon').textContent);
   assert(q('#status').classList.contains('off'), 'HA dot grey (not in use)');
+
+  // Skjerm av: black overlay + wake lock released; a touch brings the page (and the lock) back
+  assert(wl.requests === 1 && wl.held, 'screen wake lock held at start');
+  click(q('#rest-btn'));
+  await wait(20);
+  assert(!q('#night').classList.contains('hidden') && q('#night').classList.contains('dark'), 'Skjerm av shows the black overlay');
+  assert(!wl.held && wl.releases === 1, 'wake lock released while the screen is off');
+  q('#night').dispatchEvent(new w.Event('pointerdown', { bubbles: true, cancelable: true }));
+  await wait(20);
+  assert(q('#night').classList.contains('hidden') && wl.held, 'touch wakes the screen and re-acquires the wake lock');
+
+  // Bilderamme: photos listed from photos/index.json, shown full-screen until touched
+  click(q('#frame-btn'));
+  await wait(50);
+  assert(!q('#frame').classList.contains('hidden'), 'photo frame opens');
+  const slideImg = q('#frame .slide img');
+  assert(!!slideImg && /^photos\/[ab]\.jpg$/.test(slideImg.getAttribute('src')), 'first photo shown (non-images skipped): ' + (slideImg && slideImg.getAttribute('src')));
+  assert(fetchCalls.some(c => /photos\/index\.json$/.test(c.url)), 'photo list fetched from photos/index.json');
+  assert(wl.held, 'wake lock held while the frame runs');
+  q('#frame').dispatchEvent(new w.Event('pointerdown', { bubbles: true, cancelable: true }));
+  assert(q('#frame').classList.contains('hidden') && qa('#frame .slide').length === 0, 'touch closes the photo frame');
 
   // PIN + menu
   click(q('#menu-btn'));

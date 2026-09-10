@@ -23,6 +23,7 @@ One page of static files, shown on a Linux desktop PC (Ubuntu) with a touchscree
 
 - The origin must be a **secure context** so `getUserMedia` (the LiveKit call) works. `http://localhost`, `https://` and `file://` all qualify; **`http://<LAN-IP>` does not** and would silently lose camera/mic — never serve the screen on the LAN IP over plain http.
 - The page must not be subject to **mixed-content blocking** of the `ws://` link to Home Assistant on the LAN. An `http://localhost` page (or `file://`) is fine; a `https://` page would need Home Assistant over `wss://`.
+- **Skjerm av** relies on the Screen Wake Lock API (secure context – `http://localhost` qualifies) plus a short GNOME `idle-delay` on the kiosk; without the API the page simply never blanks (keep `idle-delay` 0 there). **Bilderamme** relies on an nginx folder listing of `photos/` or a hand-written `photos/index.json`.
 - nginx serves static files only — **no server-side logic**, and the page keeps working with nothing configured (clock/notes/night mode offline). Serving from localhost also keeps `config.js` and its token off the network.
 
 The page must keep working with *nothing* configured (first run shows sample notes, live weather for the default place, and a friendly "not set up" message when calling). Every external dependency degrades gracefully.
@@ -55,7 +56,9 @@ Storage keys: `menkerud.settings` (object), `menkerud.notes` (array of `{uid, su
   ha: { url, token, weatherEntity, todoEntity, ttsEntity /* "" = auto: first weather.* / todo.* / tts.* */,
         ttsLanguage, includeSwitches, scripts: { mor, far, home }, callEvent },
   pin,                                                // string of digits, "" = no PIN
-  night: { enabled, from, to },                       // "HH:MM"
+  night: { enabled, from, to },                       // "HH:MM" – dim overlay
+  screen: { offEnabled, offFrom, offTo },             // "HH:MM" – display off (wake lock released); ⏻ button any time
+  photos: { dir, intervalSec },                       // Bilderamme: folder (index.json or nginx autoindex), seconds per picture
   emojis: [ … ]                                       // picker under Ny lapp
 }
 ```
@@ -70,7 +73,7 @@ Person keys are `mor` / `far` throughout (`cfg.people`, `data-who`, `data-name`,
 
 1. **Defaults & storage** – `DEFAULTS`, `SAMPLE_NOTES`, `deepMerge`, `getPath`/`setPath`, `store`, `cfg`, `haOn`, `toast`, overlay helpers, `setAvatar`.
 2. **`class HA`** – minimal Home Assistant WebSocket client: auth, incrementing ids, `send`, `subscribe`, `callService`, ping every 30 s, reconnect with backoff. `ha.onready` fetches `get_states`, picks entities, subscribes to `state_changed`, `todo/item/subscribe`, and the custom call event.
-3. **Clock / weather / night / background** – `tick` (nb-NO locale; re-renders the schedule on the minute), `renderWeather` (HA entity wins, else Open-Meteo `wxOpen`), `fetchOpenMeteo` every 15 min, `geocode`, night overlay (`nightMode` auto/on/off, `awakeUntil`, never while an overlay is open), `pickBackground` swaps the scenic background by clock or `home.background`.
+3. **Clock / weather / night / background** – `tick` (nb-NO locale; re-renders the schedule on the minute), `renderWeather` (HA entity wins, else Open-Meteo `wxOpen`), `fetchOpenMeteo` every 15 min, `geocode`, night overlay (`nightMode` auto/on/off, `awakeUntil`, never while an overlay is open), `pickBackground` swaps the scenic background by clock or `home.background`. **Screen off / wake lock:** `checkNight` also derives `dark` (`restMode`, set by the ⏻ header button, or the `cfg.screen` window via `inScreenOff`/`inWindow`) → `#night.dark` (solid black) and `syncWakeLock(!dark)`: the page holds a Screen Wake Lock whenever it should be visible and releases it while dark, so GNOME's `idle-delay` blanks the display (SETUP.md §3); a touch on `#night` clears `restMode` and buys two minutes (`awakeUntil`). The page cannot un-blank a display – only a touch can. **Bilderamme:** `startFrame` → `listPhotos` (`<cfg.photos.dir>/index.json`, else the folder's nginx autoindex as JSON or HTML) → shuffled slides in `#frame` (`showSlide`: blurred backdrop + `object-fit: contain` image, 1.2 s crossfade every `intervalSec`, broken files skipped); any touch → `stopFrame` (+2 min awake); `showOverlay` (incoming call) and Escape stop it too. A running frame keeps the wake lock and ignores the night window.
 4. **Sound** – WebAudio only: `ring` (425 Hz, 1 s on / 4 s off = Norwegian ringback), `chime` (C-E-G).
 5. **`speak(text)`** – HA TTS via `media_source/resolve_media` → `<audio>`; fallback `speechSynthesis` `nb-NO`.
 6. **Notes** – `localNotes` vs `haNotes`, `notesSource()`, `parseNote` (leading emoji cluster via `\p{Extended_Pictographic}`, optional `HH:MM`), `spokenTime` (klokka fem / kvart over / halv / kvart på, 12-hour), `renderNotes`, `addNote`, `removeNote`. `renderSchedule` merges the notes that carry a time **and today's calendar events** into the **I DAG** panel (all-day events first, then by time; past ones dimmed, one highlighted when near now) with a 06:00→21:00 day-progress bar. The **Kalender** pane (`renderCalendar`, `eventsOn`/`occursOn`, `addEvent`/`removeEvent`) is a month grid you tap to add dated events with an optional time and a simple repeat (daily / weekly / weekdays), stored in `menkerud.calendar`; it reuses the emoji picker, time stepper and docked keyboard.
@@ -98,6 +101,8 @@ Person keys are `mor` / `far` throughout (`cfg.people`, `data-who`, `data-name`,
 **Jeg er hjemme** → `imHome()` → celebration 4.5 s → `sendPush('both','home')`.
 
 **Notes** → HA connected and a `todo.*` entity exists: the board mirrors that list (parents add from the Companion app; format `<emoji> [HH:MM] [text]`). Otherwise notes live in `localStorage` and are managed under Ny lapp. Tapping a note wiggles it and speaks `spokenNote`. **Calendar** → dated events added under Kalender live in `localStorage` (`menkerud.calendar`); today's events (including recurring ones) appear in the I DAG panel alongside timed notes.
+
+**⏻ Skjerm av** → `screenOff()` → `#night.dark` + wake lock released → GNOME blanks the display after `idle-delay` → a touch: GNOME turns the display on, the touch hits `#night` → `restMode = false`, overlay hidden, lock re-acquired. The `screen.offFrom`–`offTo` window does the same on a schedule, but a touch there only buys two minutes. **🖼 Bilderamme** → `startFrame()` → `listPhotos()` → `#frame` shows shuffled slides (wake lock held) until a touch → `stopFrame()` → home screen, two minutes awake.
 
 ## 5. External protocols (exact)
 
@@ -166,7 +171,8 @@ Rule of thumb: if the bot is stable and always on, B keeps the token out of the 
 - Voice: Piper (Wyoming) via HA for natural Norwegian, or a `/tts` HTTP endpoint provider so TTS works without HA.
 - Camera streams via HLS (`camera/stream` WS command + hls.js) instead of MJPEG.
 - Multiple children / per-child "Jeg er hjemme" (who came home), with per-child colour.
-- Night mode: dim via DDC/backlight (`brightnessctl`) from a small local helper instead of a CSS overlay.
+- **Redesign the PIN-locked menu/admin area** (operator, 2026-09-10: «it works, but looks bad») – next up after Skjerm av / Bilderamme.
+- Skjerm av: the page cannot wake a blanked display for an incoming call; a tiny local helper (Mutter `PowerSaveMode` over D-Bus) could. Also a Ken Burns / slow-zoom option for Bilderamme.
 - Unit tests for `parseNote`, `spokenTime`, `wmoIcon` outside jsdom.
 - Simple update mechanism: `git pull` + reload button in Innstillinger.
 

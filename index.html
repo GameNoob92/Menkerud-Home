@@ -76,7 +76,7 @@ body{
 @keyframes drift{from{transform:translate(0,0) scale(1)}to{transform:translate(-2.5%,2%) scale(1.06)}}
 
 /* ---------- Header ---------- */
-header{display:grid;grid-template-columns:auto auto 1fr auto auto;align-items:center;gap:1.4rem;position:relative;min-height:8.5rem}
+header{display:grid;grid-template-columns:auto auto auto auto 1fr auto auto auto;align-items:center;gap:1.4rem;position:relative;min-height:8.5rem}
 .nav-btn{
   width:5rem;height:5rem;border-radius:1.4rem;flex:none;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:.6rem;
   background:rgba(14,34,73,.55);border:1px solid var(--glass-line);backdrop-filter:blur(var(--glass-blur));
@@ -350,6 +350,14 @@ select.inp option{color:#111}
 
 /* Night, toast, confetti */
 #night{position:fixed;inset:0;z-index:40;background:rgba(0,2,18,.78)}
+#night.dark{background:#000}
+/* Bilderamme: full-screen photo frame (below the overlays, above the page) */
+#frame{position:fixed;inset:0;z-index:45;background:#000;overflow:hidden;cursor:none}
+#frame .slide{position:absolute;inset:0;opacity:0;transition:opacity 1.2s ease}
+#frame .slide.show{opacity:1}
+#frame .slide .bgblur{position:absolute;inset:-4rem;background-size:cover;background-position:center;filter:blur(2.5rem) brightness(.5)}
+#frame .slide img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+#frame .fclock{position:absolute;right:2.6rem;bottom:2rem;z-index:2;font-size:3rem;font-weight:900;letter-spacing:-.02em;text-shadow:0 .2rem 1rem rgba(0,0,0,.8);opacity:.85}
 #toast{position:fixed;left:50%;bottom:4rem;transform:translateX(-50%);z-index:70;background:rgba(20,26,60,.95);border:1px solid var(--glass-line);border-radius:2rem;padding:1rem 2rem;font-size:1.6rem;font-weight:800;box-shadow:var(--shadow-card);max-width:80vw;text-align:center}
 #confetti{position:fixed;inset:0;z-index:60;pointer-events:none;width:100%;height:100%}
 
@@ -392,6 +400,8 @@ select.inp option{color:#111}
 <header>
   <button class="nav-btn" id="menu-btn" aria-label="Meny"><span></span><span></span><span></span></button>
   <button class="nav-btn" id="home-btn" aria-label="Hjem"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></svg></button>
+  <button class="nav-btn" id="frame-btn" aria-label="Bilderamme" title="Bilderamme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V5h14v14zM8.5 12.5l2.5 3 3.5-4.5 4.5 6H5z"/></svg></button>
+  <button class="nav-btn" id="rest-btn" aria-label="Skjerm av" title="Skjerm av"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3h-2v10h2V3zm4.83 2.17-1.42 1.42A6.92 6.92 0 0 1 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.17.99-4.1 2.58-5.42L6.17 5.17A8.93 8.93 0 0 0 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.65-1.15-5.03-2.17-6.83z"/></svg></button>
   <div class="title">
     <h1><span id="home-name">MENKERUD</span> <span class="light">HOME</span> <span class="heart">♥</span></h1>
     <p id="home-sub">FAMILIE • HJEM • SAMMEN • ALLTID</p>
@@ -611,6 +621,7 @@ select.inp option{color:#111}
   </div>
 </div>
 
+<div id="frame" class="hidden"><div class="fclock" id="frame-clock"></div></div>
 <div id="night" class="hidden"></div>
 <div id="toast" class="hidden"></div>
 <canvas id="confetti"></canvas>
@@ -644,6 +655,8 @@ const DEFAULTS = {
   },
   pin: '061111',
   night: { enabled: true, from: '21:00', to: '06:30' },
+  screen: { offEnabled: true, offFrom: '23:00', offTo: '06:00' },   // display off: the page drops its wake lock, GNOME blanks (SETUP.md §3)
+  photos: { dir: 'photos/', intervalSec: 20 },                      // Bilderamme
   emojis: ['⚽','🏀','🏊','⛷️','🎿','🚲','🥾','🏃','🎒','📚','✏️','🎨','🎵','🎹','🎮','📺','🦷','🛁','🧼','😴','🌙','⏰','🍎','🥪','🍕','🍦','🎂','🎁','🎉','❤️','⭐','😊','🧸','🐶','🐱','🐴','🧥','🧦','👟','🧤','☀️','🌧️','❄️','🚌','🚗','🏠','👵','👴','🎈','🧹']
 };
 const SAMPLE_NOTES = ['⚽ 17:00 Fotball', '🎒 Gymtøy!', '🦷 20:00 Tannpuss', '❤️ Du er flink!', '☀️ Ha en fin dag i morgen!'];
@@ -693,7 +706,7 @@ function toast(msg, ms) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.add('hidden'), ms || 3000);
 }
-function showOverlay(sel) { $(sel).classList.remove('hidden'); checkNight(); }
+function showOverlay(sel) { if (sel !== '#frame' && frameOn()) stopFrame(); $(sel).classList.remove('hidden'); checkNight(); }
 function hideOverlay(sel) { $(sel).classList.add('hidden'); checkNight(); }
 function overlayOpen() { return $$('.overlay').some(o => !o.classList.contains('hidden')); }
 
@@ -843,6 +856,7 @@ ha.onclose = () => { setStatusDot(); renderNotes(); renderWeather(); renderStatu
 function tick() {
   const d = new Date();
   $('#clock').textContent = d.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
+  if (frameOn()) $('#frame-clock').textContent = $('#clock').textContent;
   const ds = d.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' });
   $('#date').textContent = ds.charAt(0).toUpperCase() + ds.slice(1);
   checkNight(d);
@@ -898,19 +912,117 @@ async function geocode(name) {
 }
 
 let nightMode = 'auto', awakeUntil = 0;
-function inNight(d) {
-  const [fh, fm] = String(cfg.night.from || '21:00').split(':').map(Number);
-  const [th, tm] = String(cfg.night.to || '06:30').split(':').map(Number);
+function inWindow(from, to, d) {
+  const [fh, fm] = String(from).split(':').map(Number);
+  const [th, tm] = String(to).split(':').map(Number);
   const cur = d.getHours() * 60 + d.getMinutes(), f = fh * 60 + fm, t = th * 60 + tm;
+  if (!(f >= 0) || !(t >= 0)) return false;
   return f < t ? (cur >= f && cur < t) : (cur >= f || cur < t);
 }
+function inNight(d) { return inWindow(cfg.night.from || '21:00', cfg.night.to || '06:30', d); }
+function inScreenOff(d) { return !!(cfg.screen && cfg.screen.offEnabled) && inWindow(cfg.screen.offFrom || '23:00', cfg.screen.offTo || '06:00', d); }
+
+/* Skjerm av: #night goes fully black (.dark) and the page releases its Screen Wake Lock, so the kiosk's ordinary
+   idle blanking (GNOME idle-delay, SETUP.md §3) switches the display off. The page can't wake a blanked display –
+   that takes a touch, which lands on #night and wakes it for two minutes (or for good after the ⏻ button). */
+let restMode = false;                                  // ⏻ pressed – until the next touch
+let wakeLock = null, wakeWanted = true, wakeBusy = false;
+async function syncWakeLock(want) {
+  wakeWanted = want;
+  if (!navigator.wakeLock || wakeBusy) return;         // no API (file://, old browser): leave GNOME idle-delay at 0
+  wakeBusy = true;
+  try {
+    if (wakeWanted && !wakeLock) {
+      const l = await navigator.wakeLock.request('screen');
+      l.addEventListener('release', () => { if (wakeLock === l) wakeLock = null; });
+      wakeLock = l;
+    } else if (!wakeWanted && wakeLock) { const l = wakeLock; wakeLock = null; await l.release(); }
+  } catch (e) { /* page hidden or not allowed – the 1 s tick retries */ }
+  wakeBusy = false;
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncWakeLock(wakeWanted); });
 function checkNight(d) {
   d = d || new Date();
-  let on = nightMode === 'on' || (nightMode === 'auto' && cfg.night.enabled && inNight(d));
-  if (Date.now() < awakeUntil || overlayOpen()) on = false;
-  $('#night').classList.toggle('hidden', !on);
+  const awake = Date.now() < awakeUntil;
+  let dark = restMode || (!awake && inScreenOff(d));
+  let on = dark || nightMode === 'on' || (nightMode === 'auto' && cfg.night.enabled && inNight(d));
+  if (awake || overlayOpen() || frameOn()) { on = false; dark = false; }
+  const n = $('#night');
+  n.classList.toggle('hidden', !on);
+  n.classList.toggle('dark', dark);
+  syncWakeLock(!dark);
 }
-$('#night').addEventListener('pointerdown', e => { e.preventDefault(); awakeUntil = Date.now() + 120000; checkNight(); });
+function screenOff() { restMode = true; awakeUntil = 0; checkNight(); }
+$('#night').addEventListener('pointerdown', e => { e.preventDefault(); restMode = false; awakeUntil = Date.now() + 120000; checkNight(); });
+
+/* ---------------- Bilderamme (photo frame) ---------------- */
+let frameTimer = null, framePhotos = [], frameIdx = 0, frameToken = 0;
+function frameOn() { return !$('#frame').classList.contains('hidden'); }
+function photoDir() { return String((cfg.photos && cfg.photos.dir) || 'photos/').replace(/\/*$/, '/'); }
+const isImg = n => /\.(jpe?g|png|gif|webp|avif)$/i.test(n);
+async function listPhotos() {
+  const dir = photoDir();
+  const abs = n => (/^(https?:)?\/\//i.test(n) || n.startsWith('/')) ? n : dir + n.split('/').map(encodeURIComponent).join('/');
+  try {   // 1) optional manifest <dir>/index.json: ["a.jpg", …] or {"photos": [ … ]}
+    const r = await fetch(dir + 'index.json', { cache: 'no-store' });
+    if (r.ok) { const j = await r.json(); const arr = Array.isArray(j) ? j : (j && (j.photos || j.files)) || []; const out = arr.map(String).filter(isImg).map(abs); if (out.length) return out; }
+  } catch (e) {}
+  try {   // 2) the folder itself: nginx autoindex (JSON with autoindex_format json, else the HTML listing)
+    const r = await fetch(dir, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+    if (r.ok) {
+      const ct = (r.headers && r.headers.get('content-type')) || '';
+      if (/json/i.test(ct)) { const j = await r.json(); return (Array.isArray(j) ? j : []).filter(e => e && e.type === 'file' && isImg(e.name)).map(e => abs(e.name)); }
+      const html = await r.text();
+      const names = [...html.matchAll(/href="([^"?#]+)"/g)].map(m => { try { return decodeURIComponent(m[1]); } catch (e) { return m[1]; } }).filter(n => isImg(n) && !n.includes('/'));
+      return [...new Set(names)].map(abs);
+    }
+  } catch (e) {}
+  return [];
+}
+function showSlide(src) {
+  const wrap = $('#frame'), old = $$('#frame .slide');
+  const s = document.createElement('div'); s.className = 'slide';
+  const bg = document.createElement('div'); bg.className = 'bgblur'; bg.style.backgroundImage = 'url("' + src.replace(/"/g, '%22') + '")';
+  const im = document.createElement('img'); im.alt = '';
+  let shown = false;
+  const reveal = () => { if (shown) return; shown = true; s.classList.add('show'); old.forEach(o => setTimeout(() => o.remove(), 1300)); };
+  im.addEventListener('load', reveal);
+  im.addEventListener('error', () => {
+    if (!frameOn()) return;
+    s.remove(); framePhotos = framePhotos.filter(p => p !== src);
+    if (!framePhotos.length) { stopFrame(); toast('Fant ingen bilder som kan vises'); } else nextSlide();
+  });
+  im.src = src;
+  s.appendChild(bg); s.appendChild(im); wrap.appendChild(s);
+  setTimeout(reveal, 1500);                            // a slow decode should not stall the show
+}
+function nextSlide() {
+  if (!frameOn() || !framePhotos.length) return;
+  showSlide(framePhotos[frameIdx++ % framePhotos.length]);
+}
+async function startFrame() {
+  if (frameOn() || overlayOpen()) return;
+  const my = ++frameToken;
+  const list = await listPhotos();
+  if (my !== frameToken || frameOn() || overlayOpen()) return;
+  if (!list.length) { toast('Fant ingen bilder i ' + photoDir() + ' – se SETUP.md'); return; }
+  for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+  framePhotos = list; frameIdx = 0;
+  $('#frame-clock').textContent = $('#clock').textContent;
+  $('#frame').classList.remove('hidden');
+  nextSlide();
+  clearInterval(frameTimer);
+  frameTimer = setInterval(nextSlide, Math.max(3, Number(cfg.photos && cfg.photos.intervalSec) || 20) * 1000);
+  checkNight();
+}
+function stopFrame() {
+  frameToken++;
+  clearInterval(frameTimer); frameTimer = null;
+  framePhotos = [];
+  $('#frame').classList.add('hidden');
+  $$('#frame .slide').forEach(s => s.remove());
+}
+$('#frame').addEventListener('pointerdown', e => { e.preventDefault(); stopFrame(); awakeUntil = Date.now() + 120000; checkNight(); });
 
 /* ---------------- Sound ---------------- */
 let actx = null;
@@ -1625,7 +1737,14 @@ const SETTINGS = [
   { sec: 'Nattmodus' },
   { k: 'night.enabled', l: 'Demp skjermen om natten', toggle: true },
   { k: 'night.from', l: 'Fra klokka', hint: 'TT:MM', num: true },
-  { k: 'night.to', l: 'Til klokka', hint: 'TT:MM', num: true }
+  { k: 'night.to', l: 'Til klokka', hint: 'TT:MM', num: true },
+  { sec: 'Skjerm av' },
+  { k: 'screen.offEnabled', l: 'Slå av skjermen om natten', hint: 'Et trykk vekker den i to minutter. ⏻ i toppen slår av når som helst', toggle: true },
+  { k: 'screen.offFrom', l: 'Av fra klokka', hint: 'TT:MM', num: true },
+  { k: 'screen.offTo', l: 'På igjen klokka', hint: 'TT:MM', num: true },
+  { sec: 'Bilderamme' },
+  { k: 'photos.dir', l: 'Bildemappe', hint: 'Mappe på skjermen med .jpg/.png/.webp – standard photos/ (se SETUP.md)' },
+  { k: 'photos.intervalSec', l: 'Sekunder per bilde', num: true, number: true }
 ];
 let draft = null;
 function buildForm(keepDraft) {
@@ -2033,6 +2152,8 @@ function init() {
   $('#menu-btn').addEventListener('click', openMenuGate);
   $('#footer-gear').addEventListener('click', openMenuGate);
   $('#home-btn').addEventListener('click', () => { if (!$('#menu').classList.contains('hidden')) closeMenu(); });
+  $('#frame-btn').addEventListener('click', startFrame);
+  $('#rest-btn').addEventListener('click', screenOff);
   $('#pin-cancel').addEventListener('click', () => { pinBuf = ''; hideOverlay('#pin'); });
   $('#menu-close').addEventListener('click', closeMenu);
   $('#menu-back').addEventListener('click', () => showPane('home'));
@@ -2052,6 +2173,7 @@ function init() {
     if (!$('#call').classList.contains('hidden')) endCall();
     else if (!$('#menu').classList.contains('hidden')) closeMenu();
     else if (!$('#pin').classList.contains('hidden')) hideOverlay('#pin');
+    else if (frameOn()) { stopFrame(); checkNight(); }
   });
   window.addEventListener('resize', () => { const c = $('#confetti'); c.width = window.innerWidth; c.height = window.innerHeight; });
 
