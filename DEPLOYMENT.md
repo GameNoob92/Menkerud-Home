@@ -108,7 +108,7 @@ Anything in `config.js` is the baseline at every boot; on-screen edits still ove
 
 ## 3. Updating
 
-Frontend (Ubuntu): `cd /var/www/menkerud-home && sudo -u menkerud-hjem git pull` — no service to restart, nginx serves the files.
+Frontend (Ubuntu): on the screen, ☰ → Innstillinger → Status → **«Hent oppdatering»** (the kiosk screen helper runs `git pull --ff-only` and the page reloads; the helper restarts itself if the pull changed it). From a shell: `cd /var/www/menkerud-home && sudo -u menkerud-hjem git pull`, then reload the page — no service to restart, nginx serves the files.
 Backend (Unraid): `git pull` the call-backend folder, then `docker compose up -d --build`.
 Run `npm test` on the dev PC before pushing.
 

@@ -296,7 +296,7 @@ footer .brand{letter-spacing:.28em;font-weight:800;color:var(--text-soft);font-s
 .chip-btn:active{transform:scale(.96);background:rgba(255,255,255,.24)}
 .chip-btn.on{background:rgba(110,231,183,.3);border-color:#6ee7b7}
 .chip-btn.danger{border-color:rgba(255,90,90,.7)}
-.btns{display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0}
+.btns{display:flex;flex-wrap:wrap;gap:.8rem;margin:.6rem 0}
 
 /* Inputs + docked keyboard (docks under the open section, never under the section list) */
 .inp{flex:1;min-width:0;width:100%;font:inherit;font-size:1.7rem;font-weight:700;padding:.75rem 1.2rem;border-radius:1rem;border:1px solid var(--glass-line);background:rgba(0,0,0,.28);color:#fff;outline:none;-webkit-user-select:text;user-select:text}
@@ -334,12 +334,12 @@ select.inp option{color:#111}
 
 /* Innstillinger: one tab per topic instead of one long scroll; Lagre stays at hand at the bottom */
 #pane-settings{display:flex;flex-direction:column;height:100%;min-height:0}
-.stabs{display:flex;flex-wrap:wrap;gap:.6rem;flex:none;padding:.2rem 0 1rem}
+.stabs{display:flex;flex-wrap:wrap;gap:.6rem;flex:none;padding:.2rem 0 .8rem}
 .stab{padding:.8rem 1.5rem;border-radius:2rem;font-size:1.45rem;font-weight:800;color:var(--text-soft);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);transition:background .12s,color .12s}
 .stab.on{background:#fff;color:#0b1b3d;border-color:#fff}
 .sscroll{flex:1;min-height:0;overflow:auto;padding-right:.5rem;scrollbar-width:thin}
-.status{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1rem}
-.srow{display:grid;grid-template-columns:1.1rem minmax(0,1fr);column-gap:1rem;align-items:center;padding:.9rem 1.3rem;border-radius:1.3rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);min-width:0}
+.status{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.6rem}
+.srow{display:grid;grid-template-columns:1.1rem minmax(0,1fr);column-gap:1rem;align-items:center;padding:.7rem 1.2rem;border-radius:1.3rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);min-width:0}
 .srow i{grid-row:1/3;width:1.1rem;height:1.1rem;border-radius:50%;background:#8892b0}
 .srow .sk{font-size:1.45rem;font-weight:800}
 .srow.on i{background:#3ee07a;box-shadow:0 0 .8rem #3ee07a}
@@ -638,6 +638,7 @@ select.inp option{color:#111}
               <div class="status" id="status-grid"></div>
               <div class="sub">Test og verktøy</div>
               <div class="btns">
+                <button class="chip-btn" id="t-update">⬇️ Hent oppdatering</button>
                 <button class="chip-btn" id="t-mor">📲 Test varsel til mor</button>
                 <button class="chip-btn" id="t-far">📲 Test varsel til far</button>
                 <button class="chip-btn" id="t-ring">🔔 Test ringelyd</button>
@@ -698,7 +699,7 @@ const DEFAULTS = {
   pin: '061111',
   night: { enabled: true, from: '21:00', to: '06:30' },
   screen: { offEnabled: true, offFrom: '23:00', offTo: '06:00', helper: 'http://127.0.0.1:7777' },   // display off via the kiosk screen helper (SETUP.md §3)
-  photos: { dir: 'photos/', intervalSec: 20 },                      // Bilderamme
+  photos: { dir: 'photos/', intervalSec: 20, idleMin: 0 },          // Bilderamme; idleMin = start by itself after n minutes without a touch (0 = never)
   emojis: ['⚽','🏀','🏊','⛷️','🎿','🚲','🥾','🏃','🎒','📚','✏️','🎨','🎵','🎹','🎮','📺','🦷','🛁','🧼','😴','🌙','⏰','🍎','🥪','🍕','🍦','🎂','🎁','🎉','❤️','⭐','😊','🧸','🐶','🐱','🐴','🧥','🧦','👟','🧤','☀️','🌧️','❄️','🚌','🚗','🏠','👵','👴','🎈','🧹']
 };
 const SAMPLE_NOTES = ['⚽ 17:00 Fotball', '🎒 Gymtøy!', '🦷 20:00 Tannpuss', '❤️ Du er flink!', '☀️ Ha en fin dag i morgen!'];
@@ -902,6 +903,7 @@ function tick() {
   const ds = d.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' });
   $('#date').textContent = ds.charAt(0).toUpperCase() + ds.slice(1);
   checkNight(d);
+  checkIdleFrame(d);
   const mk = d.getHours() * 60 + d.getMinutes();
   if (mk !== lastTickMin) { lastTickMin = mk; renderSchedule(); if (((cfg.home && cfg.home.background) || 'auto') === 'auto') pickBackground(); }
 }
@@ -969,8 +971,9 @@ function inScreenOff(d) { return !!(cfg.screen && cfg.screen.offEnabled) && inWi
    the end of the night window – it asks for it back on. Without the helper only the black overlay remains. */
 let restMode = false;                                  // ⏻ pressed – until the next touch
 let lastDark = null;
+function helperUrl() { return String((cfg.screen && cfg.screen.helper) || '').trim().replace(/\/+$/, ''); }
 function screenPower(on) {
-  const h = String((cfg.screen && cfg.screen.helper) || '').trim().replace(/\/+$/, '');
+  const h = helperUrl();
   if (!h) return;
   try { fetch(h + (on ? '/on' : '/off'), { mode: 'no-cors', cache: 'no-store', keepalive: true }).catch(() => {}); } catch (e) {}
 }
@@ -978,6 +981,7 @@ function checkNight(d) {
   d = d || new Date();
   const awake = Date.now() < awakeUntil;
   let dark = restMode || (!awake && inScreenOff(d));
+  if (dark && frameOn() && frameAuto) stopFrame();           // an auto-started slideshow must not keep the screen on all night
   let on = dark || nightMode === 'on' || (nightMode === 'auto' && cfg.night.enabled && inNight(d));
   if (awake || overlayOpen() || frameOn()) { on = false; dark = false; }
   const n = $('#night');
@@ -992,7 +996,7 @@ $('#night').addEventListener('pointerdown', e => e.preventDefault());
 $('#night').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); restMode = false; awakeUntil = Date.now() + 120000; checkNight(); });
 
 /* ---------------- Bilderamme (photo frame) ---------------- */
-let frameTimer = null, framePhotos = [], frameIdx = 0, frameToken = 0;
+let frameTimer = null, framePhotos = [], frameIdx = 0, frameToken = 0, frameAuto = false;
 function frameOn() { return !$('#frame').classList.contains('hidden'); }
 function photoDir() { return String((cfg.photos && cfg.photos.dir) || 'photos/').replace(/\/*$/, '/'); }
 const isImg = n => /\.(jpe?g|png|gif|webp|avif)$/i.test(n);
@@ -1059,14 +1063,14 @@ function nextSlide() {
   if (!frameOn() || !framePhotos.length) return;
   showSlide(framePhotos[frameIdx++ % framePhotos.length]);
 }
-async function startFrame() {
+async function startFrame(auto) {
   if (frameOn() || overlayOpen()) return;
   const my = ++frameToken;
   const list = await listPhotos();
   if (my !== frameToken || frameOn() || overlayOpen()) return;
   if (!list.length) { toast('Fant ingen bilder i ' + photoDir() + ' – se SETUP.md'); return; }
   for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
-  framePhotos = list; frameIdx = 0;
+  framePhotos = list; frameIdx = 0; frameAuto = !!auto;
   $('#frame-clock').textContent = $('#clock').textContent;
   $('#frame').classList.remove('hidden');
   nextSlide();
@@ -1075,13 +1079,26 @@ async function startFrame() {
   checkNight();
 }
 function stopFrame() {
-  frameToken++;
+  frameToken++; frameAuto = false;
   clearInterval(frameTimer); frameTimer = null;
   framePhotos = [];
   $('#frame').classList.add('hidden');
   $$('#frame .slide').forEach(s => s.remove());
 }
 $('#frame').addEventListener('pointerdown', e => e.preventDefault());   // same as #night: close on the completed tap, never on the touch-down
+
+/* Bilderamme starts by itself after cfg.photos.idleMin minutes without a touch (0 = never). Not while something is
+   open, not while the screen is off (⏻ or the night window) – and checkNight stops an auto-started frame when the
+   window begins, so the display still goes dark. One attempt per idle period, so an empty folder toasts once. */
+let lastInput = Date.now(), idleFrameTried = 0;
+['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, () => { lastInput = Date.now(); }, { capture: true, passive: true }));
+function checkIdleFrame(d) {
+  const min = Number(cfg.photos && cfg.photos.idleMin) || 0;
+  if (min <= 0 || frameOn() || overlayOpen() || restMode || inScreenOff(d)) return;
+  if (Date.now() - Math.max(lastInput, idleFrameTried) < min * 60000) return;
+  idleFrameTried = Date.now();
+  startFrame(true);
+}
 $('#frame').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); stopFrame(); awakeUntil = Date.now() + 120000; checkNight(); });
 
 /* ---------------- Sound ---------------- */
@@ -1607,7 +1624,7 @@ function showPane(name) {
   $('#panel-body').scrollTop = 0;
   if (name === 'lights') renderLights();
   if (name === 'cams') { closeCam(); renderCams(); }
-  if (name === 'settings') { renderStatus(); buildForm(); }
+  if (name === 'settings') { renderStatus(); buildForm(); fetchVersion(); }
   if (name === 'note') { renderNoteList(); updatePreview(); }
   if (name === 'calendar') renderCalendar();
   renderNav();
@@ -1766,7 +1783,9 @@ function renderStatus() {
     [cfg.people.mor.name + '/' + cfg.people.far.name.toLowerCase() + ' ringer hjem', ringHome[0], ringHome[1]],
     ['Lapper', notesSource() === 'ha' ? 'Home Assistant (' + todoId + ')' : 'Lagres på kiosken', 'on'],
     ['Vær', (ha.connected && weatherId) ? 'Home Assistant (' + weatherId + ')' : 'Open-Meteo' + (cfg.weather.place ? ' (' + cfg.weather.place + ')' : ''), 'on'],
-    ['Opplesing', (ha.connected && ttsId) ? ttsId : 'Nettleserens stemme', 'on']
+    ['Opplesing', (ha.connected && ttsId) ? ttsId : 'Nettleserens stemme', 'on'],
+    ['Versjon', swVersion && swVersion.head ? swVersion.head + ' · ' + fmtStamp(swVersion.date) : swVersion === false ? (helperUrl() ? 'Ukjent – skjermhjelperen svarer ikke' : 'Ukjent – ingen skjermhjelper') : 'Sjekker…',
+      swVersion && swVersion.head ? 'on' : swVersion === false ? 'idle' : 'busy']
   ];
   $('#status-grid').innerHTML = rows.map(r => '<div class="srow ' + r[2] + '"><i></i><span class="sk">' + esc(r[0]) + '</span><span class="sv">' + esc(r[1]) + '</span></div>').join('');
   $('#t-night').textContent = '🌙 Nattmodus: ' + (nightMode === 'auto' ? 'auto' : nightMode === 'on' ? 'på' : 'av');
@@ -1791,6 +1810,40 @@ $('#t-night').addEventListener('click', () => {
   renderStatus();
 });
 $('#t-reload').addEventListener('click', () => location.reload());
+
+/* Hent oppdatering: the page is static, so the kiosk screen helper (same user, same checkout) runs `git pull` for it. */
+let swVersion = null;                                  // {head, date, subject} from the helper; false = no helper / no answer
+function fmtStamp(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+async function fetchVersion() {
+  const h = helperUrl();
+  if (!h) { swVersion = false; renderStatus(); return; }
+  try { const r = await fetch(h + '/version', { cache: 'no-store' }); const j = await r.json(); swVersion = (j && j.head) ? j : false; }
+  catch (e) { swVersion = false; }
+  renderStatus();
+}
+async function updateApp() {
+  const h = helperUrl();
+  if (!h) { toast('Trenger skjermhjelperen (Innstillinger → Skjerm) for å hente oppdateringer', 5000); return; }
+  const b = $('#t-update');
+  const idle = () => { b.disabled = false; b.textContent = '⬇️ Hent oppdatering'; };
+  b.disabled = true; b.textContent = '⏳ Henter…';
+  try {
+    const r = await fetch(h + '/update', { method: 'POST', cache: 'no-store' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || ('feil ' + r.status));
+    if (!j.changed) { toast('Allerede oppdatert (' + j.after + ')'); idle(); fetchVersion(); return; }
+    toast('Oppdatert ' + j.before + ' → ' + j.after + ' – laster inn på nytt…', 4000);
+    setTimeout(() => location.reload(), 1500);
+  } catch (e) {
+    const m = (e && e.message) || '';
+    toast('Fikk ikke oppdatert: ' + (m && !/fetch|network/i.test(m) ? m : 'skjermhjelperen svarer ikke'), 6000);
+    idle();
+  }
+}
+$('#t-update').addEventListener('click', updateApp);
 
 /* Schema for the form. `tab` starts a tab (one topic per tab), `sec` a heading inside a tab, `intro` a line under the tab's name. */
 const SETTINGS = [
@@ -1842,7 +1895,8 @@ const SETTINGS = [
   { k: 'screen.helper', l: 'Skjermhjelper', hint: 'Lokal tjeneste som slår skjermen av/på (scripts/kiosk-screen.py, SETUP.md §3). Tom = bare svart bilde' },
   { tab: 'bilder', l: 'Bilderamme' },
   { k: 'photos.dir', l: 'Bildemappe', hint: 'photos/ i appen, /bilder/ for nettverksmappa (se SETUP.md) eller en http://-adresse. Undermapper tas med' },
-  { k: 'photos.intervalSec', l: 'Sekunder per bilde', num: true, number: true }
+  { k: 'photos.intervalSec', l: 'Sekunder per bilde', num: true, number: true },
+  { k: 'photos.idleMin', l: 'Start av seg selv', hint: 'Minutter uten berøring før bilderammen starter. 0 = aldri. Stopper når skjermen skal være av', num: true, number: true }
 ];
 const STATUS_TAB = { tab: 'status', l: 'Status' };
 let draft = null, settingsTab = 'status';
@@ -1974,7 +2028,7 @@ function saveSettings() {
   SETTINGS.forEach(fd => {
     if (fd.k) {
       let v = getPath(draft, fd.k);
-      if (fd.number) v = Number(v) || 60;
+      if (fd.number) { v = Number(String(v == null ? '' : v).replace(',', '.')); if (!Number.isFinite(v)) v = getPath(DEFAULTS, fd.k); }
       if (typeof v === 'string') v = v.trim();
       setPath(saved, fd.k, v);
     }

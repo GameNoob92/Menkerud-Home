@@ -21,6 +21,9 @@ function mkdom(beforeParse) {
         if (/^bilder\/index\.json$/.test(url)) return Promise.resolve({ ok: true, json: async () => ['c.jpg', 'tur/d.jpg'] });
         if (/geocoding/.test(url)) return Promise.resolve({ ok: true, json: async () => ({ results: [{ name: 'Raufoss', admin1: 'Innlandet', country: 'Norge', latitude: 60.72, longitude: 10.61 }] }) });
         if (/\/api\/calls$/.test(url) && opts && opts.method === 'POST') return Promise.resolve({ ok: true, json: async () => ({ callId: 'c_test', status: 'ringing', livekit: { url: 'wss://rtc.test', token: 'tok' } }) });
+        // kiosk screen helper: version + update (the page's «Hent oppdatering» button)
+        if (/:7777\/version$/.test(url)) return Promise.resolve({ ok: true, status: 200, json: async () => ({ head: '000b6d4', date: '2026-09-11T21:12:00+02:00', subject: 'feat(menu)' }) });
+        if (/:7777\/update$/.test(url) && opts && opts.method === 'POST') return Promise.resolve({ ok: true, status: 200, json: async () => ({ ok: true, before: 'a7e0907', after: '000b6d4', changed: true, helper_restart: false }) });
         return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
       };
       // Deterministic clock (12:00 on a fixed date) so night dimming and the screen-off window never depend on when the test runs.
@@ -130,7 +133,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   // Settings
   click(q('.nav-item[data-pane="settings"]'));
-  assert(qa('#status-grid .srow').length === 7, 'status rows: ' + qa('#status-grid .srow').length);
+  await wait(20);
+  assert(qa('#status-grid .srow').length === 8, 'status rows: ' + qa('#status-grid .srow').length);
+  { const v = qa('#status-grid .srow').find(r => r.querySelector('.sk').textContent === 'Versjon'); assert(v && v.classList.contains('on') && /^000b6d4 · /.test(v.querySelector('.sv').textContent), 'version card from the helper: ' + (v && v.querySelector('.sv').textContent)); }
   assert(qa('#stabs .stab').length === 6 && q('#stabs .stab.on').textContent === 'Status', 'settings tabs: ' + qa('#stabs .stab').map(b => b.textContent).join(','));
   assert(!q('#settings-status').classList.contains('hidden') && q('.sgroup[data-tab="familie"]').classList.contains('hidden') && q('#save-row').classList.contains('hidden'), 'status tab open, form tabs and save row hidden');
   click(qa('#stabs .stab').find(b => b.textContent === 'Familie'));
@@ -141,6 +146,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   setVal('Mor heter', 'Mamma');
   setVal('Call-backend URL', 'https://call.example.no');
   setVal('Bildemappe', 'bilder/');
+  setVal('Start av seg selv', '15');
   assert(!!inputFor('Discord-webhook') && !inputFor('ntfy-server'), 'discord fields shown by default');
   { const s0 = inputFor('Hvordan varsle'); s0.value = 'ntfy'; s0.dispatchEvent(new w.Event('change', { bubbles: true })); }
   setVal('Emne for mors', 'menkerud-mor-test');
@@ -161,10 +167,15 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   click(q('#t-mor'));
   await wait(20);
   assert(q('#toast').textContent.includes('mangler'), 'test push before save reports missing webhook: ' + q('#toast').textContent);
+  // Hent oppdatering: POST to the helper, toast with before → after (the reload that follows is a no-op in jsdom)
+  click(q('#t-update'));
+  await wait(20);
+  assert(fetchCalls.some(c => /:7777\/update$/.test(c.url) && c.opts && c.opts.method === 'POST'), 'update button POSTs to the helper');
+  assert(q('#toast').textContent.startsWith('Oppdatert a7e0907 → 000b6d4'), 'update toast: ' + q('#toast').textContent);
   // save
   click(q('#s-save'));
   const saved = JSON.parse(w.localStorage.getItem('menkerud.settings'));
-  assert(saved.people.mor.name === 'Mamma' && saved.call.backend === 'https://call.example.no' && saved.notify.ntfy.topicMor === 'menkerud-mor-test' && saved.weather.lat === 60.72 && saved.photos.dir === 'bilder/', 'settings saved: ' + JSON.stringify(saved.call) + ' ' + saved.weather.lat + ' ' + saved.photos.dir);
+  assert(saved.people.mor.name === 'Mamma' && saved.call.backend === 'https://call.example.no' && saved.notify.ntfy.topicMor === 'menkerud-mor-test' && saved.weather.lat === 60.72 && saved.photos.dir === 'bilder/' && saved.photos.idleMin === 15 && saved.call.timeoutSec === 60, 'settings saved: ' + JSON.stringify(saved.call) + ' ' + saved.weather.lat + ' ' + saved.photos.dir);
 
   // Second load with saved settings applied
   const second = mkdom(win => { win.localStorage.setItem('menkerud.settings', JSON.stringify(saved)); });

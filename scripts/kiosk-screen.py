@@ -6,6 +6,10 @@ A web page cannot switch a display off or on, so index.html asks this tiny local
     GET /off      -> screen dark   (backlight to 0 through logind; the panel and its touch controller stay powered)
     GET /on       -> screen back   (backlight restored)
     GET /status   -> {"off": bool, "method": "backlight"|"dpms", "brightness": n, "max": n, "power": 0..3, "idle_ms": n}
+    GET /version  -> {"head": "000b6d4", "date": "<commit date, ISO>", "subject": "...", "repo": "/var/www/menkerud-home"}
+    POST /update  -> `git pull --ff-only` in the checkout nginx serves (this file lives in it), for the page's
+                     «Hent oppdatering» button -> {"ok": bool, "before", "after", "changed": bool, "helper_restart": bool}.
+                     If the pull changed this very file, the helper restarts itself two seconds later (systemctl --user).
 
 Why the backlight and not DPMS: a real DPMS-off (Mutter PowerSaveMode 3) also powers down the USB touch
 controller of the Asus Vivo AIO, so no touch ever arrives and the screen can never wake by touch. Backlight 0 is
@@ -22,14 +26,19 @@ Install (as the kiosk user, no sudo) - see SETUP.md section 3:
 """
 import json
 import os
-import pwd
 import re
 import subprocess
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+try:
+    import pwd                        # Unix only; the /version and /update endpoints also work where it is missing (dev PC)
+except ImportError:
+    pwd = None
 
 PORT = int(os.environ.get('MENKERUD_SCREEN_PORT', '7777'))
+REPO = os.environ.get('MENKERUD_REPO') or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the git checkout nginx serves
+SERVICE = 'menkerud-screen.service'
 BACKLIGHT_DIR = '/sys/class/backlight'
 DISPLAY = ['org.gnome.Mutter.DisplayConfig', '/org/gnome/Mutter/DisplayConfig', 'org.gnome.Mutter.DisplayConfig', 'PowerSaveMode']
 IDLE = ['org.gnome.Mutter.IdleMonitor', '/org/gnome/Mutter/IdleMonitor/Core', 'org.gnome.Mutter.IdleMonitor', 'GetIdletime']
@@ -87,7 +96,7 @@ _session_path = None
 
 def find_session_path():
     """logind only lets a user set the brightness on their own session; find our seat0 (graphical) session."""
-    user = os.environ.get('USER') or pwd.getpwuid(os.getuid()).pw_name
+    user = os.environ.get('USER') or (pwd.getpwuid(os.getuid()).pw_name if pwd else '')
     _, out = run(['loginctl', 'list-sessions', '--no-legend'])
     for line in out.splitlines():
         f = line.split()
@@ -176,11 +185,56 @@ def watcher():
                 set_power(3)
 
 
+# --- updates (git pull in the checkout; same user owns it and runs this service) ----------------------
+def git(*args, timeout=90):
+    try:
+        r = subprocess.run(['git', '-C', REPO, *args], capture_output=True, text=True, timeout=timeout)
+        return r.returncode, (r.stdout + r.stderr).strip()
+    except Exception as e:
+        return 1, str(e)
+
+
+def version():
+    rc, out = git('log', '-1', '--format=%h%n%cI%n%s', timeout=10)
+    if rc != 0:
+        return {'error': out or 'not a git checkout', 'repo': REPO}
+    head, date, subject = (out.split('\n') + ['', '', ''])[:3]
+    return {'head': head, 'date': date, 'subject': subject, 'repo': REPO}
+
+
+update_lock = threading.Lock()
+
+
+def update():
+    """Fast-forward the checkout. Error texts are shown to the parents in a toast, hence Norwegian."""
+    if not update_lock.acquire(blocking=False):
+        return 409, {'ok': False, 'error': 'en oppdatering pågår allerede'}
+    try:
+        rc, before = git('rev-parse', '--short', 'HEAD', timeout=10)
+        if rc != 0:
+            return 500, {'ok': False, 'error': 'fant ikke git-mappa (' + REPO + ')', 'output': before}
+        rc, out = git('pull', '--ff-only')
+        if rc != 0:
+            return 500, {'ok': False, 'error': 'git pull feilet – er nettet oppe?', 'output': out, 'before': before}
+        _, after = git('rev-parse', '--short', 'HEAD', timeout=10)
+        changed, restart = after != before, False
+        if changed:
+            _, files = git('diff', '--name-only', before, after, timeout=10)
+            me = os.path.relpath(os.path.abspath(__file__), REPO).replace(os.sep, '/')
+            restart = me in files.split()
+            if restart:                   # answer first, then let systemd start the new version of this file
+                threading.Timer(2.0, lambda: subprocess.Popen(['systemctl', '--user', 'restart', SERVICE])).start()
+        return 200, {'ok': True, 'before': before, 'after': after, 'changed': changed, 'helper_restart': restart, 'output': out}
+    finally:
+        update_lock.release()
+
+
 class Handler(BaseHTTPRequestHandler):
     def _send(self, code, body=b''):
         self.send_response(code)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Cache-Control', 'no-store')
         self.send_header('Content-Length', str(len(body)))
         self.end_headers()
@@ -193,6 +247,8 @@ class Handler(BaseHTTPRequestHandler):
             request_off(); self._send(204)
         elif path == '/on':
             request_on(); self._send(204)
+        elif path == '/version':
+            self._send(200, json.dumps(version()).encode())
         elif path == '/status':
             with lock:
                 wanted, method = state['wanted_off'], state['method']
@@ -200,6 +256,17 @@ class Handler(BaseHTTPRequestHandler):
                                         'power': get_power(), 'idle_ms': idle_ms()}).encode())
         else:
             self._send(404, b'{"error":"unknown path"}')
+
+    def do_POST(self):
+        path = self.path.split('?', 1)[0]
+        if path == '/update':
+            code, body = update()
+            self._send(code, json.dumps(body).encode())
+        else:
+            self._send(404, b'{"error":"unknown path"}')
+
+    def do_OPTIONS(self):
+        self._send(204)
 
     def log_message(self, *args):      # keep the journal quiet
         pass
