@@ -2625,7 +2625,8 @@ function personEntity(who) {
   const name = String((cfg.people[who] || {}).name || '').trim().toLowerCase();
   const ids = Object.keys(ha.states).filter(id => id.startsWith('person.'));
   if (!name) return '';
-  return ids.find(id => friendly(id).toLowerCase() === name) || ids.find(id => friendly(id).toLowerCase().includes(name)) || '';
+  // exact name only: a «contains» match would hand Morten's phone to Mor
+  return ids.find(id => friendly(id).toLowerCase() === name || id === 'person.' + name.replace(/\s+/g, '_')) || '';
 }
 function presenceOf(who) {
   if (!ha.connected) return null;
