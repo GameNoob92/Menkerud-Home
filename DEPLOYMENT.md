@@ -38,7 +38,7 @@ sudo -u menkerud-hjem cp config.example.js config.js   # then fill in real value
 ### nginx (static only; no /api proxy)
 
 ```bash
-sudo cp /var/www/menkerud-home/call-backend/deploy/nginx-menkerud.conf /etc/nginx/sites-available/menkerud
+sudo cp /var/www/menkerud-home/call-backend/deploy/nginx-menkerud.conf /etc/nginx/sites-available/menkerud   # re-run after a conf change (2026-09-12: Cache-Control no-cache on /)
 sudo ln -sf /etc/nginx/sites-available/menkerud /etc/nginx/sites-enabled/menkerud
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl restart nginx   # restart, not reload: see below

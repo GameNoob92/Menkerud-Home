@@ -1836,7 +1836,10 @@ async function updateApp() {
     if (!r.ok || !j.ok) throw new Error(j.error || ('feil ' + r.status));
     if (!j.changed) { toast('Allerede oppdatert (' + j.after + ')'); idle(); fetchVersion(); return; }
     toast('Oppdatert ' + j.before + ' → ' + j.after + ' – laster inn på nytt…', 4000);
-    setTimeout(() => location.reload(), 1500);
+    // Pull a fresh copy of the page and config.js into the HTTP cache first: nginx sends no Cache-Control for them,
+    // so a plain reload on a kiosk that never restarts could otherwise keep the old files a while longer.
+    try { await Promise.all([location.href.split('#')[0], 'config.js'].map(u => fetch(u, { cache: 'reload' }).catch(() => {}))); } catch (e) {}
+    setTimeout(() => location.reload(), 800);
   } catch (e) {
     const m = (e && e.message) || '';
     toast('Fikk ikke oppdatert: ' + (m && !/fetch|network/i.test(m) ? m : 'skjermhjelperen svarer ikke'), 6000);
