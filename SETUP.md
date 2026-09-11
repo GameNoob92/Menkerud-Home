@@ -14,7 +14,7 @@ Home Assistant (optional)  – lights, cameras, notes from the phone, natural TT
 
 Files: `index.html` (the app), `config.js` (optional defaults), `assets/` (backgrounds, avatars and icons the screen shows – copy it along), `ring.html` (only needed with ntfy), `photos/` (pictures for the photo frame; also where mor.jpg/far.jpg can live – avatars can be picked on-screen too).
 
-All settings live on the screen: **☰ → PIN 1234 → Innstillinger**. Names, photos, PIN, place for the weather, call-backend URL, how to ring the phones, night dimming, the screen-off window, the photo frame. Anything saved there overrides `config.js`. The one thing that's painful to type on a touchscreen is a token (Discord bot or HA), so those are happier in `config.js`, or plug in a USB keyboard for a minute.
+All settings live on the screen: **☰ → PIN → Innstillinger**, split into tabs – *Status* (connections and test buttons), *Familie* (names, photos, PIN, place for the weather), *Samtale* (call-backend URL, how to ring the phones), *Home Assistant*, *Skjerm* (night dimming, the screen-off window) and *Bilderamme*. **Lagre** sits at the bottom of every tab. Anything saved there overrides `config.js`. The one thing that's painful to type on a touchscreen is a token (Discord bot or HA), so those are happier in `config.js`, or plug in a USB keyboard for a minute.
 
 Note format on the board: `<emoji> [HH:MM] [text]`, e.g. `⚽ 17:00 Fotball`. The emoji is the big picture, tapping the note reads it aloud ("Fotball klokka fem", "Tannpuss halv ni"). Notes are added under **☰ → Ny lapp** (with an on-screen keyboard), or from your phone if you later connect Home Assistant. Dated events (birthdays, matches) go under **☰ → Kalender** — pick a day, add an emoji, optional time and repeat — and show up under **I DAG** on the day.
 
@@ -26,7 +26,7 @@ Note format on the board: `<emoji> [HH:MM] [text]`, e.g. `⚽ 17:00 Fotball`. Th
 
 1. Make a private server (or use one you have) with a channel, say `#hjemme`. Channel → Edit channel → Integrations → Webhooks → New webhook → Copy webhook URL.
 2. Discord → Settings → Advanced → Developer mode on. Then tap your own profile → Copy User ID; same for the other parent.
-3. On the screen: Innstillinger → "Hvordan varsle" → Discord, paste the webhook URL and both user IDs → **Lagre** → "Test varsel til mor". A message like `@Mor 📞 Test fra Menkerud Home…` should land in `#hjemme` and buzz the phone.
+3. On the screen: Innstillinger → Samtale → "Hvordan varsle" → Discord, paste the webhook URL and both user IDs → **Lagre** → "Test varsel til mor". A message like `@Mor 📞 Test fra Menkerud Home…` should land in `#hjemme` and buzz the phone.
 
 The user IDs matter: they make every message an @-mention, so the phone notifies even when the server is on "Only @mentions" (the Discord default). Make sure Discord notifications are allowed on both phones, and set `#hjemme` to "All messages" if you like.
 
@@ -35,7 +35,7 @@ The user IDs matter: they make every message an @-mention, so the phone notifies
 1. `discord.com/developers/applications` → New Application "Menkerud Home" → Bot → Reset Token → copy it.
 2. OAuth2 → URL Generator → scope `bot`, permission `View Channels` → open the generated URL → add it to your server.
 3. Create a channel `#ring-hjem`. Developer mode → long-press the channel → Copy Channel ID.
-4. On the screen: Innstillinger → Bot-token and Kanal-ID → Lagre. The status row "Mor/far ringer hjem" should say "Discord-bot lytter ✓".
+4. On the screen: Innstillinger → Samtale → Bot-token and Kanal-ID → Lagre. The status card "Mor/far ringer hjem" should say "Discord-bot lytter ✓".
 5. Write "ring" (or anything) in `#ring-hjem`. The screen shows your photo and rings; the kid taps **Svar** and joins the video room. You tap the room link the screen posted in `#hjemme` (or just open the room URL you've bookmarked).
 
 Keep `#ring-hjem` for that one purpose – every human message there rings the screen. The bot needs no privileged intents; it only looks at who wrote, not what.
@@ -64,7 +64,7 @@ In short:
 - `call.noobventure.com` → the backend API and the parent's answer page.
 - The screen calls the backend and joins a private room; the backend DMs the parent an **Svar** link that joins the same room. No app to install — it opens in the phone's browser.
 
-On the screen: Innstillinger → Videosamtale → **Call-backend URL** = `https://call.noobventure.com` (already the default in `config.js`). The camera and mic are pre-granted by the Firefox policy in §3 and work because the page is served from `http://localhost` (a secure context).
+On the screen: Innstillinger → Samtale → **Call-backend URL** = `https://call.noobventure.com` (already the default in `config.js`). The camera and mic are pre-granted by the Firefox policy in §3 and work because the page is served from `http://localhost` (a secure context).
 
 ---
 
@@ -98,7 +98,7 @@ POLICY
 
 Check the default audio device (`pavucontrol` / `wpctl status`) so the call uses the right mic and speakers.
 
-**Screen off (⏻ in the top bar) and the night window.** A web page cannot switch a display off, so the kiosk runs a tiny helper in the kiosk user's session: `scripts/kiosk-screen.py`, a Python service on `127.0.0.1:7777` that turns the backlight off and on through logind (`SetBrightness`). The panel and its USB touch controller stay powered, which matters: a real DPMS-off kills touch on the Vivo AIO, so the screen could never wake by touch. The page calls it when ⏻ is pressed or the «Skjerm av» window starts (Innstillinger → Skjerm av, default 23:00–06:00), and again when the picture should return: a touch (the first touch also wakes the display – the helper watches for input), the end of the window, or an incoming call, which therefore lights the screen up by itself. Install as the kiosk user, no sudo:
+**Screen off (⏻ in the top bar) and the night window.** A web page cannot switch a display off, so the kiosk runs a tiny helper in the kiosk user's session: `scripts/kiosk-screen.py`, a Python service on `127.0.0.1:7777` that turns the backlight off and on through logind (`SetBrightness`). The panel and its USB touch controller stay powered, which matters: a real DPMS-off kills touch on the Vivo AIO, so the screen could never wake by touch. The page calls it when ⏻ is pressed or the «Skjerm av» window starts (Innstillinger → Skjerm → Skjerm av, default 23:00–06:00), and again when the picture should return: a touch (the first touch also wakes the display – the helper watches for input), the end of the window, or an incoming call, which therefore lights the screen up by itself. Install as the kiosk user, no sudo:
 
 ```bash
 mkdir -p ~/.config/systemd/user
@@ -107,9 +107,9 @@ systemctl --user daemon-reload && systemctl --user enable --now menkerud-screen.
 curl -s http://127.0.0.1:7777/status      # {"power": 0, ...} = running
 ```
 
-Leave GNOME's own blanking off (Settings → Power → Screen Blank = Never, i.e. `idle-delay 0`), no lock screen, no suspend – the helper does all the switching. The address is «Skjermhjelper» under Innstillinger; without it (another PC, `file://`) the page only shows the black overlay. Tried and rejected: the browser Screen Wake Lock API plus a short GNOME idle delay (Chrome on this Wayland session never registers an idle inhibitor, so the display blanked regardless) and DPMS-off through Mutter's `PowerSaveMode` (black, but the touch controller goes down with the panel).
+Leave GNOME's own blanking off (Settings → Power → Screen Blank = Never, i.e. `idle-delay 0`), no lock screen, no suspend – the helper does all the switching. The address is «Skjermhjelper» under Innstillinger → Skjerm; without it (another PC, `file://`) the page only shows the black overlay. Tried and rejected: the browser Screen Wake Lock API plus a short GNOME idle delay (Chrome on this Wayland session never registers an idle inhibitor, so the display blanked regardless) and DPMS-off through Mutter's `PowerSaveMode` (black, but the touch controller goes down with the panel).
 
-**Bilderamme (🖼 in the top bar).** Shows the pictures in `photos/` full-screen – shuffled, crossfading, «Sekunder per bilde» in Innstillinger – until the screen is touched. Drop `.jpg`/`.png`/`.webp` files in `/var/www/menkerud-home/photos/` (gitignored; `scp` them there as `menkerud-hjem`). The page finds them through nginx's folder listing, which `call-backend/deploy/nginx-menkerud.conf` enables for `/photos/` (`autoindex on; autoindex_format json;`) – re-copy the conf and `sudo nginx -t && sudo systemctl reload nginx` after updating. Without such a listing (another web server, `file://`) put a `photos/index.json` next to the pictures instead: `["ferie1.jpg", "tur/bursdag.png"]`. Subfolders are included (up to 4 levels, 150 folders, 2000 pictures); hidden and system files (`._x.jpg`, `Thumbs.db`, `@eaDir` …) are skipped.
+**Bilderamme (🖼 in the top bar).** Shows the pictures in `photos/` full-screen – shuffled, crossfading, «Sekunder per bilde» under Innstillinger → Bilderamme – until the screen is touched. Drop `.jpg`/`.png`/`.webp` files in `/var/www/menkerud-home/photos/` (gitignored; `scp` them there as `menkerud-hjem`). The page finds them through nginx's folder listing, which `call-backend/deploy/nginx-menkerud.conf` enables for `/photos/` (`autoindex on; autoindex_format json;`) – re-copy the conf and `sudo nginx -t && sudo systemctl reload nginx` after updating. Without such a listing (another web server, `file://`) put a `photos/index.json` next to the pictures instead: `["ferie1.jpg", "tur/bursdag.png"]`. Subfolders are included (up to 4 levels, 150 folders, 2000 pictures); hidden and system files (`._x.jpg`, `Thumbs.db`, `@eaDir` …) are skipped.
 
 **Pictures from a network share.** The browser can only fetch over HTTP, so mount the share on the screen PC and let nginx serve it – `nginx-menkerud.conf` already publishes `/mnt/bilder` as `/bilder/` with the folder listing. As `menkerud` (sudo), with the share's own user/password:
 
@@ -138,7 +138,7 @@ Run HA as a Docker container on Unraid (Community Apps → Home-Assistant-Contai
 3. Profile (bottom left) → Security → **Long-lived access tokens** → create "Kiosk".
 4. Put the URL and token in `config.js` (`ha.url`, `ha.token`) or under Innstillinger. Entities are auto-detected; the footer dot turns green when connected.
 
-Only if you want HA to ring the phones instead of Discord/ntfy (Innstillinger → "Hvordan varsle" → Home Assistant), add these scripts in `scripts.yaml` and a notify group in `configuration.yaml`:
+Only if you want HA to ring the phones instead of Discord/ntfy (Innstillinger → Samtale → "Hvordan varsle" → Home Assistant), add these scripts in `scripts.yaml` and a notify group in `configuration.yaml`:
 
 ```yaml
 # configuration.yaml

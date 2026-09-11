@@ -85,9 +85,11 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   click(q('#menu-btn'));
   ['0', '6', '1', '1', '1', '1'].forEach(k => click(qa('#pin-pad button').find(b => b.textContent === k)));
   assert(!q('#menu').classList.contains('hidden'), 'menu opens with PIN');
+  assert(!q('#pane-note').classList.contains('hidden') && q('.nav-item[data-pane="note"]').classList.contains('on'), 'menu opens on Ny lapp with the section marked in the list');
+  assert(q('.nav-item[data-pane="note"] small').textContent === '5 lapper på tavla', 'section list shows the note count: ' + q('.nav-item[data-pane="note"] small').textContent);
 
   // New note with docked keyboard
-  click(q('.tile[data-pane="note"]'));
+  click(q('.nav-item[data-pane="note"]'));
   const inp = q('#note-text');
   inp.focus();
   await wait(20);
@@ -112,14 +114,14 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(qa('#notes .note').length === 5, 'note removed');
 
   // Calendar: add an event to today, see it under I DAG, then remove it
-  click(q('#menu-back'));
-  click(q('.tile[data-pane="calendar"]'));
+  click(q('.nav-item[data-pane="calendar"]'));
   await wait(20);
   assert(qa('#cal-grid .cal-cell.today').length === 1, 'calendar shows today');
   q('#cal-text').value = 'Bursdag'; q('#cal-text').dispatchEvent(new w.Event('input', { bubbles: true }));
   click(q('#cal-add'));
   await wait(20);
   assert(qa('#cal-day-list .chip').length === 1, 'event added to the day list: ' + qa('#cal-day-list .chip').length);
+  assert(q('.nav-item[data-pane="calendar"] small').textContent === '1 plan i dag', 'section list shows the plan count for today: ' + q('.nav-item[data-pane="calendar"] small').textContent);
   assert([...qa('#today-list .srow-day .n')].some(n => n.textContent === 'Bursdag'), 'calendar event shows under I DAG');
   assert(JSON.parse(w.localStorage.getItem('menkerud.calendar')).length === 1, 'event persisted in localStorage');
   click(qa('#cal-day-list .chip button')[0]);
@@ -127,9 +129,12 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(qa('#cal-day-list .chip').length === 0 && ![...qa('#today-list .srow-day .n')].some(n => n.textContent === 'Bursdag'), 'event removed from calendar and I DAG');
 
   // Settings
-  click(q('#menu-back'));
-  click(q('.tile[data-pane="settings"]'));
+  click(q('.nav-item[data-pane="settings"]'));
   assert(qa('#status-grid .srow').length === 7, 'status rows: ' + qa('#status-grid .srow').length);
+  assert(qa('#stabs .stab').length === 6 && q('#stabs .stab.on').textContent === 'Status', 'settings tabs: ' + qa('#stabs .stab').map(b => b.textContent).join(','));
+  assert(!q('#settings-status').classList.contains('hidden') && q('.sgroup[data-tab="familie"]').classList.contains('hidden') && q('#save-row').classList.contains('hidden'), 'status tab open, form tabs and save row hidden');
+  click(qa('#stabs .stab').find(b => b.textContent === 'Familie'));
+  assert(!q('.sgroup[data-tab="familie"]').classList.contains('hidden') && q('#settings-status').classList.contains('hidden') && !q('#save-row').classList.contains('hidden'), 'Familie tab shows its rows and the save row');
   assert(qa('#settings-form .frow').length > 15, 'form rows: ' + qa('#settings-form .frow').length);
   const inputFor = label => { const row = qa('#settings-form .frow').find(r => r.querySelector('.flabel').textContent.startsWith(label)); return row && row.querySelector('input, select, button'); };
   const setVal = (label, v) => { const i = inputFor(label); i.value = v; i.dispatchEvent(new w.Event('input', { bubbles: true })); };
@@ -145,6 +150,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   sel.value = 'webhook'; sel.dispatchEvent(new w.Event('change', { bubbles: true }));
   assert(!!inputFor('Webhook-adresse') && !inputFor('ntfy-server'), 'provider switch rebuilds form and keeps draft');
   assert(inputFor('Mor heter').value === 'Mamma', 'draft kept after rebuild');
+  assert(q('#stabs .stab.on').textContent === 'Familie', 'rebuild keeps the open tab: ' + q('#stabs .stab.on').textContent);
   const sel2 = inputFor('Hvordan varsle'); sel2.value = 'ntfy'; sel2.dispatchEvent(new w.Event('change', { bubbles: true }));
   assert(inputFor('Emne for mors').value === 'menkerud-mor-test', 'ntfy topic kept');
   // geocode

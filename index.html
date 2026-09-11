@@ -247,64 +247,84 @@ footer .brand{letter-spacing:.28em;font-weight:800;color:var(--text-soft);font-s
 #hangup{position:absolute;bottom:2.4rem;left:50%;transform:translateX(-50%);z-index:3}
 #hangup:active{transform:translateX(-50%) scale(.95)}
 
-/* PIN */
-.pin-box{background:var(--glass-strong);border:1px solid var(--glass-line);border-radius:var(--radius-xl);padding:2.4rem 3rem;display:flex;flex-direction:column;align-items:center;gap:1.6rem;box-shadow:var(--shadow-card)}
-.pin-box h3{font-size:2.2rem;font-weight:900}
-.pin-dots{display:flex;gap:1.2rem;height:2rem;align-items:center}
-.pin-dots span{width:1.6rem;height:1.6rem;border-radius:50%;border:.2rem solid #fff;opacity:.6}
-.pin-dots span.full{background:#fff;opacity:1}
-.pin-pad{display:grid;grid-template-columns:repeat(3,7rem);gap:1rem}
-.pin-pad button{height:7rem;border-radius:1.6rem;background:rgba(255,255,255,.12);font-size:2.8rem;font-weight:900;border:1px solid var(--glass-line)}
+/* PIN – the gate to the parents' area. The scene stays visible behind a soft blur. */
+#pin.overlay,#menu.overlay{background:rgba(4,10,26,.5);backdrop-filter:blur(1.6rem);-webkit-backdrop-filter:blur(1.6rem)}
+.pin-box{background:var(--glass-strong);border:1px solid rgba(255,255,255,.18);border-radius:var(--radius-xl);padding:2.6rem 3.4rem 2.2rem;display:flex;flex-direction:column;align-items:center;gap:1.7rem;box-shadow:inset 0 .1rem 0 rgba(255,255,255,.12),var(--shadow-card)}
+.pin-box h3{font-family:var(--hand);font-size:3.2rem;font-weight:700;line-height:1}
+.pin-box p{font-size:1.4rem;font-weight:700;color:var(--text-muted);margin-top:-1rem}
+.pin-dots{display:flex;gap:1.3rem;height:2rem;align-items:center}
+.pin-dots span{width:1.5rem;height:1.5rem;border-radius:50%;border:.2rem solid rgba(255,255,255,.65);transition:transform .12s,background .12s}
+.pin-dots span.full{background:#ffd166;border-color:#ffd166;transform:scale(1.15);box-shadow:0 0 1rem rgba(255,209,102,.6)}
+.pin-pad{display:grid;grid-template-columns:repeat(3,7.4rem);gap:1rem}
+.pin-pad button{height:7.4rem;border-radius:2rem;background:rgba(255,255,255,.1);font-size:2.9rem;font-weight:900;border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 .1rem 0 rgba(255,255,255,.12);transition:transform .08s,background .08s}
+.pin-pad button:active{transform:scale(.93);background:rgba(255,255,255,.28)}
 .pin-pad button:disabled{opacity:0;pointer-events:none}
-.link{font-size:1.6rem;font-weight:800;color:var(--text-soft);text-decoration:underline}
+.link{font-size:1.6rem;font-weight:800;color:var(--text-soft);padding:.9rem 2.4rem;border-radius:2rem;background:rgba(255,255,255,.08)}
 .shake{animation:shake .4s}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-1rem)}75%{transform:translateX(1rem)}}
 
-/* Menu panel */
-.panel{width:92rem;max-width:96vw;height:52rem;max-height:94vh;background:var(--glass-strong);border:1px solid var(--glass-line);border-radius:var(--radius-xl);box-shadow:var(--shadow-card);display:flex;flex-direction:column;overflow:hidden;text-align:left}
-.panel-head{display:flex;align-items:center;gap:1rem;padding:1.2rem 1.6rem;border-bottom:1px solid rgba(255,255,255,.12);flex:none}
-.panel-head h3{flex:1;font-size:2.4rem;font-weight:900}
-.icon-btn{width:4.4rem;height:4.4rem;border-radius:1.2rem;background:rgba(255,255,255,.12);font-size:2.4rem;font-weight:900;display:grid;place-items:center;flex:none}
-.panel-body{flex:1;overflow:auto;padding:1.6rem;min-height:0}
+/* Menu: one glass sheet over the scene – the section list on the left, the open section on the right.
+   No launcher grid and no back button: every section is one tap away from every other. */
+#menu{padding:1.6rem}
+.panel{width:100%;height:100%;background:var(--glass-strong);border:1px solid rgba(255,255,255,.18);border-radius:var(--radius-xl);box-shadow:inset 0 .1rem 0 rgba(255,255,255,.1),var(--shadow-card);display:flex;overflow:hidden;text-align:left}
+.menu-nav{width:22rem;flex:none;display:flex;flex-direction:column;gap:.5rem;padding:1.3rem 1rem;background:rgba(0,0,0,.2);border-right:1px solid rgba(255,255,255,.1)}
+.nav-item{position:relative;display:grid;grid-template-columns:4.4rem 1fr;align-items:center;gap:1rem;padding:.9rem .8rem;border-radius:1.6rem;text-align:left;color:var(--text-soft);border:1px solid transparent;transition:background .12s,transform .08s}
+.nav-item::before{content:'';position:absolute;left:0;top:1.3rem;bottom:1.3rem;width:.45rem;border-radius:0 .3rem .3rem 0;background:var(--ac);opacity:0;transition:opacity .12s}
+.nav-item .ni-ic{width:4.4rem;height:4.4rem;border-radius:1.3rem;display:grid;place-items:center;font-size:2.5rem;line-height:1;background:rgba(255,255,255,.08)}
+.nav-item .ni-t{font-size:1.6rem;font-weight:900;line-height:1.1;min-width:0}
+.nav-item .ni-t small{display:block;font-size:1.15rem;font-weight:700;color:var(--text-muted);margin-top:.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-item:active{transform:scale(.97)}
+.nav-item.on{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.14);color:#fff}
+.nav-item.on::before{opacity:1}
+.nav-item.on .ni-ic{background:color-mix(in srgb,var(--ac) 32%,rgba(255,255,255,.05));box-shadow:0 0 1.4rem color-mix(in srgb,var(--ac) 35%,transparent)}
+.nav-item.on .ni-t small{color:var(--text-soft)}
+.panel-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.panel-head{display:flex;align-items:center;gap:1rem;padding:1.1rem 1.4rem .6rem 2rem;flex:none}
+.panel-head h3{flex:1;font-family:var(--hand);font-size:3.1rem;font-weight:700;line-height:1;color:#eef2ff}
+.icon-btn{width:4.4rem;height:4.4rem;border-radius:1.2rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);font-size:2.2rem;font-weight:900;display:grid;place-items:center;flex:none}
+.icon-btn:active{background:rgba(255,255,255,.25)}
+.panel-body{flex:1;overflow:auto;padding:.4rem 2rem 1.6rem;min-height:0;scrollbar-width:thin}
 .pane{min-height:100%}
-.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:1.6rem}
-.tile{background:rgba(255,255,255,.1);border:1px solid var(--glass-line);border-radius:2rem;padding:2.4rem 1rem;display:flex;flex-direction:column;align-items:center;gap:1rem;font-size:2rem;font-weight:900;min-height:16rem;justify-content:center;text-align:center}
-.tile span{font-size:5rem;line-height:1}
-.tiles.small{grid-template-columns:repeat(6,1fr);gap:1.2rem}
-.tiles.small .tile{min-height:9rem;padding:1.2rem .6rem;font-size:1.35rem;gap:.5rem}
-.tiles.small .tile span{font-size:3rem}
-.tile.on{background:rgba(255,220,90,.28);border-color:#ffd54a;box-shadow:0 0 1.5rem rgba(255,213,74,.4)}
+.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:1.2rem}
+.tile{background:rgba(255,255,255,.08);border:1px solid var(--glass-line);border-radius:1.8rem;padding:1.4rem .8rem;display:flex;flex-direction:column;align-items:center;gap:.6rem;font-size:1.4rem;font-weight:800;min-height:10.5rem;justify-content:center;text-align:center;line-height:1.15;transition:transform .08s,background .12s}
+.tile span{font-size:3.4rem;line-height:1}
+.tiles>.empty{grid-column:1/-1}
+.tile:active{transform:scale(.96)}
+.tile.on{background:rgba(255,220,90,.22);border-color:rgba(255,213,74,.8);box-shadow:0 0 1.8rem rgba(255,213,74,.35),inset 0 .1rem 0 rgba(255,255,255,.2)}
 .pane-tools{display:flex;gap:1rem;margin-bottom:1.4rem;flex-wrap:wrap;align-items:center}
-.chip-btn{background:rgba(255,255,255,.14);border:1px solid var(--glass-line);border-radius:2rem;padding:.8rem 1.6rem;font-size:1.5rem;font-weight:800}
+.chip-btn{background:rgba(255,255,255,.12);border:1px solid var(--glass-line);border-radius:2rem;padding:.8rem 1.6rem;font-size:1.5rem;font-weight:800;transition:transform .08s,background .12s}
+.chip-btn:active{transform:scale(.96);background:rgba(255,255,255,.24)}
 .chip-btn.on{background:rgba(110,231,183,.3);border-color:#6ee7b7}
 .chip-btn.danger{border-color:rgba(255,90,90,.7)}
 .btns{display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0}
 
-/* Inputs + docked keyboard */
+/* Inputs + docked keyboard (docks under the open section, never under the section list) */
 .inp{flex:1;min-width:0;width:100%;font:inherit;font-size:1.7rem;font-weight:700;padding:.75rem 1.2rem;border-radius:1rem;border:1px solid var(--glass-line);background:rgba(0,0,0,.28);color:#fff;outline:none;-webkit-user-select:text;user-select:text}
 .inp::placeholder{color:rgba(255,255,255,.45)}
 .inp:focus{border-color:#ffd166;box-shadow:0 0 0 .25rem rgba(255,209,102,.3)}
 select.inp{appearance:none;-webkit-appearance:none;cursor:pointer}
 select.inp option{color:#111}
-.kbd{flex:none;display:flex;flex-direction:column;gap:.45rem;padding:.8rem 1.4rem 1rem;border-top:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.3)}
+.kbd{flex:none;display:flex;flex-direction:column;gap:.45rem;padding:.8rem 1.4rem 1rem;border-top:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.28)}
 .krow{display:flex;gap:.45rem;justify-content:center}
-.key{flex:1;max-width:6.2rem;height:3.6rem;border-radius:.8rem;background:rgba(255,255,255,.14);font-size:1.7rem;font-weight:800;display:grid;place-items:center}
+.key{flex:1;max-width:6.2rem;height:3.6rem;border-radius:.9rem;background:rgba(255,255,255,.14);box-shadow:0 .15rem 0 rgba(0,0,0,.35);font-size:1.7rem;font-weight:800;display:grid;place-items:center}
+.key:active{background:rgba(255,255,255,.35);transform:translateY(.1rem);box-shadow:none}
 .key.space{max-width:34rem;flex:6}
 .key.wide{max-width:9rem;flex:1.6;font-size:1.4rem}
 .key.active{background:rgba(255,255,255,.5);color:#111}
 
-/* New note */
-.note-form{display:grid;grid-template-columns:28rem 1fr;gap:2rem;min-height:100%}
-.col-left,.col-right{min-height:0;display:flex;flex-direction:column}
-.sub{font-size:1.3rem;font-weight:800;letter-spacing:.12em;color:var(--text-muted);text-transform:uppercase;margin:.4rem 0 .5rem}
-.preview-wrap{display:flex;justify-content:center;padding:1.6rem 0 1rem}
+/* Ny lapp: the note itself is the hero – a big live preview on the left, the controls on the right */
+.note-form{display:grid;grid-template-columns:27rem minmax(0,1fr);gap:2.6rem;min-height:100%}
+.col-left,.col-right{min-width:0;min-height:0;display:flex;flex-direction:column}
+.sub{font-size:1.35rem;font-weight:800;color:var(--text-soft);margin:.9rem 0 .5rem}
+.preview-wrap{display:flex;justify-content:center;align-items:center;height:19rem;flex:none}
+.preview-wrap .note{transform:rotate(var(--rot,0deg)) scale(1.75);cursor:default}
 .chips{display:flex;flex-wrap:wrap;gap:.7rem;overflow:auto;flex:1;min-height:0;align-content:flex-start;max-height:22rem}
-.chip{display:inline-flex;align-items:center;gap:.6rem;background:rgba(255,255,255,.12);border-radius:2rem;padding:.4rem .5rem .4rem 1rem;font-size:1.4rem;font-weight:800;max-width:100%}
+.chip{display:inline-flex;align-items:center;gap:.6rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.1);border-radius:2rem;padding:.4rem .5rem .4rem 1rem;font-size:1.4rem;font-weight:800;max-width:100%}
 .chip .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:18rem}
 .chip button{width:2.6rem;height:2.6rem;border-radius:50%;background:rgba(255,80,80,.85);font-size:1.4rem;font-weight:900;display:grid;place-items:center;flex:none}
-.emoji-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,3.6rem);grid-auto-columns:3.8rem;gap:.5rem;overflow-x:auto;overflow-y:hidden;padding:.3rem .2rem .5rem;scrollbar-width:thin}
+.emoji-grid{display:grid;min-width:0;width:100%;grid-auto-flow:column;grid-template-rows:repeat(2,3.6rem);grid-auto-columns:3.8rem;gap:.5rem;overflow-x:auto;overflow-y:hidden;padding:.3rem .2rem .5rem;scrollbar-width:thin}
 .emoji-grid button{font-size:2.4rem;line-height:1;border-radius:.9rem;background:rgba(255,255,255,.08);display:grid;place-items:center}
-.emoji-grid button.sel{background:rgba(255,255,255,.35);outline:.25rem solid #fff}
+.emoji-grid button.sel{background:rgba(255,233,92,.35);outline:.25rem solid #ffe95c}
 .time-row{display:flex;align-items:center;gap:1.2rem;margin:.9rem 0;flex-wrap:wrap}
 .stepper{display:flex;align-items:center;gap:.6rem;font-size:2.2rem;font-weight:900}
 .stepper button{width:3.4rem;height:3.4rem;border-radius:1rem;background:rgba(255,255,255,.14);font-size:2.2rem;font-weight:900}
@@ -312,41 +332,57 @@ select.inp option{color:#111}
 #note-text{font-size:2rem;font-weight:800;padding:.9rem 1.4rem;border-radius:1.2rem;margin-top:.4rem}
 .save{width:100%;justify-content:center;font-size:2.1rem;padding:1rem;margin-top:1.4rem}
 
-/* Settings */
-.status{display:grid;grid-template-columns:1fr 1fr;gap:0 2.4rem;margin-bottom:.6rem}
-.srow{display:flex;justify-content:space-between;gap:1.5rem;padding:.7rem 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:1.5rem;font-weight:700}
-.srow span:last-child{color:var(--text-soft);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sec{font-size:1.9rem;font-weight:900;margin:1.8rem 0 .3rem;color:#ffd166}
-.frow{display:grid;grid-template-columns:27rem 1fr;gap:1.2rem;align-items:center;padding:.65rem 0;border-bottom:1px solid rgba(255,255,255,.08)}
+/* Innstillinger: one tab per topic instead of one long scroll; Lagre stays at hand at the bottom */
+#pane-settings{display:flex;flex-direction:column;height:100%;min-height:0}
+.stabs{display:flex;flex-wrap:wrap;gap:.6rem;flex:none;padding:.2rem 0 1rem}
+.stab{padding:.8rem 1.5rem;border-radius:2rem;font-size:1.45rem;font-weight:800;color:var(--text-soft);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);transition:background .12s,color .12s}
+.stab.on{background:#fff;color:#0b1b3d;border-color:#fff}
+.sscroll{flex:1;min-height:0;overflow:auto;padding-right:.5rem;scrollbar-width:thin}
+.status{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1rem}
+.srow{display:grid;grid-template-columns:1.1rem minmax(0,1fr);column-gap:1rem;align-items:center;padding:.9rem 1.3rem;border-radius:1.3rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);min-width:0}
+.srow i{grid-row:1/3;width:1.1rem;height:1.1rem;border-radius:50%;background:#8892b0}
+.srow .sk{font-size:1.45rem;font-weight:800}
+.srow.on i{background:#3ee07a;box-shadow:0 0 .8rem #3ee07a}
+.srow.off i{background:#ff4d4d;box-shadow:0 0 .8rem #ff4d4d}
+.srow.busy i{background:#ffd166;box-shadow:0 0 .8rem #ffd166}
+.srow .sv{font-size:1.3rem;font-weight:700;color:var(--text-soft);overflow-wrap:anywhere;line-height:1.3}
+.sec{font-size:1.7rem;font-weight:900;margin:1.6rem 0 .2rem;color:#ffd166}
+.sgroup>.sec:first-child{margin-top:.3rem}
+.frow{display:grid;grid-template-columns:25rem 1fr;gap:1.4rem;align-items:center;padding:.7rem 0;border-bottom:1px solid rgba(255,255,255,.08)}
 .flabel{font-size:1.6rem;font-weight:800}
 .flabel small{display:block;font-size:1.2rem;font-weight:700;color:var(--text-muted);margin-top:.15rem;line-height:1.3}
 .fctl{display:flex;gap:.8rem;align-items:center;min-width:0}
 .thumb{width:6rem;height:6rem;border-radius:50%;object-fit:cover;background:rgba(255,255,255,.15);border:.25rem solid rgba(255,255,255,.7);flex:none;display:grid;place-items:center;font-size:3.4rem;overflow:hidden}
 .thumb img{width:100%;height:100%;object-fit:cover}
-.save-row{margin-top:2rem;align-items:center}
-.hint{color:var(--text-muted);font-size:1.3rem;margin-top:1.2rem;line-height:1.4}
+.save-row{flex:none;display:flex;gap:1rem;align-items:center;flex-wrap:wrap;padding-top:1.1rem;margin-top:.8rem;border-top:1px solid rgba(255,255,255,.12)}
+.big-btn.sm{font-size:1.8rem;padding:.9rem 2.4rem;border-width:.2rem}
+.hint,.overlay .hint{color:var(--text-muted);font-size:1.3rem;font-weight:700;margin-top:1.2rem;line-height:1.4}
+.overlay .hint.intro{margin:.3rem 0 .6rem}
+.save-row .hint{margin:0 0 0 auto;text-align:right}
 
 /* Camera view */
 #cam-view{display:flex;flex-direction:column;gap:1rem;height:100%}
 #cam-img{flex:1;min-height:0;width:100%;object-fit:contain;border-radius:1.5rem;background:#000}
 
-/* Calendar (Kalender pane) */
+/* Kalender */
 .srow-day .t.allday{color:var(--text-muted);text-align:center}
-.cal-wrap{display:grid;grid-template-columns:1fr 30rem;gap:2rem;min-height:100%}
+.cal-wrap{display:grid;grid-template-columns:1fr 31rem;gap:2.4rem;min-height:100%}
 .cal-month{min-width:0;display:flex;flex-direction:column}
 .cal-head{display:flex;align-items:center;gap:1rem;margin-bottom:.8rem}
-.cal-head h4{flex:1;text-align:center;font-size:2rem;font-weight:900}
-.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:.4rem;margin-bottom:.4rem}
+.cal-head h4{flex:1;text-align:center;font-family:var(--hand);font-size:2.7rem;font-weight:700;line-height:1}
+.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:.5rem;margin-bottom:.4rem}
 .cal-dow span{text-align:center;font-size:1.2rem;font-weight:800;color:var(--text-muted)}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:.4rem}
-.cal-cell{height:5rem;border-radius:1rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;font-size:1.6rem;font-weight:800;color:#fff}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:.5rem}
+.cal-cell{height:5.3rem;border-radius:1.2rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;font-size:1.6rem;font-weight:800;color:#fff;transition:transform .08s}
+.cal-cell:active{transform:scale(.95)}
 .cal-cell.empty{background:none;border:0;pointer-events:none}
-.cal-cell.today{border-color:#ffd166}
-.cal-cell.sel{background:rgba(110,231,183,.28);border-color:#6ee7b7}
-.cal-cell .dot{width:.55rem;height:.55rem;border-radius:50%;background:#6ee7b7;box-shadow:0 0 .4rem rgba(110,231,183,.7)}
+.cal-cell.today{border-color:#ffd166;color:#ffd166}
+.cal-cell.sel{background:rgba(25,185,255,.32);border-color:#19b9ff;color:#fff}
+.cal-cell .dot{width:.55rem;height:.55rem;border-radius:50%;background:#ffe95c;box-shadow:0 0 .4rem rgba(255,233,92,.7)}
 .cal-cell .dot.many{width:1.3rem;border-radius:.3rem}
-.cal-side{display:flex;flex-direction:column;min-height:0}
-.cal-side .chips{max-height:16rem;margin-bottom:.6rem}
+.cal-side{display:flex;flex-direction:column;min-height:0;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:1.8rem;padding:1.2rem 1.4rem 1.4rem}
+#cal-selected-label{font-family:var(--hand);font-size:2.3rem;font-weight:700;color:#eef2ff;margin:0 0 .5rem}
+.cal-side .chips{max-height:11rem;margin-bottom:.4rem;flex:none}
 
 /* Night, toast, confetti */
 #night{position:fixed;inset:0;z-index:40;background:rgba(0,2,18,.78)}
@@ -494,130 +530,136 @@ select.inp option{color:#111}
 <div id="pin" class="overlay hidden">
   <div class="pin-box" id="pin-box">
     <h3>Skriv inn PIN</h3>
+    <p>Menyen er bare for de voksne</p>
     <div class="pin-dots" id="pin-dots"></div>
     <div class="pin-pad" id="pin-pad"></div>
     <button class="link" id="pin-cancel">Avbryt</button>
   </div>
 </div>
 
-<!-- Parent menu -->
+<!-- Parent menu: section list on the left, the open section on the right -->
 <div id="menu" class="overlay hidden">
   <div class="panel" id="panel">
-    <div class="panel-head">
-      <button id="menu-back" class="icon-btn hidden" aria-label="Tilbake">‹</button>
-      <h3 id="panel-title">Meny</h3>
-      <button id="menu-close" class="icon-btn" aria-label="Lukk">✕</button>
-    </div>
-    <div class="panel-body" id="panel-body">
-
-      <div class="pane" id="pane-home">
-        <div class="tiles">
-          <button class="tile" data-pane="note"><span>📝</span>Ny lapp</button>
-          <button class="tile" data-pane="calendar"><span>📅</span>Kalender</button>
-          <button class="tile" data-pane="lights"><span>💡</span>Lys</button>
-          <button class="tile" data-pane="cams"><span>📷</span>Kamera</button>
-          <button class="tile" data-pane="settings"><span>⚙️</span>Innstillinger</button>
-        </div>
+    <nav class="menu-nav" id="menu-nav" aria-label="Meny">
+      <button class="nav-item" data-pane="note" style="--ac:#ffe95c"><span class="ni-ic">📝</span><span class="ni-t">Ny lapp<small></small></span></button>
+      <button class="nav-item" data-pane="calendar" style="--ac:#19b9ff"><span class="ni-ic">📅</span><span class="ni-t">Kalender<small></small></span></button>
+      <button class="nav-item" data-pane="lights" style="--ac:#ffd166"><span class="ni-ic">💡</span><span class="ni-t">Lys<small></small></span></button>
+      <button class="nav-item" data-pane="cams" style="--ac:#25e08f"><span class="ni-ic">📷</span><span class="ni-t">Kamera<small></small></span></button>
+      <button class="nav-item" data-pane="settings" style="--ac:#c9d8ff"><span class="ni-ic">⚙️</span><span class="ni-t">Innstillinger<small></small></span></button>
+    </nav>
+    <div class="panel-main">
+      <div class="panel-head">
+        <h3 id="panel-title">Ny lapp</h3>
+        <button id="menu-close" class="icon-btn" aria-label="Lukk">✕</button>
       </div>
+      <div class="panel-body" id="panel-body">
 
-      <div class="pane hidden" id="pane-note">
-        <div class="note-form">
-          <div class="col-left">
-            <div class="preview-wrap"><div class="note c0" id="note-preview" style="--rot:-3deg"><span class="pin"></span><span class="icon">⚽</span><span class="txt"></span><span class="time"></span></div></div>
-            <div class="sub">På tavla nå</div>
-            <div class="chips" id="note-list"></div>
-          </div>
-          <div class="col-right">
-            <div class="sub">Velg bilde</div>
-            <div class="emoji-grid" id="emoji-grid"></div>
-            <div class="time-row">
-              <button class="chip-btn" id="time-toggle">⏰ Klokkeslett: av</button>
-              <div class="stepper hidden" id="stepper">
-                <button data-d="h-">−</button><span id="st-h">17</span><button data-d="h+">+</button>
-                <span>:</span>
-                <button data-d="m-">−</button><span id="st-m">00</span><button data-d="m+">+</button>
+        <div class="pane" id="pane-note">
+          <div class="note-form">
+            <div class="col-left">
+              <div class="preview-wrap"><div class="note c0" id="note-preview" style="--rot:-3deg"><span class="pin"></span><span class="icon">⚽</span><span class="txt"></span><span class="time"></span></div></div>
+              <div class="sub">På tavla nå</div>
+              <div class="chips" id="note-list"></div>
+            </div>
+            <div class="col-right">
+              <div class="sub">Velg bilde</div>
+              <div class="emoji-grid" id="emoji-grid"></div>
+              <div class="time-row">
+                <button class="chip-btn" id="time-toggle">⏰ Klokkeslett: av</button>
+                <div class="stepper hidden" id="stepper">
+                  <button data-d="h-">−</button><span id="st-h">17</span><button data-d="h+">+</button>
+                  <span>:</span>
+                  <button data-d="m-">−</button><span id="st-m">00</span><button data-d="m+">+</button>
+                </div>
               </div>
+              <div class="sub">Tekst (valgfritt)</div>
+              <input id="note-text" class="inp" placeholder="Skriv her…" maxlength="40" autocomplete="off" spellcheck="false">
+              <button class="big-btn green save" id="note-save">📌 Heng opp lappen</button>
             </div>
-            <div class="sub">Tekst (valgfritt)</div>
-            <input id="note-text" class="inp" placeholder="Skriv her…" maxlength="40" autocomplete="off" spellcheck="false">
-            <button class="big-btn green save" id="note-save">📌 Heng opp lappen</button>
           </div>
         </div>
-      </div>
 
-      <div class="pane hidden" id="pane-calendar">
-        <div class="cal-wrap">
-          <div class="cal-month">
-            <div class="cal-head">
-              <button class="icon-btn" id="cal-prev" aria-label="Forrige måned">‹</button>
-              <h4 id="cal-title"></h4>
-              <button class="icon-btn" id="cal-next" aria-label="Neste måned">›</button>
-            </div>
-            <div class="cal-dow"><span>Man</span><span>Tir</span><span>Ons</span><span>Tor</span><span>Fre</span><span>Lør</span><span>Søn</span></div>
-            <div class="cal-grid" id="cal-grid"></div>
-          </div>
-          <div class="cal-side">
-            <div class="sub" id="cal-selected-label">I dag</div>
-            <div class="chips" id="cal-day-list"></div>
-            <div class="sub">Legg til</div>
-            <div class="emoji-grid" id="cal-emoji"></div>
-            <div class="time-row">
-              <button class="chip-btn" id="cal-time-toggle">⏰ Klokkeslett: av</button>
-              <div class="stepper hidden" id="cal-stepper">
-                <button data-d="h-">−</button><span id="cal-h">17</span><button data-d="h+">+</button>
-                <span>:</span>
-                <button data-d="m-">−</button><span id="cal-m">00</span><button data-d="m+">+</button>
+        <div class="pane hidden" id="pane-calendar">
+          <div class="cal-wrap">
+            <div class="cal-month">
+              <div class="cal-head">
+                <button class="icon-btn" id="cal-prev" aria-label="Forrige måned">‹</button>
+                <h4 id="cal-title"></h4>
+                <button class="icon-btn" id="cal-next" aria-label="Neste måned">›</button>
               </div>
+              <div class="cal-dow"><span>Man</span><span>Tir</span><span>Ons</span><span>Tor</span><span>Fre</span><span>Lør</span><span>Søn</span></div>
+              <div class="cal-grid" id="cal-grid"></div>
             </div>
-            <div class="time-row">
-              <span class="sub" style="margin:0 .6rem 0 0">Gjenta</span>
-              <select class="inp" id="cal-repeat" style="max-width:20rem">
-                <option value="none">Ingen</option>
-                <option value="weekly">Hver uke</option>
-                <option value="weekdays">Hverdager (man–fre)</option>
-                <option value="daily">Hver dag</option>
-              </select>
+            <div class="cal-side">
+              <div class="sub" id="cal-selected-label">I dag</div>
+              <div class="chips" id="cal-day-list"></div>
+              <div class="sub">Legg til</div>
+              <div class="emoji-grid" id="cal-emoji"></div>
+              <div class="time-row">
+                <button class="chip-btn" id="cal-time-toggle">⏰ Klokkeslett: av</button>
+                <div class="stepper hidden" id="cal-stepper">
+                  <button data-d="h-">−</button><span id="cal-h">17</span><button data-d="h+">+</button>
+                  <span>:</span>
+                  <button data-d="m-">−</button><span id="cal-m">00</span><button data-d="m+">+</button>
+                </div>
+              </div>
+              <div class="time-row">
+                <span class="sub" style="margin:0 .6rem 0 0">Gjenta</span>
+                <select class="inp" id="cal-repeat" style="max-width:20rem">
+                  <option value="none">Ingen</option>
+                  <option value="weekly">Hver uke</option>
+                  <option value="weekdays">Hverdager (man–fre)</option>
+                  <option value="daily">Hver dag</option>
+                </select>
+              </div>
+              <input id="cal-text" class="inp" placeholder="Hva skjer?" maxlength="40" autocomplete="off" spellcheck="false">
+              <button class="big-btn green save" id="cal-add">📅 Legg til</button>
             </div>
-            <input id="cal-text" class="inp" placeholder="Hva skjer?" maxlength="40" autocomplete="off" spellcheck="false">
-            <button class="big-btn green save" id="cal-add">📅 Legg til</button>
           </div>
         </div>
-      </div>
 
-      <div class="pane hidden" id="pane-lights">
-        <div class="pane-tools"><button class="chip-btn" id="lights-off">Slå av alle lys</button></div>
-        <div class="tiles small" id="lights-grid"></div>
-      </div>
-
-      <div class="pane hidden" id="pane-cams">
-        <div class="tiles small" id="cams-grid"></div>
-        <div id="cam-view" class="hidden">
-          <div class="pane-tools"><button class="chip-btn" id="cam-back">‹ Alle kameraer</button><span class="chip-btn" id="cam-title"></span></div>
-          <img id="cam-img" alt="">
+        <div class="pane hidden" id="pane-lights">
+          <div class="pane-tools"><button class="chip-btn" id="lights-off">Slå av alle lys</button></div>
+          <div class="tiles" id="lights-grid"></div>
         </div>
-      </div>
 
-      <div class="pane hidden" id="pane-settings">
-        <div class="status" id="status-grid"></div>
-        <div class="btns">
-          <button class="chip-btn" id="t-mor">📲 Test varsel til mor</button>
-          <button class="chip-btn" id="t-far">📲 Test varsel til far</button>
-          <button class="chip-btn" id="t-ring">🔔 Test ringelyd</button>
-          <button class="chip-btn" id="t-speak">🔊 Test opplesing</button>
-          <button class="chip-btn" id="t-full">⛶ Fullskjerm</button>
-          <button class="chip-btn" id="t-night">🌙 Nattmodus: auto</button>
-          <button class="chip-btn" id="t-reload">🔄 Last inn på nytt</button>
+        <div class="pane hidden" id="pane-cams">
+          <div class="tiles" id="cams-grid"></div>
+          <div id="cam-view" class="hidden">
+            <div class="pane-tools"><button class="chip-btn" id="cam-back">‹ Alle kameraer</button><span class="chip-btn" id="cam-title"></span></div>
+            <img id="cam-img" alt="">
+          </div>
         </div>
-        <div id="settings-form"></div>
-        <div class="btns save-row">
-          <button class="big-btn green" id="s-save">💾 Lagre</button>
-          <button class="chip-btn danger" id="s-reset">Nullstill til config.js</button>
-        </div>
-        <p class="hint">Innstillingene lagres på denne skjermen og overstyrer config.js. Lapper legges til her under «Ny lapp», eller fra telefonen hvis Home Assistant er koblet til.</p>
-      </div>
 
+        <div class="pane hidden" id="pane-settings">
+          <div class="stabs" id="stabs"></div>
+          <div class="sscroll" id="sscroll">
+            <div class="sgroup" data-tab="status" id="settings-status">
+              <div class="status" id="status-grid"></div>
+              <div class="sub">Test og verktøy</div>
+              <div class="btns">
+                <button class="chip-btn" id="t-mor">📲 Test varsel til mor</button>
+                <button class="chip-btn" id="t-far">📲 Test varsel til far</button>
+                <button class="chip-btn" id="t-ring">🔔 Test ringelyd</button>
+                <button class="chip-btn" id="t-speak">🔊 Test opplesing</button>
+                <button class="chip-btn" id="t-full">⛶ Fullskjerm</button>
+                <button class="chip-btn" id="t-night">🌙 Nattmodus: auto</button>
+                <button class="chip-btn" id="t-reload">🔄 Last inn på nytt</button>
+              </div>
+              <p class="hint">Innstillingene lagres på denne skjermen og overstyrer config.js.</p>
+            </div>
+            <div id="settings-form"></div>
+          </div>
+          <div class="save-row hidden" id="save-row">
+            <button class="big-btn green sm" id="s-save">💾 Lagre</button>
+            <button class="chip-btn danger" id="s-reset">Nullstill til config.js</button>
+            <span class="hint">Lagring laster skjermen inn på nytt.</span>
+          </div>
+        </div>
+
+      </div>
+      <div class="kbd hidden" id="kbd"></div>
     </div>
-    <div class="kbd hidden" id="kbd"></div>
   </div>
 </div>
 
@@ -1529,20 +1571,48 @@ function openMenuGate() {
 }
 
 /* ---------------- Menu ---------------- */
-const PANES = { home: 'Meny', note: 'Ny lapp', calendar: 'Kalender', lights: 'Lys', cams: 'Kamera', settings: 'Innstillinger' };
+/* One sheet, a section list on the left. Opening lands on Ny lapp (the everyday task); the list's small lines carry live counts. */
+const PANES = { note: 'Ny lapp', calendar: 'Kalender', lights: 'Lys', cams: 'Kamera', settings: 'Innstillinger' };
+let curPane = 'note';
+function plural(n, one, many) { return n === 1 ? '1 ' + one : n + ' ' + many; }
+function navSubs() {
+  const notes = currentNotes().length;
+  const plans = eventsOn(ymd(new Date())).length;
+  const haSub = () => !haOn ? 'Via Home Assistant' : !ha.connected ? 'Ikke tilkoblet' : null;
+  const lights = Object.keys(ha.states).filter(id => id.startsWith('light.'));
+  const lightsOn = lights.filter(id => ha.states[id].state === 'on').length;
+  const cams = Object.keys(ha.states).filter(id => id.startsWith('camera.')).length;
+  return {
+    note: notes ? plural(notes, 'lapp på tavla', 'lapper på tavla') : 'Tavla er tom',
+    calendar: plans ? plural(plans, 'plan i dag', 'planer i dag') : 'Ingen planer i dag',
+    lights: haSub() || (!lights.length ? 'Ingen lys' : lightsOn ? plural(lightsOn, 'lys på', 'lys på') : 'Alle lys er av'),
+    cams: haSub() || (cams ? plural(cams, 'kamera', 'kameraer') : 'Ingen kameraer'),
+    settings: 'Status og oppsett'
+  };
+}
+function renderNav() {
+  if ($('#menu').classList.contains('hidden')) return;
+  const subs = navSubs();
+  $$('#menu-nav .nav-item').forEach(b => {
+    b.classList.toggle('on', b.dataset.pane === curPane);
+    b.querySelector('small').textContent = subs[b.dataset.pane] || '';
+  });
+}
 function showPane(name) {
+  if (!PANES[name]) name = 'note';
+  curPane = name;
   hideKbd();
   $$('.pane').forEach(p => p.classList.toggle('hidden', p.id !== 'pane-' + name));
-  $('#panel-title').textContent = PANES[name] || 'Meny';
-  $('#menu-back').classList.toggle('hidden', name === 'home');
+  $('#panel-title').textContent = PANES[name];
   $('#panel-body').scrollTop = 0;
   if (name === 'lights') renderLights();
   if (name === 'cams') { closeCam(); renderCams(); }
   if (name === 'settings') { renderStatus(); buildForm(); }
   if (name === 'note') { renderNoteList(); updatePreview(); }
   if (name === 'calendar') renderCalendar();
+  renderNav();
 }
-function openMenu() { showOverlay('#menu'); showPane('home'); }
+function openMenu() { showOverlay('#menu'); showPane('note'); }
 function closeMenu() { closeCam(); hideKbd(); hideOverlay('#menu'); }
 
 /* Docked on-screen keyboard: works for every text field inside the menu */
@@ -1624,6 +1694,7 @@ $('#panel').addEventListener('focusin', e => {
 
 /* Lights */
 function renderLights() {
+  renderNav();
   const grid = $('#lights-grid');
   if (!ha.connected) { grid.innerHTML = '<div class="empty">' + (haOn ? 'Home Assistant er ikke tilkoblet akkurat nå.' : 'Lys styres via Home Assistant. Legg inn adresse og token under Innstillinger.') + '</div>'; return; }
   const ids = Object.keys(ha.states).filter(id => id.startsWith('light.') || (cfg.ha.includeSwitches && id.startsWith('switch.'))).sort();
@@ -1646,6 +1717,7 @@ $('#lights-off').addEventListener('click', () => {
 
 /* Cameras */
 function renderCams() {
+  renderNav();
   const grid = $('#cams-grid');
   if (!ha.connected) { grid.innerHTML = '<div class="empty">' + (haOn ? 'Home Assistant er ikke tilkoblet akkurat nå.' : 'Kameraer vises via Home Assistant. Legg inn adresse og token under Innstillinger.') + '</div>'; return; }
   const ids = Object.keys(ha.states).filter(id => id.startsWith('camera.')).sort();
@@ -1680,19 +1752,23 @@ $('#cam-back').addEventListener('click', closeCam);
 function renderStatus() {
   if ($('#pane-settings').classList.contains('hidden')) return;
   const p = cfg.notify.provider || 'none', n = cfg.notify.ntfy;
+  const ringVia = p === 'discord' ? (cfg.notify.discord.webhook ? ['Discord ✓', 'on'] : ['Discord – webhook mangler', 'off'])
+    : p === 'ntfy' ? ((n.topicMor || n.topicFar) ? ['ntfy ✓', 'on'] : ['ntfy – emner mangler', 'off'])
+    : p === 'ha' ? ['Home Assistant', ha.connected ? 'on' : 'off']
+    : p === 'webhook' ? ['Webhook', cfg.notify.webhook.url ? 'on' : 'off'] : ['Av', 'idle'];
+  const ringHome = dcState === 'on' ? ['Discord-bot lytter ✓', 'on'] : dcState === 'connecting' ? ['Kobler til Discord…', 'busy']
+    : ntfyState === 'on' ? ['ntfy: lytter på «' + n.topicKiosk + '» ✓', 'on'] : ntfyState === 'connecting' ? ['Kobler til ntfy…', 'busy']
+    : ha.connected ? ['Via Home Assistant-hendelse', 'on'] : ['Av – legg inn bot-token og kanal-ID', 'off'];
   const rows = [
-    ['Home Assistant', !haOn ? 'Ikke i bruk (valgfritt)' : ha.connected ? 'Tilkoblet ✓' : 'Ikke tilkoblet – ' + cfg.ha.url],
-    ['Videosamtale', cfg.call.backend ? 'LiveKit (' + cfg.call.backend.replace(/^https?:\/\//, '') + ')' : 'Ikke satt opp'],
-    ['Ringer telefonene via', p === 'discord' ? (cfg.notify.discord.webhook ? 'Discord ✓' : 'Discord – webhook mangler') : p === 'ntfy' ? ((n.topicMor || n.topicFar) ? 'ntfy ✓' : 'ntfy – emner mangler') : p === 'ha' ? 'Home Assistant' : p === 'webhook' ? 'Webhook' : 'Av'],
-    [cfg.people.mor.name + '/' + cfg.people.far.name.toLowerCase() + ' ringer hjem',
-      dcState === 'on' ? 'Discord-bot lytter ✓' : dcState === 'connecting' ? 'Kobler til Discord…'
-      : ntfyState === 'on' ? 'ntfy: lytter på «' + n.topicKiosk + '» ✓' : ntfyState === 'connecting' ? 'Kobler til ntfy…'
-      : ha.connected ? 'Via Home Assistant-hendelse' : 'Av – legg inn bot-token og kanal-ID'],
-    ['Lapper', notesSource() === 'ha' ? 'Home Assistant (' + todoId + ')' : 'Lagres på kiosken'],
-    ['Vær', (ha.connected && weatherId) ? 'Home Assistant (' + weatherId + ')' : 'Open-Meteo' + (cfg.weather.place ? ' (' + cfg.weather.place + ')' : '')],
-    ['Opplesing', (ha.connected && ttsId) ? ttsId : 'Nettleserens stemme']
+    ['Home Assistant', !haOn ? 'Ikke i bruk (valgfritt)' : ha.connected ? 'Tilkoblet ✓' : 'Ikke tilkoblet – ' + cfg.ha.url, !haOn ? 'idle' : ha.connected ? 'on' : 'off'],
+    ['Videosamtale', cfg.call.backend ? 'LiveKit (' + cfg.call.backend.replace(/^https?:\/\//, '') + ')' : 'Ikke satt opp', cfg.call.backend ? 'on' : 'off'],
+    ['Ringer telefonene via', ringVia[0], ringVia[1]],
+    [cfg.people.mor.name + '/' + cfg.people.far.name.toLowerCase() + ' ringer hjem', ringHome[0], ringHome[1]],
+    ['Lapper', notesSource() === 'ha' ? 'Home Assistant (' + todoId + ')' : 'Lagres på kiosken', 'on'],
+    ['Vær', (ha.connected && weatherId) ? 'Home Assistant (' + weatherId + ')' : 'Open-Meteo' + (cfg.weather.place ? ' (' + cfg.weather.place + ')' : ''), 'on'],
+    ['Opplesing', (ha.connected && ttsId) ? ttsId : 'Nettleserens stemme', 'on']
   ];
-  $('#status-grid').innerHTML = rows.map(r => '<div class="srow"><span>' + esc(r[0]) + '</span><span>' + esc(r[1]) + '</span></div>').join('');
+  $('#status-grid').innerHTML = rows.map(r => '<div class="srow ' + r[2] + '"><i></i><span class="sk">' + esc(r[0]) + '</span><span class="sv">' + esc(r[1]) + '</span></div>').join('');
   $('#t-night').textContent = '🌙 Nattmodus: ' + (nightMode === 'auto' ? 'auto' : nightMode === 'on' ? 'på' : 'av');
   $('#t-mor').textContent = '📲 Test varsel til ' + cfg.people.mor.name.toLowerCase();
   $('#t-far').textContent = '📲 Test varsel til ' + cfg.people.far.name.toLowerCase();
@@ -1716,8 +1792,9 @@ $('#t-night').addEventListener('click', () => {
 });
 $('#t-reload').addEventListener('click', () => location.reload());
 
+/* Schema for the form. `tab` starts a tab (one topic per tab), `sec` a heading inside a tab, `intro` a line under the tab's name. */
 const SETTINGS = [
-  { sec: 'Familie' },
+  { tab: 'familie', l: 'Familie' },
   { k: 'home.name', l: 'Hjemmet heter', hint: 'Vises i toppen som «… HOME»' },
   { k: 'people.mor.name', l: 'Mor heter' },
   { photo: 'mor', l: 'Bilde av mor' },
@@ -1729,6 +1806,7 @@ const SETTINGS = [
   { k: 'people.far.callSub', l: 'Undertekst, Far-kortet' },
   { k: 'home.homeSub', l: 'Undertekst, Hjemme-kortet' },
   { k: 'home.background', l: 'Bakgrunnsbilde', select: [['auto', 'Automatisk (tid på døgnet)'], ['evening', 'Kveld'], ['day', 'Dag'], ['night', 'Natt'], ['none', 'Ingen (mørk)']] },
+  { tab: 'samtale', l: 'Samtale' },
   { sec: 'Videosamtale (LiveKit)' },
   { k: 'call.backend', l: 'Call-backend URL', hint: 'F.eks. https://call.noobventure.com (kjører på Unraid). Se DEPLOYMENT.md' },
   { k: 'call.deviceKey', l: 'Enhetsnøkkel (valgfritt)', hint: 'Må matche DEVICE_KEY i backend .env hvis satt' },
@@ -1746,12 +1824,13 @@ const SETTINGS = [
   { k: 'notify.ntfy.topicKiosk', l: 'Emne kiosken lytter på', show: 'ntfy', hint: 'Brukes når mor/far ringer hjem (ring.html)' },
   { k: 'notify.ntfy.token', l: 'Tilgangstoken', show: 'ntfy', hint: 'Bare hvis emnene er låst på serveren' },
   { k: 'notify.webhook.url', l: 'Webhook-adresse', show: 'webhook', hint: 'Får POST med {event, to, title, message, link}' },
-  { sec: 'Home Assistant (valgfritt – lys, kamera, lapper fra telefonen, bedre stemme)' },
+  { tab: 'ha', l: 'Home Assistant', intro: 'Valgfritt. Gir lys og kamera i menyen, lapper fra telefonen og bedre opplesing.' },
   { k: 'ha.url', l: 'Adresse', hint: 'F.eks. http://192.168.1.10:8123 – tom = ikke i bruk' },
   { k: 'ha.token', l: 'Tilgangstoken', hint: 'Lang – enklest med USB-tastatur eller i config.js' },
   { k: 'ha.weatherEntity', l: 'Vær-entitet', hint: 'Tom = første weather.*' },
   { k: 'ha.todoEntity', l: 'Lappeliste', hint: 'Tom = første todo.*' },
   { k: 'ha.ttsEntity', l: 'Opplesing', hint: 'Tom = første tts.*' },
+  { tab: 'skjerm', l: 'Skjerm' },
   { sec: 'Nattmodus' },
   { k: 'night.enabled', l: 'Demp skjermen om natten', toggle: true },
   { k: 'night.from', l: 'Fra klokka', hint: 'TT:MM', num: true },
@@ -1761,17 +1840,43 @@ const SETTINGS = [
   { k: 'screen.offFrom', l: 'Av fra klokka', hint: 'TT:MM', num: true },
   { k: 'screen.offTo', l: 'På igjen klokka', hint: 'TT:MM', num: true },
   { k: 'screen.helper', l: 'Skjermhjelper', hint: 'Lokal tjeneste som slår skjermen av/på (scripts/kiosk-screen.py, SETUP.md §3). Tom = bare svart bilde' },
-  { sec: 'Bilderamme' },
+  { tab: 'bilder', l: 'Bilderamme' },
   { k: 'photos.dir', l: 'Bildemappe', hint: 'photos/ i appen, /bilder/ for nettverksmappa (se SETUP.md) eller en http://-adresse. Undermapper tas med' },
   { k: 'photos.intervalSec', l: 'Sekunder per bilde', num: true, number: true }
 ];
-let draft = null;
+const STATUS_TAB = { tab: 'status', l: 'Status' };
+let draft = null, settingsTab = 'status';
+function settingsTabs() { return [STATUS_TAB].concat(SETTINGS.filter(fd => fd.tab)); }
+function renderSettingsTabs() {
+  const bar = $('#stabs');
+  bar.innerHTML = '';
+  settingsTabs().forEach(t => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'stab' + (t.tab === settingsTab ? ' on' : '');
+    b.textContent = t.l;
+    b.addEventListener('click', () => showSettingsTab(t.tab));
+    bar.appendChild(b);
+  });
+  $$('#pane-settings .sgroup').forEach(g => g.classList.toggle('hidden', g.dataset.tab !== settingsTab));
+  $('#save-row').classList.toggle('hidden', settingsTab === 'status');
+}
+function showSettingsTab(id) { settingsTab = id; hideKbd(); renderSettingsTabs(); $('#sscroll').scrollTop = 0; }
 function buildForm(keepDraft) {
-  if (!keepDraft || !draft) draft = JSON.parse(JSON.stringify(cfg));
+  if (!keepDraft || !draft) { draft = JSON.parse(JSON.stringify(cfg)); settingsTab = 'status'; }
   const f = $('#settings-form');
   f.innerHTML = '';
+  let group = f;
   SETTINGS.forEach(fd => {
-    if (fd.sec) { const h = document.createElement('div'); h.className = 'sec'; h.textContent = fd.sec; f.appendChild(h); return; }
+    if (fd.tab) {
+      group = document.createElement('div');
+      group.className = 'sgroup';
+      group.dataset.tab = fd.tab;
+      f.appendChild(group);
+      if (fd.intro) { const p = document.createElement('p'); p.className = 'hint intro'; p.textContent = fd.intro; group.appendChild(p); }
+      return;
+    }
+    if (fd.sec) { const h = document.createElement('div'); h.className = 'sec'; h.textContent = fd.sec; group.appendChild(h); return; }
     if (fd.show && fd.show !== draft.notify.provider) return;
     const row = document.createElement('div');
     row.className = 'frow';
@@ -1841,8 +1946,9 @@ function buildForm(keepDraft) {
       }
     }
     row.appendChild(ctl);
-    f.appendChild(row);
+    group.appendChild(row);
   });
+  renderSettingsTabs();
 }
 function resizePhoto(file, cb) {
   const r = new FileReader();
@@ -1942,6 +2048,7 @@ $('#note-save').addEventListener('click', async () => {
   } catch (e) { toast('Kunne ikke lagre lappen: ' + ((e && e.message) || 'ukjent feil'), 5000); }
 });
 function renderNoteList() {
+  renderNav();
   const wrap = $('#note-list');
   const list = currentNotes();
   wrap.innerHTML = '';
@@ -2057,6 +2164,7 @@ function calInit() {
   calForm = { emoji: (cfg.emojis && cfg.emojis[0]) || '📅', timeOn: false, h: 17, m: 0, repeat: 'none' };
 }
 function renderCalendar() {
+  renderNav();
   if (!calCursor) calInit();
   const y = calCursor.getFullYear(), mo = calCursor.getMonth();
   const title = calCursor.toLocaleDateString('nb-NO', { month: 'long', year: 'numeric' });
@@ -2175,8 +2283,7 @@ function init() {
   $('#rest-btn').addEventListener('click', screenOff);
   $('#pin-cancel').addEventListener('click', () => { pinBuf = ''; hideOverlay('#pin'); });
   $('#menu-close').addEventListener('click', closeMenu);
-  $('#menu-back').addEventListener('click', () => showPane('home'));
-  $$('.tile[data-pane]').forEach(t => t.addEventListener('click', () => showPane(t.dataset.pane)));
+  $$('.nav-item[data-pane]').forEach(t => t.addEventListener('click', () => showPane(t.dataset.pane)));
   ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].forEach(k => {
     const b = document.createElement('button');
     b.type = 'button';

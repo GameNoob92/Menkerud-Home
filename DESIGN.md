@@ -8,7 +8,7 @@ Status: v0.4. **Video calls run on LiveKit** (`call-backend/`, §11); Jitsi was 
 
 | File | Role |
 |---|---|
-| `index.html` | The entire app: CSS + HTML + one IIFE of vanilla JS. No build step, no dependencies, no bundler. ~1700 lines. |
+| `index.html` | The entire app: CSS + HTML + one IIFE of vanilla JS. No build step, no dependencies, no bundler. ~2300 lines. |
 | `config.js` | Optional defaults, loaded by a `<script src>` before the app. Sets `window.MENKERUD_CONFIG`. Missing file = fine. Holds the family's real webhook/tokens → gitignored. `config.example.js` is the committed template. |
 | `ring.html` | Tiny standalone page for the parents' phones (ntfy path only): publishes to the kiosk's ntfy topic, then opens the call-room link. |
 | `photos/mor.jpg`, `photos/far.jpg` | Optional photos. Photos picked on-screen are stored as data URLs in settings instead. |
@@ -84,14 +84,14 @@ Person keys are `mor` / `far` throughout (`cfg.people`, `data-who`, `data-name`,
 10. **Calls (LiveKit)** – `startCall(who)` → `startCallLiveKit`: `loadLiveKit` lazy-loads `livekit-client` from a CDN, POSTs `cfg.call.backend`/`api/calls` (with `X-Device-Key` if set), connects the returned room, attaches the parent’s remote video into `#callvideo` and hides the calling layer; `endCall` disconnects and POSTs `…/end`. `incomingCall(who)`/`dismissIncoming` still handle "parent rings home" (ntfy/Discord); **Svar** calls the parent back via LiveKit.
 11. **Confetti** – canvas, 3.8 s.
 12. **PIN** – `pinKey`, `openMenuGate` (`cfg.pin === ''` skips the gate).
-13. **Menu** – `showPane(name)` for `home | note | calendar | lights | cams | settings`; `openMenu`/`closeMenu`.
+13. **Menu** – the parents' area is one near-full-screen glass sheet (`#menu` → `.panel`, the scene blurred behind it): a section list on the left (`#menu-nav`, `.nav-item[data-pane]`, one accent colour per section, and a live one-line status under each name from `navSubs()`/`renderNav()` – notes on the board, today's plans, lights on / cameras found, or «Via Home Assistant» when HA is not configured) and the open section on the right (`.panel-main`: handwritten title, ✕, `.panel-body`, the docked keyboard). `showPane(name)` for `note | calendar | lights | cams | settings`; `openMenu` lands on Ny lapp. There is no launcher grid and no back button – every section is one tap from every other. `renderNoteList`, `renderCalendar`, `renderLights` and `renderCams` call `renderNav()` so the counts stay live.
 14. **On-screen keyboard** – docked at the bottom of the panel, attaches to any focused `input.inp` inside `#panel` (`focusin`), `abc`/`sym` layouts, shift, caret-aware insert via `setRangeText`, dispatches `input` events so bindings update. `data-num="1"` inputs open in the symbol layout.
 15. **Lights / cameras / KVELD** – all `light.*` (+ `switch.*` if configured) as tiles → `homeassistant.toggle`; cameras via MJPEG `/api/camera_proxy_stream/<id>?token=<access_token>`. `renderEvening` builds the **KVELD** panel's quick actions from HA state — *Demp belysning* (lights to 30 %), *God natt* (lights off + night mode on), *Lås dører* (`lock.lock`, only if a `lock.*` exists) — and hides the whole panel when HA is not connected.
-16. **Settings** – `renderStatus` (7 status rows + test buttons), `SETTINGS` schema array → `buildForm(keepDraft)` → `draft` object → `saveSettings` → reload. Field kinds: text (`k`), `num` (numeric keyboard), `number` (coerced on save), `select`, `toggle`, `photo`, `geocode`, `show: '<provider>'` to hide unless that provider is selected.
+16. **Settings** – tabbed. A **Status** tab (`renderStatus`: 7 status cards with a green / red / amber / grey dot, then the test buttons) plus one tab per `{ tab, l, intro? }` entry in the `SETTINGS` schema array (Familie · Samtale · Home Assistant · Skjerm · Bilderamme; `{ sec }` entries are headings inside a tab). `buildForm(keepDraft)` renders every tab into `#settings-form` as `.sgroup[data-tab]` and `renderSettingsTabs()` shows the active one (`settingsTab`; a fresh open starts on Status, the rebuild after a provider change stays put). `draft` object → `saveSettings` → reload; the Lagre / Nullstill row is pinned to the bottom of the pane and hidden on the Status tab. Field kinds: text (`k`), `num` (numeric keyboard), `number` (coerced on save), `select`, `toggle`, `photo`, `geocode`, `show: '<provider>'` to hide unless that provider is selected.
 17. **Ny lapp form** – emoji strip, time stepper, text input, live preview note, chip list with delete.
 18. **`init()`** – applies texts/avatars, binds events, starts clock, weather, HA (if configured) and both listeners.
 
-**To add a setting:** add a default in `DEFAULTS`, one entry in `SETTINGS` (it renders, drafts and persists automatically), and read it from `cfg` where needed. Add a status row in `renderStatus` if it has a connection state. Update the smoke test's "form rows" count if you assert on it.
+**To add a setting:** add a default in `DEFAULTS`, one entry in `SETTINGS` under the right `{ tab }` (it renders, drafts and persists automatically), and read it from `cfg` where needed. Add a status row in `renderStatus` if it has a connection state. Update the smoke test's "form rows" count if you assert on it.
 
 ## 4. Flows
 
@@ -137,7 +137,7 @@ npm install        # jsdom only
 npm test           # scripts/check.js (syntax of inline scripts + config.js) then test/smoke.js
 ```
 
-`test/smoke.js` loads `index.html` in jsdom three times with mocked `fetch`, canvas and `WebSocket`: (1) fresh start → local notes, weather, PIN, keyboard, note add/remove, settings form, geocode, save; (2) reload with saved settings → renamed parent, ntfy push body, call overlay, home push; (3) Discord provider with a fake gateway → identify, incoming ring from far, webhook ignored, webhook POST body. Extend it rather than adding a framework. There is no real-browser test; after UI changes, open `index.html` in Chromium and walk SETUP.md §5. To exercise a real call from a dev PC without buzzing the phones: serve the folder on `http://127.0.0.1:<port>` (localhost is a secure context too), set `localStorage["menkerud.settings"]` to `{"notify":{"provider":"none"}}`, press Ring mor, and join the room from a second tab as the parent.
+`test/smoke.js` loads `index.html` in jsdom three times with mocked `fetch`, canvas and `WebSocket`: (1) fresh start → local notes, weather, PIN, section-list counts, keyboard, note add/remove, calendar, settings tabs and form, geocode, save; (2) reload with saved settings → renamed parent, ntfy push body, call overlay, home push; (3) Discord provider with a fake gateway → identify, incoming ring from far, webhook ignored, webhook POST body. Extend it rather than adding a framework. There is no real-browser test; after UI changes, open `index.html` in Chromium and walk SETUP.md §5. To exercise a real call from a dev PC without buzzing the phones: serve the folder on `http://127.0.0.1:<port>` (localhost is a secure context too), set `localStorage["menkerud.settings"]` to `{"notify":{"provider":"none"}}`, press Ring mor, and join the room from a second tab as the parent.
 
 Nothing about LiveKit, ntfy, Discord or HA is exercised against real services in tests (the smoke test stubs `livekit-client`). When touching those, verify by hand with the settings panel's test buttons (`Test varsel til …`, `Test ringelyd`, `Test opplesing`) and the status rows.
 
@@ -150,6 +150,8 @@ Nothing about LiveKit, ntfy, Discord or HA is exercised against real services in
 - **Settings in `localStorage`** with `config.js` defaults: parents can set up everything on the touchscreen; tokens can be pre-seeded in the file.
 - **Local notes fallback**: the board must work without HA; HA to-do list wins when present so parents can add from phones.
 - **`rem` = 1 % width**: one number system for a fixed-aspect screen, no media-query soup.
+
+- **The parents' menu is a sidebar sheet, not a launcher grid (2026-09-11).** The first version was a centred panel with a 5-tile «Meny» grid, a back button and one long settings scroll – it worked but looked nothing like the front page. Now it is one glass sheet with the scene showing through, a section list on the left (accent colour per section, live counts) and the section on the right, so every task is one tap away and the docked keyboard never pushes the navigation around. Settings got tabs per topic with Lagre pinned at the bottom instead of a 40-row scroll. The handwritten titles and the sticky-note preview tie it to the front page.
 
 - **Screen off through a local helper, not the Wake Lock API (2026-09-10).** Chrome 153 on the kiosk's GNOME 50/Wayland session never registers an idle inhibitor for `navigator.wakeLock`, so «release the lock and let GNOME blank» failed on the real hardware. `scripts/kiosk-screen.py` sets the backlight to 0 through logind's `SetBrightness` instead: immediate, deterministic, and it can light the screen up for an incoming call. DPMS-off (Mutter `PowerSaveMode` 3) was the first version and is only the fallback now: on the Vivo AIO it powers down the USB touch controller with the panel, so no touch could ever wake the screen. It is a separate user-level process, so `index.html` stays one static file and nginx stays static-only.
 
@@ -176,7 +178,6 @@ Rule of thumb: if the bot is stable and always on, B keeps the token out of the 
 - Voice: Piper (Wyoming) via HA for natural Norwegian, or a `/tts` HTTP endpoint provider so TTS works without HA.
 - Camera streams via HLS (`camera/stream` WS command + hls.js) instead of MJPEG.
 - Multiple children / per-child "Jeg er hjemme" (who came home), with per-child colour.
-- **Redesign the PIN-locked menu/admin area** (operator, 2026-09-10: «it works, but looks bad») – next up after Skjerm av / Bilderamme.
 - Bilderamme: a Ken Burns / slow-zoom option.
 - Unit tests for `parseNote`, `spokenTime`, `wmoIcon` outside jsdom.
 - Simple update mechanism: `git pull` + reload button in Innstillinger.
