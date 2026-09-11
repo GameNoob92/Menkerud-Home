@@ -136,7 +136,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await wait(20);
   assert(qa('#status-grid .srow').length === 8, 'status rows: ' + qa('#status-grid .srow').length);
   { const v = qa('#status-grid .srow').find(r => r.querySelector('.sk').textContent === 'Versjon'); assert(v && v.classList.contains('on') && /^000b6d4 · /.test(v.querySelector('.sv').textContent), 'version card from the helper: ' + (v && v.querySelector('.sv').textContent)); }
-  assert(qa('#stabs .stab').length === 6 && q('#stabs .stab.on').textContent === 'Status', 'settings tabs: ' + qa('#stabs .stab').map(b => b.textContent).join(','));
+  assert(qa('#stabs .stab').length === 7 && q('#stabs .stab.on').textContent === 'Status', 'settings tabs: ' + qa('#stabs .stab').map(b => b.textContent).join(','));
   assert(!q('#settings-status').classList.contains('hidden') && q('.sgroup[data-tab="familie"]').classList.contains('hidden') && q('#save-row').classList.contains('hidden'), 'status tab open, form tabs and save row hidden');
   click(qa('#stabs .stab').find(b => b.textContent === 'Familie'));
   assert(!q('.sgroup[data-tab="familie"]').classList.contains('hidden') && q('#settings-status').classList.contains('hidden') && !q('#save-row').classList.contains('hidden'), 'Familie tab shows its rows and the save row');
@@ -242,6 +242,89 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(!!startReq3, 'outbound call posts to the backend: ' + (startReq3 && startReq3.url));
   assert(!third.fetchCalls.some(c => /discord\.com\/api\/webhooks/.test(c.url)), 'outbound call does not hit the Discord webhook');
   click3(q3('#hangup'));
+
+  // Fourth load: Home Assistant through a fake WebSocket → page strip, presence badges, Huset, Lys (rooms + PIN), Kamera, the Sider tab
+  const haSent = [];
+  const STATES = [
+    { entity_id: 'person.mor_test', state: 'home', attributes: { friendly_name: 'Mor' } },
+    { entity_id: 'person.far_test', state: 'not_home', attributes: { friendly_name: 'Far' } },
+    { entity_id: 'light.barnerom', state: 'off', attributes: { friendly_name: 'Barnerom' } },
+    { entity_id: 'light.stue', state: 'on', attributes: { friendly_name: 'Stue' } },
+    { entity_id: 'binary_sensor.ytterdor', state: 'on', attributes: { friendly_name: 'Ytterdør', device_class: 'door' } },
+    { entity_id: 'sensor.stue_temp', state: '21.5', attributes: { friendly_name: 'Stue temperatur', device_class: 'temperature', unit_of_measurement: '°C' } },
+    { entity_id: 'camera.inngang', state: 'idle', attributes: { friendly_name: 'Inngang', access_token: 'abc' } }
+  ];
+  const fourth = mkdom(win => {
+    win.MENKERUD_CONFIG = { ha: { url: 'http://ha.test:8123', token: 'tok' }, rooms: [{ id: 'r1', name: 'Barnerommet', icon: '🧸', lights: ['light.barnerom'], kids: ['light.barnerom'] }], house: { entities: ['binary_sensor.ytterdor', 'sensor.stue_temp'] } };
+    class FakeHA {
+      constructor(url) { this.url = url; this.readyState = 1; setTimeout(() => this.onmessage && this.onmessage({ data: JSON.stringify({ type: 'auth_required' }) }), 5); }
+      send(x) {
+        const m = JSON.parse(x); haSent.push(m);
+        const reply = o => setTimeout(() => this.onmessage({ data: JSON.stringify(o) }), 5);
+        if (m.type === 'auth') reply({ type: 'auth_ok' });
+        else if (m.type === 'get_states') reply({ id: m.id, type: 'result', success: true, result: STATES });
+        else if (m.id) reply({ id: m.id, type: 'result', success: true, result: null });
+      }
+      close() { this.readyState = 3; this.onclose && this.onclose(); }
+    }
+    win.WebSocket = FakeHA;
+  });
+  const w4 = fourth.dom.window, d4 = w4.document;
+  const q4 = s => d4.querySelector(s), qa4 = s => [...d4.querySelectorAll(s)];
+  const click4 = el => el.dispatchEvent(new w4.MouseEvent('click', { bubbles: true }));
+  await wait(200);
+  assert(q4('#status').classList.contains('on'), 'fake HA connected');
+  assert(qa4('#page-dots span').length === 4 && !q4('#page-nav').classList.contains('hidden'), 'four pages with HA: ' + qa4('#page-dots span').length);
+  assert(q4('#pres-mor').classList.contains('home') && q4('#pres-mor').textContent.includes('Hjemme'), 'presence badge on Ring mor: ' + q4('#pres-mor').textContent);
+  assert(q4('#pres-far').classList.contains('away') && q4('#pres-far').textContent.includes('Borte'), 'presence badge on Ring far: ' + q4('#pres-far').textContent);
+  // footer arrow → Huset
+  click4(q4('#page-next'));
+  assert(qa4('#page-dots span')[1].classList.contains('on') && q4('#strip').style.transform === 'translateX(-100%)', 'arrow moves to page 2: ' + q4('#strip').style.transform);
+  assert(qa4('#who .who-tile').length === 2 && qa4('#who .who-tile')[0].classList.contains('home'), 'who-is-home tiles');
+  const htiles = qa4('#house-grid .h-tile');
+  assert(htiles.length === 2 && htiles[0].classList.contains('alert') && htiles[0].querySelector('.v').textContent === 'Åpen' && htiles[1].querySelector('.v').textContent === '21,5 °C', 'house tiles: ' + htiles.map(t => t.querySelector('.v').textContent).join(' | '));
+  // swipe left with pointer events → Lys
+  const pev = (type, x) => q4('#pages').dispatchEvent(new w4.MouseEvent(type, { bubbles: true, clientX: x, clientY: 300 }));
+  pev('pointerdown', 900); pev('pointermove', 850); pev('pointermove', 600); pev('pointerup', 500);
+  assert(qa4('#page-dots span')[2].classList.contains('on'), 'swipe left moves to page 3');
+  await wait(420);   // the click that follows a swipe is swallowed for a moment
+  const rooms = qa4('#rooms .room');
+  assert(rooms.length === 2 && rooms[0].querySelector('.room-title').textContent.includes('Barnerommet') && rooms[1].querySelector('.room-title').textContent.includes('Andre lys'), 'rooms rendered: ' + rooms.map(r => r.querySelector('.room-title').textContent).join(' | '));
+  const kidTile = rooms[0].querySelector('.tile'), lockedTile = rooms[1].querySelector('.tile');
+  assert(kidTile && lockedTile && !kidTile.classList.contains('locked') && lockedTile.classList.contains('locked'), 'kid light free, other light locked');
+  haSent.length = 0;
+  click4(kidTile);
+  await wait(10);
+  assert(haSent.some(m => m.type === 'call_service' && m.service === 'toggle' && m.target.entity_id === 'light.barnerom'), 'kid light toggled without PIN');
+  click4(lockedTile);
+  assert(!q4('#pin').classList.contains('hidden'), 'locked light asks for the PIN');
+  ['0', '6', '1', '1', '1', '1'].forEach(k => click4(qa4('#pin-pad button').find(b => b.textContent === k)));
+  await wait(10);
+  assert(q4('#pin').classList.contains('hidden') && q4('#menu').classList.contains('hidden'), 'PIN for a light does not open the menu');
+  assert(haSent.some(m => m.type === 'call_service' && m.target.entity_id === 'light.stue'), 'locked light toggled after PIN');
+  assert(!qa4('#rooms .room')[1].querySelector('.tile').classList.contains('locked'), 'lights unlocked for a while after the PIN');
+  // Kamera
+  click4(q4('#page-next'));
+  const cam = q4('#cam-grid .cam-tile img');
+  assert(cam && /\/api\/camera_proxy\/camera\.inngang\?token=abc/.test(cam.getAttribute('src')), 'camera snapshot from HA: ' + (cam && cam.getAttribute('src')));
+  click4(q4('#cam-grid .cam-tile'));
+  assert(/camera_proxy_stream\/camera\.inngang/.test(q4('#cam-full-img').getAttribute('src')) && !q4('#cam-full').classList.contains('hidden'), 'tap opens the live stream');
+  click4(q4('#page-prev'));
+  assert(!q4('#cam-full-img').getAttribute('src') && q4('#cam-full').classList.contains('hidden'), 'leaving the page drops the stream');
+  // Sider tab in Innstillinger: entity pickers and the rooms editor
+  click4(q4('#menu-btn'));
+  ['0', '6', '1', '1', '1', '1'].forEach(k => click4(qa4('#pin-pad button').find(b => b.textContent === k)));
+  click4(q4('.nav-item[data-pane="settings"]'));
+  click4(qa4('#stabs .stab').find(b => b.textContent === 'Sider'));
+  const inputFor4 = label => { const row = qa4('#settings-form .frow').find(r => r.querySelector('.flabel').textContent.startsWith(label)); return row && row.querySelector('input, select, .ent-list'); };
+  const pm = inputFor4('Mor i Home Assistant');
+  assert(pm && pm.tagName === 'SELECT' && [...pm.options].some(o => o.value === 'person.mor_test'), 'person picker lists HA persons');
+  const we = inputFor4('Vær-entitet');
+  assert(we && we.tagName === 'SELECT', 'weather entity is a picker when HA is connected');
+  assert(inputFor4('Vis på Huset-siden') && qa4('.ent-list .chip-btn').length === 2 && qa4('.ent-list .chip-btn.on').length === 2, 'house entity chips: ' + qa4('.ent-list .chip-btn').length + ' (' + qa4('.ent-list .chip-btn.on').length + ' on)');
+  assert(qa4('#settings-form .room-ed').length === 1 && qa4('#settings-form .room-ed .lightrow').length === 2, 'rooms editor shows the room with both lights');
+  click4(qa4('#settings-form .chip-btn').find(b => b.textContent === '+ Nytt rom'));
+  assert(qa4('#settings-form .room-ed').length === 2, 'new room added');
 
   console.log(errors.length ? 'ERRORS:\n' + errors.join('\n') : 'ALL GOOD');
   process.exit(errors.length ? 1 : 0);

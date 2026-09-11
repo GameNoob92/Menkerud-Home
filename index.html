@@ -50,7 +50,7 @@ img{display:block;max-width:100%}
 body{
   font-size:1.6rem;
   display:grid;
-  grid-template-rows:auto minmax(0,1.02fr) minmax(0,1fr) auto;
+  grid-template-rows:auto minmax(0,1fr) auto;
   gap:1.1rem;
   padding:1.4rem 1.7rem 1rem;
   height:100vh;
@@ -384,6 +384,85 @@ select.inp option{color:#111}
 #cal-selected-label{font-family:var(--hand);font-size:2.3rem;font-weight:700;color:#eef2ff;margin:0 0 .5rem}
 .cal-side .chips{max-height:11rem;margin-bottom:.4rem;flex:none}
 
+/* ---------- Pages: a horizontal strip under the header (Hjem · Huset · Lys · Kamera), swiped or stepped with the footer arrows ---------- */
+#pages{position:relative;min-height:0;overflow:hidden;touch-action:pan-y}
+.strip{display:flex;height:100%;transition:transform .38s cubic-bezier(.2,.7,.2,1);will-change:transform}
+.page{flex:none;width:100%;height:100%;min-height:0;min-width:0}
+.page.home{display:grid;grid-template-rows:minmax(0,1.02fr) minmax(0,1fr);gap:1.1rem}
+.notes{touch-action:pan-x}
+.page-nav{display:flex;align-items:center;gap:1rem;margin:0 .6rem}
+.pn-arrow{width:3.6rem;height:2.8rem;border-radius:1rem;background:rgba(255,255,255,.08);border:1px solid var(--glass-line);font-size:2rem;font-weight:900;line-height:1;display:grid;place-items:center;color:#fff}
+.pn-arrow:disabled{opacity:.25}
+.pn-arrow:active{background:rgba(255,255,255,.25)}
+.dots{display:flex;align-items:center;gap:.7rem}
+.dots span{width:.95rem;height:.95rem;border-radius:.5rem;background:rgba(255,255,255,.32);transition:width .2s,background .2s}
+.dots span.on{width:2.4rem;background:#fff}
+
+/* Presence badge on the call cards (Home Assistant person state) */
+.card .pres{position:absolute;top:1.2rem;right:1.4rem;z-index:3;display:flex;align-items:center;gap:.45rem;padding:.45rem 1rem;border-radius:2rem;font-size:1.3rem;font-weight:900;color:#fff;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.4);box-shadow:0 .4rem 1rem rgba(0,0,0,.35)}
+.card .pres.home{background:rgba(37,224,143,.9);color:#053b26;border-color:rgba(255,255,255,.8)}
+.card .pres.zone{background:rgba(25,185,255,.85);color:#06264a}
+
+/* Huset: who is home + status tiles */
+.page.huset{display:grid;grid-template-rows:auto minmax(0,1fr);gap:1.1rem}
+.who{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+.who-tile{display:flex;align-items:center;gap:1.6rem;padding:1.2rem 1.8rem;border-radius:var(--radius-xl);background:var(--glass);border:1px solid var(--glass-line);backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));box-shadow:var(--shadow-panel);transition:border-color .3s,box-shadow .3s}
+.who-tile .avatar{width:8.5rem;height:8.5rem}
+.who-tile .avatar .fallback{font-size:5rem}
+.who-tile .nm{font-size:2.6rem;font-weight:900;line-height:1.1}
+.who-tile .st{font-size:1.7rem;font-weight:800;color:var(--text-soft);margin-top:.4rem;display:flex;align-items:center;gap:.5rem}
+.who-tile .st span{font-size:2.2rem;line-height:1}
+.who-tile .st small{display:block;font-size:1.2rem;font-weight:700;color:var(--text-muted)}
+.who-tile.home{border-color:rgba(37,224,143,.85);box-shadow:0 0 2.2rem rgba(37,224,143,.3),var(--shadow-panel)}
+.who-tile.home .st{color:#6ee7b7}
+.who-tile.zone{border-color:rgba(25,185,255,.8)}
+.who-tile.zone .st{color:#7dd3fc}
+.house-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(17rem,1fr));gap:1.1rem;align-content:start;overflow:auto;min-height:0;scrollbar-width:none}
+.h-tile{display:grid;grid-template-columns:4rem minmax(0,1fr);column-gap:1rem;align-items:center;padding:1.1rem 1.3rem;min-height:7.6rem;border-radius:var(--radius-lg);background:var(--glass);border:1px solid var(--glass-line);backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));box-shadow:var(--shadow-panel)}
+.h-tile .ic{grid-row:1/3;font-size:3rem;line-height:1;text-align:center}
+.h-tile .n{font-size:1.3rem;font-weight:800;color:var(--text-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.h-tile .v{font-size:2rem;font-weight:900;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.h-tile.alert{border-color:#ffd166;box-shadow:0 0 1.6rem rgba(255,209,102,.3)}
+.h-tile.dim{opacity:.55}
+.page .empty-page{grid-column:1/-1;display:grid;place-items:center;height:100%;text-align:center;font-size:2rem;font-weight:800;color:var(--text-soft);padding:2rem;line-height:1.4}
+.page .empty-page small{display:block;font-size:1.4rem;font-weight:700;color:var(--text-muted);margin-top:.6rem}
+
+/* Lys: one glass panel per room; a lock on lights the children may not touch */
+.rooms{display:grid;grid-template-columns:repeat(auto-fit,minmax(26rem,1fr));gap:1.2rem;align-content:start;overflow:auto;min-height:0;height:100%;scrollbar-width:none}
+.room{display:flex;flex-direction:column;gap:.8rem;padding:1.1rem 1.3rem 1.3rem;border-radius:var(--radius-lg);background:var(--glass);border:1px solid var(--glass-line);backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));box-shadow:var(--shadow-panel)}
+.room-title{display:flex;align-items:center;gap:.7rem;font-family:var(--hand);font-size:2.3rem;color:#eef2ff;line-height:1}
+.room-title .cnt{margin-left:auto;font-family:var(--font);font-size:1.2rem;font-weight:800;color:var(--text-muted)}
+.room .tiles{grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr));gap:.8rem}
+.room .tile{position:relative;min-height:9rem;padding:1rem .6rem}
+.room .tile .lock{position:absolute;top:.45rem;right:.6rem;font-size:1.25rem;line-height:1}
+.room .tile.locked{opacity:.7}
+.rooms .hint-row{grid-column:1/-1;text-align:center}
+
+/* Kamera: snapshot grid, tap for the live stream */
+.page.kamera{position:relative}
+.cam-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(30rem,1fr));gap:1.2rem;align-content:start;overflow:auto;min-height:0;height:100%;scrollbar-width:none}
+.cam-tile{position:relative;border-radius:var(--radius-lg);overflow:hidden;background:#000;aspect-ratio:16/9;border:1px solid var(--glass-line);box-shadow:var(--shadow-panel);padding:0}
+.cam-tile img{width:100%;height:100%;object-fit:cover}
+.cam-tile .n{position:absolute;left:1rem;bottom:.8rem;font-size:1.5rem;font-weight:900;text-shadow:0 .2rem .6rem #000}
+.cam-full{position:absolute;inset:0;border-radius:var(--radius-lg);overflow:hidden;background:#000}
+.cam-full img{width:100%;height:100%;object-fit:contain}
+.cam-full .back{position:absolute;top:1rem;left:1rem;z-index:2}
+
+/* Settings: rooms editor and entity pickers */
+.fblock{padding:.6rem 0 .2rem}
+.room-ed{border:1px solid rgba(255,255,255,.1);border-radius:1.4rem;padding:1rem 1.2rem;margin:.6rem 0;background:rgba(255,255,255,.03)}
+.room-ed .head{display:flex;gap:.8rem;align-items:center;flex-wrap:wrap}
+.room-ed .head .inp{max-width:26rem}
+.room-ed .iconpick{display:flex;gap:.4rem;flex-wrap:wrap;margin:.6rem 0 .2rem}
+.iconpick button{width:3.4rem;height:3.4rem;border-radius:.9rem;background:rgba(255,255,255,.08);font-size:2rem;line-height:1;display:grid;place-items:center}
+.iconpick button.sel{background:rgba(255,233,92,.35);outline:.25rem solid #ffe95c}
+.room-ed .lightrow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:.8rem;align-items:center;padding:.45rem 0;border-top:1px solid rgba(255,255,255,.06);font-size:1.45rem;font-weight:800}
+.room-ed .lightrow .ln{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.room-ed .lightrow .chip-btn{padding:.5rem 1.1rem;font-size:1.3rem}
+.room-ed .lightrow .chip-btn:disabled{opacity:.35}
+.ent-list{display:flex;flex-wrap:wrap;gap:.6rem}
+.ent-list .chip-btn{padding:.5rem 1.1rem;font-size:1.3rem}
+
 /* Night, toast, confetti */
 #night{position:fixed;inset:0;z-index:40;background:rgba(0,2,18,.78)}
 #night.dark{background:#000}
@@ -409,7 +488,7 @@ select.inp option{color:#111}
 /* Portrait: this screen is built for landscape */
 .portrait-warn{display:none}
 @media (orientation:portrait){
-  body>header,body>#cards,body>.bottom-grid,body>footer{display:none!important}
+  body>header,body>#pages,body>footer{display:none!important}
   .portrait-warn{position:fixed;inset:0;display:grid;place-items:center;text-align:center;padding:3rem;gap:1.5rem;z-index:80}
   .portrait-warn .rot{font-size:6rem}
   .portrait-warn p{font-size:2.2rem;font-weight:800;line-height:1.4}
@@ -448,18 +527,23 @@ select.inp option{color:#111}
   <div class="tagline" id="tagline"></div>
 </header>
 
+<div id="pages">
+<div class="strip" id="strip">
+<section class="page home" data-page="hjem">
 <main id="cards">
   <button class="card mor img-card" id="card-mor">
     <img class="cardart" src="assets/cards/card-mor.png" alt="Ring Mor">
     <div class="phone"><img src="assets/icons/call-mor-glass.png" alt=""></div>
     <div class="label">RING <span data-name="mor">MOR</span></div>
     <div class="sublabel" id="sub-mor"></div>
+    <span class="pres hidden" id="pres-mor"></span>
   </button>
   <button class="card far img-card" id="card-far">
     <img class="cardart" src="assets/cards/card-far.png" alt="Ring Far">
     <div class="phone"><img src="assets/icons/call-far-glass.png" alt=""></div>
     <div class="label">RING <span data-name="far">FAR</span></div>
     <div class="sublabel" id="sub-far"></div>
+    <span class="pres hidden" id="pres-far"></span>
   </button>
   <button class="card home img-card" id="card-home">
     <img class="cardart" src="assets/cards/card-home.png" alt="Jeg er hjemme">
@@ -487,10 +571,25 @@ select.inp option{color:#111}
     <div id="evening-actions"></div>
   </section>
 </section>
+</section>
+
+<section class="page huset hidden" data-page="huset">
+  <div class="who" id="who"></div>
+  <div class="house-grid" id="house-grid"></div>
+</section>
+<section class="page lys hidden" data-page="lys"><div class="rooms" id="rooms"></div></section>
+<section class="page kamera hidden" data-page="kamera">
+  <div class="cam-grid" id="cam-grid"></div>
+  <div class="cam-full hidden" id="cam-full"><button class="chip-btn back" id="cam-full-back">‹ Alle kameraer</button><img id="cam-full-img" alt=""></div>
+</section>
+</div>
+</div>
 
 <footer>
   <svg class="fhouse" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></svg>
   <span class="hand" id="footer-text"></span>
+  <span class="line"></span>
+  <nav class="page-nav hidden" id="page-nav" aria-label="Sider"><button class="pn-arrow" id="page-prev" aria-label="Forrige side">‹</button><span class="dots" id="page-dots"></span><button class="pn-arrow" id="page-next" aria-label="Neste side">›</button></nav>
   <span class="line"></span>
   <span class="brand" id="footer-brand"></span>
   <span class="heart">♥</span>
@@ -693,6 +792,7 @@ const DEFAULTS = {
   },
   ha: {
     url: '', token: '', weatherEntity: '', todoEntity: '', ttsEntity: '', ttsLanguage: 'no', includeSwitches: false,
+    personMor: '', personFar: '',                                    // person.* entities for the presence badges ('' = match by name)
     scripts: { mor: 'script.ring_mor', far: 'script.ring_far', home: 'script.jeg_er_hjemme' },
     callEvent: 'menkerud_call'
   },
@@ -700,6 +800,9 @@ const DEFAULTS = {
   night: { enabled: true, from: '21:00', to: '06:30' },
   screen: { offEnabled: true, offFrom: '23:00', offTo: '06:00', helper: 'http://127.0.0.1:7777' },   // display off via the kiosk screen helper (SETUP.md §3)
   photos: { dir: 'photos/', intervalSec: 20, idleMin: 0 },          // Bilderamme; idleMin = start by itself after n minutes without a touch (0 = never)
+  pages: { huset: true, lys: true, kamera: true, homeAfterSec: 60 },  // extra swipe pages (need Home Assistant); back to the front page after n s without a touch
+  house: { entities: [] },                                          // entity ids shown as tiles on the Huset page
+  rooms: [],                                                        // [{ id, name, icon, lights: [ids], kids: [ids the children may toggle] }]
   emojis: ['⚽','🏀','🏊','⛷️','🎿','🚲','🥾','🏃','🎒','📚','✏️','🎨','🎵','🎹','🎮','📺','🦷','🛁','🧼','😴','🌙','⏰','🍎','🥪','🍕','🍦','🎂','🎁','🎉','❤️','⭐','😊','🧸','🐶','🐱','🐴','🧥','🧦','👟','🧤','☀️','🌧️','❄️','🚌','🚗','🏠','👵','👴','🎈','🧹']
 };
 const SAMPLE_NOTES = ['⚽ 17:00 Fotball', '🎒 Gymtøy!', '🦷 20:00 Tannpuss', '❤️ Du er flink!', '☀️ Ha en fin dag i morgen!'];
@@ -869,14 +972,17 @@ ha.onready = async () => {
   todoId = cfg.ha.todoEntity || ha.firstEntity('todo');
   ttsId = cfg.ha.ttsEntity || ha.firstEntity('tts');
   renderWeather(); renderLights(); renderCams(); renderStatus(); renderEvening();
+  buildPages(); renderPresence();
 
   ha.subscribe({ type: 'subscribe_events', event_type: 'state_changed' }, ev => {
     const d = ev.data || {};
     if (!d.entity_id) return;
     if (d.new_state) ha.states[d.entity_id] = d.new_state; else delete ha.states[d.entity_id];
     if (d.entity_id === weatherId) renderWeather();
-    if (d.entity_id.startsWith('light.') || d.entity_id.startsWith('switch.')) renderLights();
+    if (d.entity_id.startsWith('light.') || d.entity_id.startsWith('switch.')) { renderLights(); if (curPageId() === 'lys') renderRooms(); }
     if (d.entity_id.startsWith('camera.')) renderCams();
+    if (d.entity_id.startsWith('person.') || d.entity_id.startsWith('device_tracker.')) renderPresence();
+    if (curPageId() === 'huset' && (cfg.house.entities || []).includes(d.entity_id)) renderHouseTiles();
   }).catch(e => console.warn('state sub', e));
 
   if (todoId) {
@@ -893,7 +999,7 @@ ha.onready = async () => {
     }).catch(e => console.warn('call sub', e));
   }
 };
-ha.onclose = () => { setStatusDot(); renderNotes(); renderWeather(); renderStatus(); renderEvening(); };
+ha.onclose = () => { setStatusDot(); renderNotes(); renderWeather(); renderStatus(); renderEvening(); buildPages(); renderPresence(); };
 
 /* ---------------- Clock, weather, night ---------------- */
 function tick() {
@@ -904,6 +1010,7 @@ function tick() {
   $('#date').textContent = ds.charAt(0).toUpperCase() + ds.slice(1);
   checkNight(d);
   checkIdleFrame(d);
+  checkIdlePage();
   const mk = d.getHours() * 60 + d.getMinutes();
   if (mk !== lastTickMin) { lastTickMin = mk; renderSchedule(); if (((cfg.home && cfg.home.background) || 'auto') === 'auto') pickBackground(); }
 }
@@ -1562,7 +1669,7 @@ function confetti() {
 }
 
 /* ---------------- PIN ---------------- */
-let pinBuf = '';
+let pinBuf = '', pinNext = null;                       // pinNext: what to run when the PIN is right (default: open the menu)
 function renderPinDots() {
   const n = cfg.pin.length;
   $('#pin-dots').innerHTML = Array.from({ length: n }, (_, i) => '<span class="' + (i < pinBuf.length ? 'full' : '') + '"></span>').join('');
@@ -1572,7 +1679,7 @@ function pinKey(k) {
   else if (pinBuf.length < cfg.pin.length) pinBuf += k;
   renderPinDots();
   if (pinBuf.length === cfg.pin.length) {
-    if (pinBuf === cfg.pin) { pinBuf = ''; hideOverlay('#pin'); openMenu(); }
+    if (pinBuf === cfg.pin) { pinBuf = ''; hideOverlay('#pin'); const fn = pinNext || openMenu; pinNext = null; fn(); }
     else {
       const box = $('#pin-box');
       box.classList.add('shake');
@@ -1580,12 +1687,12 @@ function pinKey(k) {
     }
   }
 }
-function openMenuGate() {
-  if (overlayOpen()) return;
-  if (!cfg.pin) { openMenu(); return; }
-  pinBuf = ''; renderPinDots();
+function gate(fn) {
+  if (!cfg.pin) { fn(); return; }
+  pinNext = fn; pinBuf = ''; renderPinDots();
   showOverlay('#pin');
 }
+function openMenuGate() { if (!overlayOpen()) gate(openMenu); }
 
 /* ---------------- Menu ---------------- */
 /* One sheet, a section list on the left. Opening lands on Ny lapp (the everyday task); the list's small lines carry live counts. */
@@ -1883,9 +1990,21 @@ const SETTINGS = [
   { tab: 'ha', l: 'Home Assistant', intro: 'Valgfritt. Gir lys og kamera i menyen, lapper fra telefonen og bedre opplesing.' },
   { k: 'ha.url', l: 'Adresse', hint: 'F.eks. http://192.168.1.10:8123 – tom = ikke i bruk' },
   { k: 'ha.token', l: 'Tilgangstoken', hint: 'Lang – enklest med USB-tastatur eller i config.js' },
-  { k: 'ha.weatherEntity', l: 'Vær-entitet', hint: 'Tom = første weather.*' },
-  { k: 'ha.todoEntity', l: 'Lappeliste', hint: 'Tom = første todo.*' },
-  { k: 'ha.ttsEntity', l: 'Opplesing', hint: 'Tom = første tts.*' },
+  { k: 'ha.weatherEntity', l: 'Vær-entitet', hint: 'Tom = første weather.*', kind: 'entity', domain: 'weather' },
+  { k: 'ha.todoEntity', l: 'Lappeliste', hint: 'Tom = første todo.*', kind: 'entity', domain: 'todo' },
+  { k: 'ha.ttsEntity', l: 'Opplesing', hint: 'Tom = første tts.*', kind: 'entity', domain: 'tts' },
+  { tab: 'sider', l: 'Sider', intro: 'Ekstra sider til høyre for forsiden – sveip, eller bruk pilene nederst. Krever Home Assistant.' },
+  { k: 'pages.huset', l: 'Side: Huset', hint: 'Hvem er hjemme + status fra huset', toggle: true },
+  { k: 'pages.lys', l: 'Side: Lys', hint: 'Lys per rom. Barna kan styre de lysene du merker for dem', toggle: true },
+  { k: 'pages.kamera', l: 'Side: Kamera', toggle: true },
+  { k: 'pages.homeAfterSec', l: 'Tilbake til forsiden etter', hint: 'Sekunder uten berøring', num: true, number: true },
+  { sec: 'Hvem er hjemme' },
+  { k: 'ha.personMor', l: 'Mor i Home Assistant', kind: 'entity', domain: 'person', auto: '(gjett på navnet)', hint: 'Personen med mors telefon (Innstillinger → Personer i HA)' },
+  { k: 'ha.personFar', l: 'Far i Home Assistant', kind: 'entity', domain: 'person', auto: '(gjett på navnet)' },
+  { sec: 'Huset' },
+  { k: 'house.entities', l: 'Vis på Huset-siden', kind: 'entities', hint: 'Dører, temperatur, vaskemaskin … Trykk for å velge' },
+  { sec: 'Rom og lys' },
+  { k: 'rooms', kind: 'rooms' },
   { tab: 'skjerm', l: 'Skjerm' },
   { sec: 'Nattmodus' },
   { k: 'night.enabled', l: 'Demp skjermen om natten', toggle: true },
@@ -1935,6 +2054,7 @@ function buildForm(keepDraft) {
     }
     if (fd.sec) { const h = document.createElement('div'); h.className = 'sec'; h.textContent = fd.sec; group.appendChild(h); return; }
     if (fd.show && fd.show !== draft.notify.provider) return;
+    if (fd.kind === 'rooms') { const blk = document.createElement('div'); blk.className = 'fblock'; group.appendChild(blk); roomsEditor(blk); return; }
     const row = document.createElement('div');
     row.className = 'frow';
     const lab = document.createElement('div');
@@ -1981,6 +2101,39 @@ function buildForm(keepDraft) {
       paint();
       b.addEventListener('click', () => { setPath(draft, fd.k, !getPath(draft, fd.k)); paint(); });
       ctl.appendChild(b);
+    } else if (fd.kind === 'entity' && ha.connected) {
+      // pick an entity of one domain from Home Assistant instead of typing its id
+      const s = document.createElement('select');
+      s.className = 'inp';
+      const cur = getPath(draft, fd.k) || '';
+      const ids = Object.keys(ha.states).filter(id => id.startsWith(fd.domain + '.')).sort((a, b) => friendly(a).localeCompare(friendly(b), 'nb'));
+      if (cur && !ids.includes(cur)) ids.unshift(cur);
+      [['', fd.auto || '(automatisk)']].concat(ids.map(id => [id, friendly(id) + ' – ' + id])).forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; s.appendChild(o); });
+      s.value = cur;
+      s.addEventListener('change', () => setPath(draft, fd.k, s.value));
+      ctl.appendChild(s);
+    } else if (fd.kind === 'entities') {
+      // a set of entity ids, toggled as chips
+      const list = document.createElement('div');
+      list.className = 'ent-list';
+      if (!ha.connected) list.innerHTML = '<span class="hint" style="margin:0">Koble til Home Assistant først, så kan du velge her.</span>';
+      else {
+        const doms = fd.domains || ['binary_sensor', 'sensor', 'climate', 'lock', 'cover', 'switch', 'fan', 'media_player', 'vacuum', 'input_boolean', 'humidifier', 'water_heater', 'device_tracker', 'alarm_control_panel'];
+        const ids = Object.keys(ha.states).filter(id => doms.includes(id.split('.')[0])).sort((a, b) => friendly(a).localeCompare(friendly(b), 'nb'));
+        const sel = new Set(Array.isArray(getPath(draft, fd.k)) ? getPath(draft, fd.k) : []);
+        if (!ids.length) list.innerHTML = '<span class="hint" style="margin:0">Fant ingen passende enheter i Home Assistant.</span>';
+        ids.forEach(id => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          const paint = () => { b.className = 'chip-btn' + (sel.has(id) ? ' on' : ''); };
+          paint();
+          b.textContent = friendly(id);
+          b.title = id;
+          b.addEventListener('click', () => { if (sel.has(id)) sel.delete(id); else sel.add(id); setPath(draft, fd.k, ids.filter(x => sel.has(x))); paint(); });
+          list.appendChild(b);
+        });
+      }
+      ctl.appendChild(list);
     } else {
       const i = document.createElement('input');
       i.type = 'text'; i.className = 'inp'; i.autocomplete = 'off'; i.spellcheck = false;
@@ -2006,6 +2159,69 @@ function buildForm(keepDraft) {
     group.appendChild(row);
   });
   renderSettingsTabs();
+}
+/* Rooms editor (Innstillinger → Sider → Rom og lys): draft.rooms = [{ id, name, icon, lights: [ids], kids: [ids] }] */
+const ROOM_ICONS = ['🛏️', '🧸', '🛋️', '🍳', '🚿', '🛁', '🚪', '🏡', '🌳', '🧺', '🖥️', '🎮', '📚', '🚗', '💡'];
+function roomsEditor(blk) {
+  if (!Array.isArray(draft.rooms)) draft.rooms = [];
+  blk.innerHTML = '';
+  const lights = ha.connected ? lightIds() : [];
+  const rerender = () => roomsEditor(blk);
+  draft.rooms.forEach((room, ri) => {
+    room.lights = Array.isArray(room.lights) ? room.lights : [];
+    room.kids = Array.isArray(room.kids) ? room.kids : [];
+    const ed = document.createElement('div');
+    ed.className = 'room-ed';
+    const head = document.createElement('div');
+    head.className = 'head';
+    const icon = document.createElement('span'); icon.style.fontSize = '2.4rem'; icon.textContent = room.icon || '💡';
+    const name = document.createElement('input');
+    name.type = 'text'; name.className = 'inp'; name.placeholder = 'Navn på rommet'; name.maxLength = 24; name.autocomplete = 'off'; name.spellcheck = false;
+    name.value = room.name || '';
+    name.addEventListener('input', () => { room.name = name.value; });
+    const del = document.createElement('button');
+    del.type = 'button'; del.className = 'chip-btn danger'; del.textContent = 'Slett rommet';
+    del.addEventListener('click', () => { draft.rooms.splice(ri, 1); rerender(); });
+    head.appendChild(icon); head.appendChild(name); head.appendChild(del);
+    ed.appendChild(head);
+    const ip = document.createElement('div');
+    ip.className = 'iconpick';
+    ROOM_ICONS.forEach(e => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = e; b.className = e === room.icon ? 'sel' : '';
+      b.addEventListener('click', () => { room.icon = e; icon.textContent = e; Array.from(ip.querySelectorAll('button')).forEach(x => x.classList.toggle('sel', x === b)); });
+      ip.appendChild(b);
+    });
+    ed.appendChild(ip);
+    if (!lights.length) { const h = document.createElement('div'); h.className = 'hint'; h.textContent = ha.connected ? 'Ingen lys i Home Assistant ennå.' : 'Koble til Home Assistant for å legge lys i rommet.'; ed.appendChild(h); }
+    lights.forEach(id => {
+      const row = document.createElement('div');
+      row.className = 'lightrow';
+      const inRoom = () => room.lights.includes(id), forKids = () => room.kids.includes(id);
+      const ln = document.createElement('span'); ln.className = 'ln'; ln.textContent = friendly(id); ln.title = id;
+      const b1 = document.createElement('button'); b1.type = 'button';
+      const b2 = document.createElement('button'); b2.type = 'button';
+      const paint = () => {
+        b1.className = 'chip-btn' + (inRoom() ? ' on' : ''); b1.textContent = inRoom() ? 'I rommet ✓' : 'I rommet';
+        b2.className = 'chip-btn' + (forKids() ? ' on' : ''); b2.textContent = forKids() ? 'Barna kan styre ✓' : 'Barna kan styre'; b2.disabled = !inRoom();
+      };
+      b1.addEventListener('click', () => {
+        if (inRoom()) { room.lights = room.lights.filter(x => x !== id); room.kids = room.kids.filter(x => x !== id); }
+        else room.lights.push(id);
+        paint();
+      });
+      b2.addEventListener('click', () => { if (forKids()) room.kids = room.kids.filter(x => x !== id); else room.kids.push(id); paint(); });
+      paint();
+      row.appendChild(ln); row.appendChild(b1); row.appendChild(b2);
+      ed.appendChild(row);
+    });
+    blk.appendChild(ed);
+  });
+  const add = document.createElement('button');
+  add.type = 'button'; add.className = 'chip-btn'; add.textContent = '+ Nytt rom';
+  add.addEventListener('click', () => { draft.rooms.push({ id: 'r' + Date.now(), name: '', icon: ROOM_ICONS[draft.rooms.length % ROOM_ICONS.length], lights: [], kids: [] }); rerender(); const last = Array.from(blk.querySelectorAll('.room-ed .inp')).pop(); if (last) last.focus(); });
+  blk.appendChild(add);
+  if (!draft.rooms.length) { const h = document.createElement('p'); h.className = 'hint'; h.textContent = 'Uten rom viser Lys-siden alle lysene i én gruppe, låst for barna.'; blk.appendChild(h); }
 }
 function resizePhoto(file, cb) {
   const r = new FileReader();
@@ -2313,6 +2529,259 @@ $$('#cal-stepper button').forEach(b => b.addEventListener('click', () => {
 $('#cal-repeat').addEventListener('change', () => { if (calForm) calForm.repeat = $('#cal-repeat').value; });
 $('#cal-add').addEventListener('click', addEvent);
 
+/* ---------------- Pages: Hjem · Huset · Lys · Kamera (swipe strip under the header) ---------------- */
+/* The extra pages need Home Assistant; without it the strip holds only Hjem and the footer arrows hide.
+   A page is rendered when it comes into view (and on state changes while it is in view); the camera page
+   loads snapshots only while visible and drops every stream when swiped away – the kiosk CPU is small. */
+const PAGE_DEFS = [
+  { id: 'hjem', always: true },
+  { id: 'huset', on: () => !!cfg.pages.huset },
+  { id: 'lys', on: () => !!cfg.pages.lys },
+  { id: 'kamera', on: () => !!cfg.pages.kamera }
+];
+let pageList = ['hjem'], pageIdx = 0;
+function pageEnabled(p) { return !!p.always || (haOn && ha.connected && p.on()); }
+function curPageId() { return pageList[pageIdx] || 'hjem'; }
+function buildPages() {
+  pageList = PAGE_DEFS.filter(pageEnabled).map(p => p.id);
+  $$('#strip .page').forEach(el => el.classList.toggle('hidden', !pageList.includes(el.dataset.page)));
+  if (pageIdx >= pageList.length) pageIdx = 0;
+  $('#page-nav').classList.toggle('hidden', pageList.length < 2);
+  $('#page-dots').innerHTML = pageList.map((id, i) => '<span data-i="' + i + '"' + (i === pageIdx ? ' class="on"' : '') + '></span>').join('');
+  goPage(pageIdx, false);
+}
+function goPage(i, animate) {
+  i = Math.max(0, Math.min(pageList.length - 1, i));
+  pageIdx = i;
+  const strip = $('#strip');
+  if (animate === false) strip.style.transition = 'none';
+  strip.style.transform = 'translateX(' + (-i * 100) + '%)';
+  if (animate === false) { void strip.offsetWidth; strip.style.transition = ''; }
+  $$('#page-dots span').forEach((s, k) => s.classList.toggle('on', k === i));
+  $('#page-prev').disabled = i === 0;
+  $('#page-next').disabled = i >= pageList.length - 1;
+  const id = curPageId();
+  if (id === 'kamera') camPageShow(); else camPageHide();
+  if (id === 'huset') renderHouse();
+  if (id === 'lys') renderRooms();
+}
+/* Swipe: pointer events on the strip. A tap stays a tap (no capture until the finger has clearly moved sideways);
+   after a swipe the click that some browsers still fire is swallowed once. Horizontal scrollers (the notes strip)
+   keep their own gesture. */
+let swipe = null, swallowClick = false;
+function swipeStart(e) {
+  if (e.button && e.button !== 0) return;
+  if (pageList.length < 2 || overlayOpen()) return;
+  if (e.target.closest && e.target.closest('.notes, .emoji-grid, input, select')) return;
+  swipe = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId, moved: false };
+}
+function swipeMove(e) {
+  if (!swipe) return;
+  const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+  if (!swipe.moved) {
+    if (Math.abs(dx) < 14 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+    swipe.moved = true;
+    const p = $('#pages');
+    try { if (p.setPointerCapture && swipe.id != null) p.setPointerCapture(swipe.id); } catch (err) {}
+    $('#strip').style.transition = 'none';
+  }
+  const w = $('#pages').clientWidth || 1;
+  const atEdge = (dx > 0 && pageIdx === 0) || (dx < 0 && pageIdx >= pageList.length - 1);
+  const px = atEdge ? dx * 0.3 : dx;
+  $('#strip').style.transform = 'translateX(calc(' + (-pageIdx * 100) + '% + ' + Math.round(px) + 'px))';
+  if (e.cancelable) e.preventDefault();
+  void w;
+}
+function swipeEnd(e) {
+  if (!swipe) return;
+  const s = swipe; swipe = null;
+  const strip = $('#strip');
+  strip.style.transition = '';
+  if (!s.moved) return;
+  const dx = e.clientX - s.x, dt = Math.max(1, Date.now() - s.t), v = dx / dt;
+  const w = $('#pages').clientWidth || 0;
+  let target = pageIdx;
+  if (dx < -w * 0.2 || v < -0.45) target = pageIdx + 1;
+  else if (dx > w * 0.2 || v > 0.45) target = pageIdx - 1;
+  goPage(target);
+  swallowClick = true;
+  setTimeout(() => { swallowClick = false; }, 400);
+}
+document.addEventListener('click', e => { if (swallowClick) { e.stopPropagation(); e.preventDefault(); swallowClick = false; } }, true);
+function checkIdlePage() {
+  if (pageIdx === 0) return;
+  const s = Number(cfg.pages && cfg.pages.homeAfterSec) || 60;
+  if (Date.now() - lastInput > s * 1000) goPage(0);
+}
+
+/* --- presence: Home Assistant person.* for mor / far --- */
+function friendly(id) {
+  const s = ha.states[id];
+  return (s && s.attributes && s.attributes.friendly_name) || String(id).split('.').slice(1).join('.').replace(/_/g, ' ');
+}
+function personEntity(who) {
+  const pick = cfg.ha[who === 'mor' ? 'personMor' : 'personFar'];
+  if (pick) return ha.states[pick] ? pick : '';
+  const name = String((cfg.people[who] || {}).name || '').trim().toLowerCase();
+  const ids = Object.keys(ha.states).filter(id => id.startsWith('person.'));
+  if (!name) return '';
+  return ids.find(id => friendly(id).toLowerCase() === name) || ids.find(id => friendly(id).toLowerCase().includes(name)) || '';
+}
+function presenceOf(who) {
+  if (!ha.connected) return null;
+  const id = personEntity(who);
+  if (!id) return null;
+  const st = String(ha.states[id].state || '');
+  if (st === 'home') return { k: 'home', text: 'Hjemme', ic: '🏠' };
+  if (st === 'not_home') return { k: 'away', text: 'Borte', ic: '🚗' };
+  if (!st || st === 'unknown' || st === 'unavailable') return { k: 'unknown', text: 'Ukjent', ic: '❔' };
+  return { k: 'zone', text: st, ic: '📍' };
+}
+function renderPresence() {
+  ['mor', 'far'].forEach(who => {
+    const el = $('#pres-' + who), p = presenceOf(who);
+    el.className = 'pres ' + (p ? p.k : 'hidden');
+    el.innerHTML = p ? '<span>' + p.ic + '</span>' + esc(p.text) : '';
+  });
+  if (curPageId() === 'huset') renderWho();
+}
+
+/* --- Huset --- */
+function renderWho() {
+  const w = $('#who');
+  w.innerHTML = '';
+  ['mor', 'far'].forEach(who => {
+    const p = presenceOf(who), person = cfg.people[who] || {};
+    const t = document.createElement('div');
+    t.className = 'who-tile' + (p ? ' ' + p.k : '');
+    t.innerHTML = '<div class="avatar"></div><div class="wt"><div class="nm">' + esc(person.name || who) + '</div><div class="st">' +
+      (p ? '<span>' + p.ic + '</span>' + esc(p.text) : 'Ingen sporing<small>Velg person under Innstillinger → Sider</small>') + '</div></div>';
+    setAvatar(t.querySelector('.avatar'), who);
+    w.appendChild(t);
+  });
+}
+const STATE_NB = { on: 'På', off: 'Av', open: 'Åpen', closed: 'Lukket', opening: 'Åpner', closing: 'Lukker', home: 'Hjemme', not_home: 'Borte',
+  locked: 'Låst', unlocked: 'Ulåst', locking: 'Låser', unlocking: 'Låser opp', playing: 'Spiller', paused: 'Pause', idle: 'Ledig', standby: 'Standby',
+  running: 'Kjører', docked: 'Dokket', cleaning: 'Støvsuger', returning: 'På vei hjem', heat: 'Varmer', cool: 'Kjøler', auto: 'Auto', dry: 'Tørker',
+  fan_only: 'Vifte', heat_cool: 'Varme/kjøle', unavailable: 'Utilgjengelig', unknown: 'Ukjent', wet: 'Vått', detected: 'Oppdaget', clear: 'Rolig' };
+const BIN_CLASS = {   // binary_sensor device_class -> [icon, text when on, text when off]
+  door: ['🚪', 'Åpen', 'Lukket'], window: ['🪟', 'Åpent', 'Lukket'], opening: ['🚪', 'Åpen', 'Lukket'], garage_door: ['🚗', 'Åpen', 'Lukket'],
+  motion: ['🏃', 'Bevegelse', 'Rolig'], occupancy: ['👤', 'Noen her', 'Tomt'], presence: ['👤', 'Hjemme', 'Borte'], moisture: ['💧', 'Vått!', 'Tørt'],
+  smoke: ['🔥', 'Røyk!', 'OK'], gas: ['⚠️', 'Gass!', 'OK'], lock: ['🔓', 'Ulåst', 'Låst'], battery: ['🪫', 'Lavt batteri', 'OK'], plug: ['🔌', 'Tilkoblet', 'Frakoblet'],
+  power: ['⚡', 'På', 'Av'], running: ['⚙️', 'Kjører', 'Stoppet'], problem: ['⚠️', 'Problem', 'OK'], connectivity: ['📶', 'Tilkoblet', 'Frakoblet'], vibration: ['📳', 'Vibrerer', 'Rolig'] };
+const SENSOR_ICON = { temperature: '🌡️', humidity: '💧', power: '⚡', energy: '🔋', battery: '🔋', illuminance: '☀️', pressure: '🎈', timestamp: '⏱️', duration: '⏱️',
+  co2: '🫧', pm25: '🌫️', signal_strength: '📶', voltage: '⚡', current: '⚡', water: '🚰', gas: '🔥', precipitation: '🌧️', wind_speed: '💨', speed: '💨', distance: '📏', moisture: '💧' };
+const DOMAIN_ICON = { climate: '🌡️', lock: '🔒', cover: '🪟', switch: '🔘', fan: '🌀', media_player: '🔊', vacuum: '🧹', humidifier: '💨', water_heater: '🚿',
+  input_boolean: '🔘', device_tracker: '📍', person: '👤', light: '💡', alarm_control_panel: '🚨', plant: '🪴', update: '⬇️', sensor: '📈', binary_sensor: '●' };
+function fmtNum(v) { const n = Number(String(v).replace(',', '.')); return Number.isFinite(n) ? n.toLocaleString('nb-NO', { maximumFractionDigits: 1 }) : String(v); }
+function stateText(st) { return STATE_NB[st] || String(st); }
+function tileFor(id) {
+  const s = ha.states[id];
+  if (!s) return { ic: '❔', n: id, v: 'Ikke funnet', cls: 'dim' };
+  const a = s.attributes || {}, dom = id.split('.')[0], st = String(s.state), n = friendly(id);
+  let ic = DOMAIN_ICON[dom] || '●', v = stateText(st), cls = '';
+  if (dom === 'binary_sensor') {
+    const bc = BIN_CLASS[a.device_class];
+    if (bc) { ic = bc[0]; v = st === 'on' ? bc[1] : st === 'off' ? bc[2] : stateText(st); }
+    else v = st === 'on' ? 'På' : st === 'off' ? 'Av' : stateText(st);
+    if (st === 'on' && ['door', 'window', 'opening', 'garage_door', 'moisture', 'smoke', 'gas', 'problem', 'battery', 'lock'].includes(a.device_class)) cls = 'alert';
+  } else if (dom === 'sensor') {
+    ic = SENSOR_ICON[a.device_class] || '📈';
+    if (a.device_class === 'timestamp') { const d = new Date(st); v = isNaN(d) ? stateText(st) : d.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }); }
+    else if (a.device_class === 'duration' && !isNaN(Number(st))) v = fmtNum(st) + ' ' + (a.unit_of_measurement || 'min');
+    else v = (st === 'unavailable' || st === 'unknown') ? stateText(st) : fmtNum(st) + (a.unit_of_measurement ? ' ' + a.unit_of_measurement : '');
+  } else if (dom === 'climate') {
+    const cur = a.current_temperature, tgt = a.temperature;
+    v = (cur != null ? fmtNum(cur) + '°' : stateText(st)) + (tgt != null ? ' → ' + fmtNum(tgt) + '°' : '');
+  } else if (dom === 'lock') { ic = st === 'locked' ? '🔒' : '🔓'; if (st === 'unlocked') cls = 'alert'; }
+  else if (dom === 'cover') { ic = a.device_class === 'garage' ? '🚗' : '🪟'; if (st === 'open') cls = 'alert'; }
+  else if (dom === 'media_player') { v = stateText(st) + (a.media_title ? ' · ' + a.media_title : ''); }
+  else if (dom === 'light' || dom === 'switch' || dom === 'fan' || dom === 'input_boolean') { v = st === 'on' ? 'På' : st === 'off' ? 'Av' : stateText(st); }
+  else if (dom === 'person' || dom === 'device_tracker') { ic = st === 'home' ? '🏠' : '📍'; }
+  return { ic, n, v, cls };
+}
+function renderHouseTiles() {
+  const g = $('#house-grid');
+  const ids = (cfg.house && Array.isArray(cfg.house.entities) ? cfg.house.entities : []).filter(Boolean);
+  if (!ids.length) {
+    g.innerHTML = '<div class="empty-page">Ingenting valgt ennå<small>Velg dører, temperatur, vaskemaskin … under Innstillinger → Sider → Huset</small></div>';
+    return;
+  }
+  g.innerHTML = ids.map(id => { const t = tileFor(id); return '<div class="h-tile ' + t.cls + '"><span class="ic">' + t.ic + '</span><span class="n">' + esc(t.n) + '</span><span class="v">' + esc(t.v) + '</span></div>'; }).join('');
+}
+function renderHouse() { renderWho(); renderHouseTiles(); }
+
+/* --- Lys: rooms; the children may toggle the lights marked for them, everything else asks for the PIN once (then two minutes free) --- */
+let parentUntil = 0;
+function lightIds() { return Object.keys(ha.states).filter(id => id.startsWith('light.') || (cfg.ha.includeSwitches && id.startsWith('switch.'))).sort((a, b) => friendly(a).localeCompare(friendly(b), 'nb')); }
+function toggleLight(id) { ha.callService('homeassistant', 'toggle', null, { entity_id: id }).catch(() => toast('Kunne ikke styre ' + friendly(id))); }
+function renderRooms() {
+  const wrap = $('#rooms');
+  wrap.innerHTML = '';
+  if (!ha.connected) { wrap.innerHTML = '<div class="empty-page">Home Assistant er ikke tilkoblet</div>'; return; }
+  const all = lightIds();
+  if (!all.length) { wrap.innerHTML = '<div class="empty-page">Ingen lys i Home Assistant ennå<small>Legg til lysene dine der, så dukker de opp her</small></div>'; return; }
+  const rooms = (Array.isArray(cfg.rooms) ? cfg.rooms : []).filter(r => r && r.name);
+  const assigned = new Set(rooms.flatMap(r => r.lights || []));
+  const groups = rooms.map(r => ({ name: r.name, icon: r.icon || '💡', lights: (r.lights || []).filter(id => ha.states[id]), kids: new Set(r.kids || []) }));
+  const rest = all.filter(id => !assigned.has(id));
+  if (rest.length) groups.push({ name: rooms.length ? 'Andre lys' : 'Alle lys', icon: '🏡', lights: rest, kids: new Set() });
+  const unlocked = Date.now() < parentUntil;
+  groups.forEach(g => {
+    const room = document.createElement('section');
+    room.className = 'room';
+    const on = g.lights.filter(id => ha.states[id].state === 'on').length;
+    room.innerHTML = '<div class="room-title"><span>' + esc(g.icon) + '</span>' + esc(g.name) + '<span class="cnt">' + (on ? on + ' på' : 'alle av') + '</span></div><div class="tiles"></div>';
+    const tiles = room.querySelector('.tiles');
+    g.lights.forEach(id => {
+      const s = ha.states[id], isOn = s.state === 'on', free = g.kids.has(id) || unlocked;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tile' + (isOn ? ' on' : '') + (free ? '' : ' locked');
+      b.innerHTML = '<span>' + (isOn ? '💡' : '🔅') + '</span>' + esc(friendly(id)) + (free ? '' : '<i class="lock">🔒</i>');
+      b.addEventListener('click', () => {
+        if (g.kids.has(id) || Date.now() < parentUntil) { toggleLight(id); return; }
+        gate(() => { parentUntil = Date.now() + 120000; toggleLight(id); renderRooms(); toast('Lysene er åpne i to minutter'); });
+      });
+      tiles.appendChild(b);
+    });
+    wrap.appendChild(room);
+  });
+  if (!rooms.length) { const h = document.createElement('div'); h.className = 'hint hint-row'; h.textContent = 'Lag rom og merk lysene barna kan styre under Innstillinger → Sider → Rom og lys.'; wrap.appendChild(h); }
+}
+
+/* --- Kamera: snapshots every 10 s while the page is visible, tap for the MJPEG stream --- */
+let camTimer = null, camFullId = null;
+function camIds() { return Object.keys(ha.states).filter(id => id.startsWith('camera.')).sort(); }
+function camUrl(id, stream) {
+  const s = ha.states[id], tok = (s && s.attributes && s.attributes.access_token) || '';
+  return ha.base + '/api/camera_proxy' + (stream ? '_stream/' : '/') + id + '?token=' + encodeURIComponent(tok) + (stream ? '' : '&t=' + Date.now());
+}
+function renderCamGrid() {
+  const g = $('#cam-grid');
+  g.innerHTML = '';
+  if (!ha.connected) { g.innerHTML = '<div class="empty-page">Home Assistant er ikke tilkoblet</div>'; return; }
+  const ids = camIds();
+  if (!ids.length) { g.innerHTML = '<div class="empty-page">Ingen kameraer ennå<small>Legg til kameraene i Home Assistant, så dukker de opp her</small></div>'; return; }
+  ids.forEach(id => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'cam-tile';
+    b.innerHTML = '<img alt="" data-id="' + esc(id) + '"><span class="n">' + esc(friendly(id)) + '</span>';
+    b.querySelector('img').src = camUrl(id);
+    b.addEventListener('click', () => openCamFull(id));
+    g.appendChild(b);
+  });
+}
+function refreshCamGrid() {
+  if (curPageId() !== 'kamera' || camFullId || !ha.connected) return;
+  $$('#cam-grid img[data-id]').forEach(i => { i.src = camUrl(i.dataset.id); });
+}
+function camPageShow() { renderCamGrid(); clearInterval(camTimer); camTimer = setInterval(refreshCamGrid, 10000); }
+function camPageHide() { clearInterval(camTimer); camTimer = null; closeCamFull(); $$('#cam-grid img').forEach(i => i.removeAttribute('src')); }
+function openCamFull(id) { camFullId = id; $('#cam-full-img').src = camUrl(id, true); $('#cam-full').classList.remove('hidden'); $('#cam-grid').classList.add('hidden'); }
+function closeCamFull() { camFullId = null; $('#cam-full-img').removeAttribute('src'); $('#cam-full').classList.add('hidden'); $('#cam-grid').classList.remove('hidden'); }
+$('#cam-full-back').addEventListener('click', closeCamFull);
+
 /* ---------------- Wire up ---------------- */
 function init() {
   $('#home-name').textContent = String(cfg.home.name || '').toUpperCase();
@@ -2335,10 +2804,18 @@ function init() {
   $('#decline').addEventListener('click', dismissIncoming);
   $('#menu-btn').addEventListener('click', openMenuGate);
   $('#footer-gear').addEventListener('click', openMenuGate);
-  $('#home-btn').addEventListener('click', () => { if (!$('#menu').classList.contains('hidden')) closeMenu(); });
+  $('#home-btn').addEventListener('click', () => { if (!$('#menu').classList.contains('hidden')) closeMenu(); goPage(0); });
+  $('#page-prev').addEventListener('click', () => goPage(pageIdx - 1));
+  $('#page-next').addEventListener('click', () => goPage(pageIdx + 1));
+  $('#page-dots').addEventListener('click', e => { const s = e.target.closest && e.target.closest('span[data-i]'); if (s) goPage(Number(s.dataset.i)); });
+  const pg = $('#pages');
+  pg.addEventListener('pointerdown', swipeStart);
+  pg.addEventListener('pointermove', swipeMove);
+  pg.addEventListener('pointerup', swipeEnd);
+  pg.addEventListener('pointercancel', swipeEnd);
   $('#frame-btn').addEventListener('click', startFrame);
   $('#rest-btn').addEventListener('click', screenOff);
-  $('#pin-cancel').addEventListener('click', () => { pinBuf = ''; hideOverlay('#pin'); });
+  $('#pin-cancel').addEventListener('click', () => { pinBuf = ''; pinNext = null; hideOverlay('#pin'); });
   $('#menu-close').addEventListener('click', closeMenu);
   $$('.nav-item[data-pane]').forEach(t => t.addEventListener('click', () => showPane(t.dataset.pane)));
   ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].forEach(k => {
@@ -2352,10 +2829,11 @@ function init() {
 
   document.addEventListener('contextmenu', e => e.preventDefault());
   document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { if (!overlayOpen() && !frameOn()) goPage(pageIdx + (e.key === 'ArrowRight' ? 1 : -1)); return; }
     if (e.key !== 'Escape') return;
     if (!$('#call').classList.contains('hidden')) endCall();
     else if (!$('#menu').classList.contains('hidden')) closeMenu();
-    else if (!$('#pin').classList.contains('hidden')) hideOverlay('#pin');
+    else if (!$('#pin').classList.contains('hidden')) { pinNext = null; hideOverlay('#pin'); }
     else if (frameOn()) { stopFrame(); checkNight(); }
   });
   window.addEventListener('resize', () => { const c = $('#confetti'); c.width = window.innerWidth; c.height = window.innerHeight; });
@@ -2365,6 +2843,7 @@ function init() {
   renderSchedule(); renderEvening();
   renderNotes(); renderWeather(); setStatusDot();
   fetchOpenMeteo(); setInterval(fetchOpenMeteo, 15 * 60 * 1000);
+  buildPages();
   if (haOn) ha.connect();
   listenNtfy();
   listenDiscord();
