@@ -2000,8 +2000,8 @@ const SETTINGS = [
   { k: 'pages.kamera', l: 'Side: Kamera', toggle: true },
   { k: 'pages.homeAfterSec', l: 'Tilbake til forsiden etter', hint: 'Sekunder uten berøring', num: true, number: true },
   { sec: 'Hvem er hjemme' },
-  { k: 'ha.personMor', l: 'Mor i Home Assistant', kind: 'entity', domain: 'person', auto: '(gjett på navnet)', hint: 'Personen med mors telefon (Innstillinger → Personer i HA)' },
-  { k: 'ha.personFar', l: 'Far i Home Assistant', kind: 'entity', domain: 'person', auto: '(gjett på navnet)' },
+  { k: 'ha.personMor', l: 'Mor i Home Assistant', kind: 'entity', domains: ['person', 'device_tracker'], auto: '(gjett på navnet)', hint: 'Personen med mors telefon – eller telefonen selv (f.eks. ruterens sporing, som viser «borte» så snart den forlater wifi)' },
+  { k: 'ha.personFar', l: 'Far i Home Assistant', kind: 'entity', domains: ['person', 'device_tracker'], auto: '(gjett på navnet)' },
   { sec: 'Huset' },
   { k: 'house.entities', l: 'Vis på Huset-siden', kind: 'entities', hint: 'Dører, temperatur, vaskemaskin … Trykk for å velge' },
   { sec: 'Rom og lys' },
@@ -2107,7 +2107,8 @@ function buildForm(keepDraft) {
       const s = document.createElement('select');
       s.className = 'inp';
       const cur = getPath(draft, fd.k) || '';
-      const ids = Object.keys(ha.states).filter(id => id.startsWith(fd.domain + '.')).sort((a, b) => friendly(a).localeCompare(friendly(b), 'nb'));
+      const doms = fd.domains || [fd.domain];
+      const ids = Object.keys(ha.states).filter(id => doms.includes(id.split('.')[0])).sort((a, b) => friendly(a).localeCompare(friendly(b), 'nb'));
       if (cur && !ids.includes(cur)) ids.unshift(cur);
       [['', fd.auto || '(automatisk)']].concat(ids.map(id => [id, friendly(id) + ' – ' + id])).forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; s.appendChild(o); });
       s.value = cur;
