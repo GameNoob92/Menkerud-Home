@@ -33,12 +33,22 @@ The user IDs matter: they make every message an @-mention, so the phone notifies
 **Phones → screen ("ring hjem"), 10 minutes, once.** The screen runs a tiny Discord bot and rings when either of you writes anything in one channel.
 
 1. `discord.com/developers/applications` → New Application "Menkerud Home" → Bot → Reset Token → copy it.
-2. OAuth2 → URL Generator → scope `bot`, permission `View Channels` → open the generated URL → add it to your server.
+2. OAuth2 → URL Generator → scope `bot`, permissions `View Channels`, `Read Message History`, `Add Reactions` → open the generated URL → add it to your server.
 3. Create a channel `#ring-hjem`. Developer mode → long-press the channel → Copy Channel ID.
 4. On the screen: Innstillinger → Samtale → Bot-token and Kanal-ID → Lagre. The status card "Mor/far ringer hjem" should say "Discord-bot lytter ✓".
 5. Write "ring" (or anything) in `#ring-hjem`. The screen shows your photo and rings; the kid taps **Svar** and joins the video room. You tap the room link the screen posted in `#hjemme` (or just open the room URL you've bookmarked).
 
-Keep `#ring-hjem` for that one purpose – every human message there rings the screen. The bot needs no privileged intents; it only looks at who wrote, not what.
+Keep `#ring-hjem` for that one purpose – every human message there rings the screen; for ringing the bot only looks at who wrote, not what.
+
+**Beskjeder (messages the screen reads aloud), 5 minutes.** Whatever you write in one more channel shows up under **BESKJEDER** on the front page and is read out to the kids.
+
+1. Create a channel `#beskjeder` (this family's has the ID `1548461787517820968`). Developer mode → long-press → Copy Channel ID.
+2. `discord.com/developers/applications` → your application → Bot → **Privileged Gateway Intents** → turn on **Message Content Intent**. The screen needs the text itself here; without it the Beskjeder status card says so and only ringing works.
+3. Make sure the bot can see `#beskjeder` with View Channel, Read Message History and Add Reactions (the OAuth link in step 2 above grants them server-wide).
+4. On the screen: Innstillinger → Samtale → **Kanal-ID for beskjeder** → Lagre. «Les opp nye beskjeder» (on by default) decides whether a new message is read the moment it arrives or only chimes and waits for a tap.
+5. Write something in `#beskjeder`. The BESKJEDER panel gets a red number, a sheet opens with the message as number 1 and the screen says «Ny beskjed fra Mor: …». The child taps **✅ Hørt!** – your message gets a ✅ reaction and `#hjemme` gets «@Mor ✅ Beskjeden er hørt (14:32): «…»». Tapping the panel shows the last 10 messages; tapping one replays it. Deleting a message in Discord removes it from the screen.
+
+At night, while the screen is off or during a call nothing is read out – the number waits until someone taps. The last 10 messages are fetched every time the screen starts, so nothing is lost while it was off.
 
 Already running a bot in the same server? Reuse its token instead of creating a new application – a bot token can have several gateway sessions at once, and the screen only needs `View Channels` in `#ring-hjem`. This family's `config.js` uses GameNoobBot's token (`locals/Bots/Discord/GameNoobBot/.env`, `BOT_TOKEN`). If that token is ever reset, update `config.js` the same day: the screen keeps retrying with the old token, and Discord resets a bot's token when it sees too many failed logins in 24 hours, which would take GameNoobBot down too.
 
@@ -228,5 +238,6 @@ ring_hjemme_mor:
 - [ ] "Ring mor" → parent gets a Discord DM → taps **Svar** → video both ways; screen shows the big red "Legg på"
 - [ ] "Jeg er hjemme" → both of you get the message
 - [ ] Bot token + channel ID; writing in `#ring-hjem` rings the screen; "Svar" connects
+- [ ] Kanal-ID for beskjeder; writing in `#beskjeder` → red number, sheet, read aloud; «Hørt!» → ✅ on the message and a line in `#hjemme`
 - [ ] Ny lapp → note appears on the board, tap reads it aloud
 - [ ] Innstillinger → Status: «Versjon» shows a commit, «Hent oppdatering» answers «Allerede oppdatert»

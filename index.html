@@ -152,7 +152,7 @@ header{display:grid;grid-template-columns:auto auto auto auto 1fr auto auto auto
 
 /* ---------- Bottom three-column row ---------- */
 .bottom-grid{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,2.1fr) minmax(0,.9fr);gap:1.2rem;min-height:0}
-.bottom-grid.no-evening{grid-template-columns:minmax(0,1fr) minmax(0,2.2fr)}
+.bottom-grid.no-messages{grid-template-columns:minmax(0,1fr) minmax(0,2.2fr)}
 .glass-panel{
   background:var(--glass);border:1px solid var(--glass-line);border-radius:var(--radius-lg);
   backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));
@@ -196,14 +196,41 @@ header{display:grid;grid-template-columns:auto auto auto auto 1fr auto auto auto
 .note.c4{background:#ddc9ff;--pin:#ff45c4}
 .empty{opacity:.72;font-size:1.5rem;font-weight:700;text-align:center;padding:2rem 1rem;width:100%}
 
-/* KVELD */
-#evening-actions{display:flex;flex-direction:column;gap:.7rem;flex:1;min-height:0;justify-content:center}
-.evening-action{display:grid;grid-template-columns:3.4rem 1fr 1.4rem;align-items:center;gap:.6rem;min-height:3.4rem;padding:0 1rem;border-radius:1.2rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-size:1.5rem;font-weight:800;text-align:left;transition:transform .12s ease,background .12s ease}
-.evening-action:hover{background:rgba(255,255,255,.1);transform:translateX(.2rem)}
-.evening-action:active{transform:scale(.98)}
-.evening-action .ea-ic{font-size:2rem;line-height:1}
-.evening-action .ea-ar{color:var(--text-muted);font-size:1.6rem;text-align:right}
-.evening-action.on{background:rgba(255,220,90,.24);border-color:#ffd54a}
+/* BESKJEDER – compact panel on the front page + the full-screen sheet */
+#messages-panel{cursor:pointer}
+.panel-title .badge{margin-left:auto;min-width:2.1rem;height:2.1rem;padding:0 .6rem;border-radius:1.1rem;background:#ff4d6d;color:#fff;font-family:var(--font);font-size:1.25rem;font-weight:900;display:grid;place-items:center;box-shadow:0 0 .9rem rgba(255,77,109,.7);animation:badgePop .35s both}
+@keyframes badgePop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.msgs{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:.45rem}
+.mrow{display:grid;grid-template-columns:.9rem auto 1fr;grid-template-areas:"d who t" "d tx tx";column-gap:.6rem;align-items:center;padding:.45rem .7rem;border-radius:.9rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
+.mrow .mdot{grid-area:d;width:.7rem;height:.7rem;border-radius:50%;background:rgba(255,255,255,.25)}
+.mrow .mwho{grid-area:who;font-size:1.15rem;font-weight:900;letter-spacing:.03em;color:var(--text-soft)}
+.mrow .mt{grid-area:t;font-size:1.05rem;font-weight:800;color:var(--text-muted);text-align:right}
+.mrow .mtx{grid-area:tx;font-size:1.3rem;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow.unread{background:rgba(255,220,90,.18);border-color:rgba(255,213,74,.7)}
+.mrow.unread .mdot{background:#ffd54a;box-shadow:0 0 .7rem #ffd54a}
+.msg-sheet{background:var(--glass-strong);border:1px solid rgba(255,255,255,.18);border-radius:var(--radius-xl);width:min(72rem,94vw);max-height:84vh;display:flex;flex-direction:column;gap:1rem;padding:1.8rem 2rem 1.6rem;text-align:left;box-shadow:inset 0 .1rem 0 rgba(255,255,255,.12),var(--shadow-card)}
+.msg-head{display:flex;align-items:center;gap:1.2rem;flex:none}
+.msg-head .msg-h{font-family:var(--hand);font-size:2.8rem;color:#eef2ff}
+.msg-head .msg-sub{flex:1;font-size:1.4rem;font-weight:800;color:var(--text-muted)}
+.msg-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:.7rem;padding-right:.3rem;scrollbar-width:none}
+.msg-list::-webkit-scrollbar{display:none}
+.mitem{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1rem;padding:.6rem .9rem .6rem .6rem;border-radius:1.3rem;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);text-align:left;transition:background .2s}
+.mplay{display:grid;grid-template-columns:2.8rem 3.6rem 1fr 2.4rem;align-items:center;gap:1rem;padding:.3rem .4rem;border-radius:1rem;text-align:left;min-width:0;transition:transform .12s}
+.mplay:active{transform:scale(.985)}
+.mitem .confirm{background:linear-gradient(135deg,var(--green-1),var(--green-2));color:#fff;border-radius:2rem;padding:.8rem 1.3rem;font-size:1.4rem;font-weight:900;white-space:nowrap;box-shadow:0 .4rem 1rem rgba(0,0,0,.3);border:.18rem solid rgba(255,255,255,.6);animation:badgePop .3s both}
+.mitem .confirm:active{transform:scale(.96)}
+.mitem .done{font-size:1.9rem;color:#8ff0c0;padding:0 .8rem}
+.mitem .todo{font-size:1.15rem;font-weight:800;color:var(--text-muted);padding:0 .4rem;white-space:nowrap}
+.mitem .num{width:2.8rem;height:2.8rem;border-radius:50%;background:rgba(255,255,255,.14);display:grid;place-items:center;font-size:1.5rem;font-weight:900}
+.mitem .av{width:3.6rem;height:3.6rem;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:rgba(255,255,255,.12);font-size:2rem}
+.mitem .av img{width:100%;height:100%;object-fit:cover}
+.mitem .body{display:flex;flex-direction:column;min-width:0;gap:.15rem}
+.mitem .meta{display:flex;gap:.8rem;font-size:1.15rem;font-weight:800;color:var(--text-muted);letter-spacing:.02em}
+.mitem .txt{font-size:1.7rem;font-weight:700;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+.mitem .state{font-size:1.7rem;text-align:center;color:var(--text-muted)}
+.mitem.unread{background:rgba(255,220,90,.2);border-color:#ffd54a;box-shadow:0 0 1rem rgba(255,213,74,.3)}
+.mitem.unread .state{color:#ffd54a}
+.mitem.speaking{background:rgba(120,200,255,.25);border-color:#8fd3ff}
 
 /* ---------- Footer ---------- */
 footer{display:flex;align-items:center;gap:1rem;min-height:2.1rem}
@@ -567,9 +594,9 @@ select.inp option{color:#111}
     <div class="notes" id="notes"></div>
   </section>
 
-  <section class="glass-panel evening-panel" id="evening-panel">
-    <div class="panel-title">🌙 <span>KVELD</span></div>
-    <div id="evening-actions"></div>
+  <section class="glass-panel messages-panel" id="messages-panel">
+    <div class="panel-title">💬 <span>BESKJEDER</span><span class="badge hidden" id="msg-badge"></span></div>
+    <div class="msgs" id="msgs"></div>
   </section>
 </section>
 </section>
@@ -623,6 +650,14 @@ select.inp option{color:#111}
   <div class="row">
     <button class="big-btn green" id="answer">📞 Svar</button>
     <button class="big-btn red" id="decline">✖ Ikke nå</button>
+  </div>
+</div>
+
+<!-- Beskjeder: the last messages from the parents' Discord channel; a tap reads one aloud -->
+<div id="msgsheet" class="overlay hidden">
+  <div class="msg-sheet" id="msg-sheet">
+    <div class="msg-head"><span class="msg-h">💬 Beskjeder</span><span class="msg-sub" id="msg-sub"></span><button type="button" class="chip-btn" id="msg-close">Lukk</button></div>
+    <div class="msg-list" id="msg-list"></div>
   </div>
 </div>
 
@@ -787,7 +822,7 @@ const DEFAULTS = {
   call: { backend: 'https://call.noobventure.com', deviceKey: '', timeoutSec: 60 },
   notify: {
     provider: 'discord',
-    discord: { webhook: '', userMor: '', userFar: '', botToken: '', ringChannel: '' },
+    discord: { webhook: '', userMor: '', userFar: '', botToken: '', ringChannel: '', msgChannel: '' },
     ntfy: { server: 'https://ntfy.sh', topicMor: '', topicFar: '', topicKiosk: '', token: '' },
     webhook: { url: '' }
   },
@@ -802,6 +837,7 @@ const DEFAULTS = {
   screen: { offEnabled: true, offFrom: '23:00', offTo: '06:00', helper: 'http://127.0.0.1:7777' },   // display off via the kiosk screen helper (SETUP.md §3)
   photos: { dir: 'photos/', intervalSec: 20, idleMin: 0 },          // Bilderamme; idleMin = start by itself after n minutes without a touch (0 = never)
   pages: { huset: true, lys: true, kamera: true, homeAfterSec: 60 },  // extra swipe pages (need Home Assistant); back to the front page after n s without a touch
+  messages: { autoSpeak: true },                                   // Beskjeder: read a new Discord message aloud the moment it arrives
   house: { entities: [] },                                          // entity ids shown as tiles on the Huset page
   rooms: [],                                                        // [{ id, name, icon, lights: [ids], kids: [ids the children may toggle] }]
   emojis: ['⚽','🏀','🏊','⛷️','🎿','🚲','🥾','🏃','🎒','📚','✏️','🎨','🎵','🎹','🎮','📺','🦷','🛁','🧼','😴','🌙','⏰','🍎','🥪','🍕','🍦','🎂','🎁','🎉','❤️','⭐','😊','🧸','🐶','🐱','🐴','🧥','🧦','👟','🧤','☀️','🌧️','❄️','🚌','🚗','🏠','👵','👴','🎈','🧹']
@@ -853,7 +889,7 @@ function toast(msg, ms) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.add('hidden'), ms || 3000);
 }
-function showOverlay(sel) { if (sel !== '#frame' && frameOn()) stopFrame(); $(sel).classList.remove('hidden'); checkNight(); }
+function showOverlay(sel) { if (sel !== '#frame' && frameOn()) stopFrame(); if (sel !== '#msgsheet') closeMsgSheet(); $(sel).classList.remove('hidden'); checkNight(); }
 function hideOverlay(sel) { $(sel).classList.add('hidden'); checkNight(); }
 function overlayOpen() { return $$('.overlay').some(o => !o.classList.contains('hidden')); }
 
@@ -972,7 +1008,7 @@ ha.onready = async () => {
   weatherId = cfg.ha.weatherEntity || ha.firstEntity('weather');
   todoId = cfg.ha.todoEntity || ha.firstEntity('todo');
   ttsId = cfg.ha.ttsEntity || ha.firstEntity('tts');
-  renderWeather(); renderLights(); renderCams(); renderStatus(); renderEvening();
+  renderWeather(); renderLights(); renderCams(); renderStatus();
   buildPages(); renderPresence();
 
   ha.subscribe({ type: 'subscribe_events', event_type: 'state_changed' }, ev => {
@@ -1000,7 +1036,7 @@ ha.onready = async () => {
     }).catch(e => console.warn('call sub', e));
   }
 };
-ha.onclose = () => { setStatusDot(); renderNotes(); renderWeather(); renderStatus(); renderEvening(); buildPages(); renderPresence(); };
+ha.onclose = () => { setStatusDot(); renderNotes(); renderWeather(); renderStatus(); buildPages(); renderPresence(); };
 
 /* ---------------- Clock, weather, night ---------------- */
 function tick() {
@@ -1453,16 +1489,19 @@ function listenNtfy() {
   };
 }
 
-/* Discord: a bot on the kiosk listens in one channel; any message there from a parent rings the kiosk */
-let dcState = 'off', dcRetry = 3000, dcHb = null, dcSeq = null, dcAcked = true;
+/* Discord: a bot on the kiosk listens in up to two channels – any message in ringChannel from a parent rings the kiosk,
+   messages in msgChannel become Beskjeder (read aloud). Message text needs the privileged MESSAGE_CONTENT intent (1<<15);
+   if the bot is not allowed it the gateway closes with 4014 and we reconnect without it so ringing keeps working. */
+let dcState = 'off', dcRetry = 3000, dcHb = null, dcSeq = null, dcAcked = true, dcNoContent = false;
 function listenDiscord() {
   const d = cfg.notify.discord;
-  if (!d.botToken || !d.ringChannel) { dcState = 'off'; return; }
+  if (!d.botToken || (!d.ringChannel && !d.msgChannel)) { dcState = 'off'; return; }
   dcState = 'connecting'; renderStatus();
   let ws;
   try { ws = new WebSocket('wss://gateway.discord.gg/?v=10&encoding=json'); }
   catch (e) { dcState = 'off'; renderStatus(); setTimeout(listenDiscord, dcRetry); return; }
   dcSeq = null; dcAcked = true;
+  const wantContent = !!d.msgChannel && !dcNoContent;
   const send = o => { if (ws.readyState === 1) ws.send(JSON.stringify(o)); };
   const stopHb = () => { clearInterval(dcHb); dcHb = null; };
   ws.onmessage = e => {
@@ -1472,15 +1511,21 @@ function listenDiscord() {
       stopHb();
       const iv = (m.d && m.d.heartbeat_interval) || 41250;
       dcHb = setInterval(() => { if (!dcAcked) { ws.close(); return; } dcAcked = false; send({ op: 1, d: dcSeq }); }, iv);
-      send({ op: 2, d: { token: d.botToken, intents: 513, properties: { os: 'linux', browser: 'menkerud-home', device: 'menkerud-home' } } });
+      send({ op: 2, d: { token: d.botToken, intents: 513 | (wantContent ? 32768 : 0), properties: { os: 'linux', browser: 'menkerud-home', device: 'menkerud-home' } } });
     } else if (m.op === 11) dcAcked = true;
     else if (m.op === 1) send({ op: 1, d: dcSeq });
     else if (m.op === 7 || m.op === 9) ws.close();
-    else if (m.op === 0 && m.t === 'READY') { dcState = 'on'; dcRetry = 3000; renderStatus(); }
-    else if (m.op === 0 && m.t === 'MESSAGE_CREATE') {
+    else if (m.op === 0 && m.t === 'READY') { dcState = 'on'; dcRetry = 3000; renderStatus(); fetchMessageHistory(); }
+    else if (m.op === 0 && (m.t === 'MESSAGE_CREATE' || m.t === 'MESSAGE_UPDATE' || m.t === 'MESSAGE_DELETE')) {
       const msg = m.d || {};
-      if (String(msg.channel_id) !== String(d.ringChannel)) return;
-      if (msg.webhook_id || (msg.author && msg.author.bot)) return;
+      if (d.msgChannel && String(msg.channel_id) === String(d.msgChannel)) {
+        if (m.t === 'MESSAGE_DELETE') removeMessage(msg.id);
+        else if (m.t === 'MESSAGE_UPDATE') updateMessage(msg);
+        else if (humanMsg(msg)) onNewMessage(msgFromDiscord(msg));
+        return;
+      }
+      if (m.t !== 'MESSAGE_CREATE' || String(msg.channel_id) !== String(d.ringChannel)) return;
+      if (!humanMsg(msg)) return;
       const aid = msg.author ? String(msg.author.id) : '';
       const who = (d.userFar && aid === String(d.userFar)) ? 'far'
         : (d.userMor && aid === String(d.userMor)) ? 'mor'
@@ -1489,12 +1534,195 @@ function listenDiscord() {
     }
   };
   ws.onerror = () => {};
-  ws.onclose = () => {
-    stopHb(); dcState = 'off'; renderStatus();
+  ws.onclose = e => {
+    stopHb(); dcState = 'off';
+    if (e && e.code === 4014 && wantContent) { dcNoContent = true; renderStatus(); setTimeout(listenDiscord, 500); return; }   // disallowed intent – not a network problem
+    renderStatus();
     dcRetry = Math.min(dcRetry * 1.5, 60000);
     setTimeout(listenDiscord, dcRetry);
   };
 }
+
+/* ---------------- Beskjeder (the parents' Discord channel, read aloud on the kiosk) ----------------
+   The last MSG_KEEP messages live in localStorage as { id, who, name, text, ts, heard, read }. A new one while the
+   kiosk is on: badge, chime, the sheet opens and (cfg.messages.autoSpeak) it is read aloud. At night / with the
+   screen off / during a call it only waits as unread. Hearing it sets `heard`, which unlocks the «✅ Hørt!» button;
+   pressing that sets `read`, reacts ✅ on the Discord message and posts a confirmation in the #hjemme webhook channel
+   with an @-mention of the parent who wrote it. The badge counts messages not yet confirmed. */
+const MSG_KEEP = 10;
+let messages = store.get('menkerud.messages');
+if (!Array.isArray(messages)) messages = [];
+messages = messages.filter(m => m && m.id && m.text).slice(0, MSG_KEEP);
+let msgSheetTimer = null, msgSpeakTimer = null, speakingId = null;
+function msgsOn() { const d = cfg.notify.discord; return !!(d.botToken && d.msgChannel); }
+function saveMessages() { store.set('menkerud.messages', messages); }
+function unreadCount() { return messages.filter(m => !m.read).length; }
+function quietHours(d) {
+  d = d || new Date();
+  return restMode || inScreenOff(d) || nightMode === 'on' || (nightMode === 'auto' && cfg.night.enabled && inNight(d));
+}
+function fmtMsgTime(ts) {
+  const d = new Date(ts), now = new Date();
+  if (isNaN(d)) return '';
+  const hm = pad(d.getHours()) + ':' + pad(d.getMinutes());
+  if (ymd(d) === ymd(now)) return hm;
+  const y = new Date(now); y.setDate(y.getDate() - 1);
+  if (ymd(d) === ymd(y)) return 'i går ' + hm;
+  return d.toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' + hm;
+}
+const olderId = (a, b) => a.length < b.length || (a.length === b.length && a < b);   // Discord snowflakes grow with time
+function humanMsg(msg) { return !(msg.webhook_id || (msg.author && msg.author.bot)); }
+/* Discord message → ours. Mentions and custom emoji are flattened; a picture without text becomes «📷 Bilde». */
+function msgFromDiscord(msg) {
+  const d = cfg.notify.discord;
+  const aid = msg.author ? String(msg.author.id) : '';
+  const who = (d.userMor && aid === String(d.userMor)) ? 'mor' : (d.userFar && aid === String(d.userFar)) ? 'far' : null;
+  const name = who ? cfg.people[who].name : ((msg.author && (msg.author.global_name || msg.author.username)) || 'Noen');
+  let text = String(msg.content || '').replace(/<@[!&]?\d+>/g, '').replace(/<#\d+>/g, '').replace(/<a?:(\w+):\d+>/g, '$1').replace(/\s+/g, ' ').trim();
+  if (!text && msg.attachments && msg.attachments.length) text = '📷 Bilde';
+  const ts = msg.timestamp ? Date.parse(msg.timestamp) : Date.now();
+  return { id: String(msg.id || ''), who, name, text, ts: isNaN(ts) ? Date.now() : ts, read: false };
+}
+function addMessage(item) {
+  if (!item.id || !item.text || messages.some(m => m.id === item.id)) return false;
+  messages.push(item);
+  messages.sort((a, b) => b.ts - a.ts);
+  messages = messages.slice(0, MSG_KEEP);
+  saveMessages();
+  return messages.includes(item);
+}
+function removeMessage(id) {
+  const n = messages.length;
+  messages = messages.filter(m => m.id !== String(id));
+  if (messages.length !== n) { saveMessages(); renderMessages(); }
+}
+function updateMessage(msg) {
+  const m = messages.find(x => x.id === String(msg.id));
+  if (!m || typeof msg.content !== 'string') return;
+  const fresh = msgFromDiscord(msg);
+  if (fresh.text) { m.text = fresh.text; saveMessages(); renderMessages(); }
+}
+function onNewMessage(item) {
+  if (!addMessage(item)) return;
+  renderMessages();
+  if (quietHours() || currentCall || incomingWho) return;         // stays unread; the badge shows it
+  awakeUntil = Date.now() + 120000; checkNight();
+  chime();
+  openMsgSheet(true);
+  if (cfg.messages.autoSpeak !== false) setTimeout(() => speakMessage(item, true), 700);
+}
+function speakMessage(m, fresh) {
+  if (!m.heard) { m.heard = true; saveMessages(); }
+  speakingId = m.id; renderMessages();
+  clearTimeout(msgSpeakTimer);
+  msgSpeakTimer = setTimeout(() => { speakingId = null; renderMessages(); }, Math.min(15000, 2000 + m.text.length * 75));
+  touchMsgSheet();
+  return speak((fresh ? 'Ny beskjed fra ' : 'Beskjed fra ') + m.name + ': ' + m.text);
+}
+/* «✅ Hørt!»: the child confirms – locally read, a ✅ reaction on the Discord message and a line in #hjemme. */
+function confirmMessage(m) {
+  if (m.read) return;
+  m.read = true; saveMessages(); renderMessages();
+  chime();
+  ackMessage(m);
+  postConfirmation(m).then(ok => toast(ok ? 'Sendt til ' + m.name + ' 💌' : 'Merket som hørt 👍')).catch(() => toast('Merket som hørt 👍'));
+}
+/* Best effort: a ✅ reaction on the parent's message (the bot needs «Add Reactions» in the channel). */
+function ackMessage(m) {
+  const d = cfg.notify.discord;
+  if (!msgsOn()) return;
+  try {
+    fetch('https://discord.com/api/v10/channels/' + d.msgChannel + '/messages/' + m.id + '/reactions/' + encodeURIComponent('✅') + '/@me',
+      { method: 'PUT', headers: { Authorization: 'Bot ' + d.botToken } }).catch(() => {});
+  } catch (e) {}
+}
+/* The confirmation the parents see on their phones: posted through the same webhook as «Jeg er hjemme» (#hjemme),
+   mentioning the sender so it buzzes even under «only @mentions». Resolves false when no webhook is configured. */
+async function postConfirmation(m) {
+  const d = cfg.notify.discord;
+  if (!d.webhook) return false;
+  const id = m.who === 'mor' ? d.userMor : m.who === 'far' ? d.userFar : '';
+  const now = new Date().toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
+  const short = m.text.length > 120 ? m.text.slice(0, 117) + '…' : m.text;
+  const content = (id ? '<@' + id + '> ' : '') + '✅ **Beskjeden er hørt** (' + now + '): «' + short + '»';
+  const r = await fetch(d.webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content, username: cfg.home.name + ' Home' }) });
+  if (!r.ok) throw new Error('Discord svarte ' + r.status);
+  return true;
+}
+/* On connect: the channel's last messages, so nothing posted while the kiosk was off is lost – and messages the
+   parents deleted meanwhile disappear here too. Fresh ones wait as unread (one chime, no reading at boot). */
+async function fetchMessageHistory() {
+  const d = cfg.notify.discord;
+  if (!msgsOn()) return;
+  let list;
+  try {
+    const r = await fetch('https://discord.com/api/v10/channels/' + d.msgChannel + '/messages?limit=' + MSG_KEEP, { headers: { Authorization: 'Bot ' + d.botToken } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    list = await r.json();
+  } catch (e) { console.warn('discord history', e); return; }
+  if (!Array.isArray(list)) return;
+  const ids = new Set(list.map(m => String(m.id)));
+  let oldest = null;
+  list.forEach(m => { const id = String(m.id); if (oldest === null || olderId(id, oldest)) oldest = id; });
+  if (oldest) messages = messages.filter(m => ids.has(m.id) || olderId(m.id, oldest));
+  let fresh = 0;
+  list.forEach(msg => { if (humanMsg(msg) && addMessage(msgFromDiscord(msg))) fresh++; });
+  saveMessages(); renderMessages();
+  if (fresh && !quietHours()) chime();
+}
+function renderMessages() {
+  const panel = $('#messages-panel'), grid = $('#bottom-grid'), wrap = $('#msgs'), badge = $('#msg-badge');
+  if (!panel || !grid || !wrap) return;
+  const on = msgsOn();
+  panel.classList.toggle('hidden', !on); grid.classList.toggle('no-messages', !on);
+  if (!on) return;
+  const unread = unreadCount();
+  badge.textContent = unread ? String(unread) : '';
+  badge.classList.toggle('hidden', !unread);
+  if (!messages.length) wrap.innerHTML = '<div class="empty">Ingen beskjeder ennå 💌</div>';
+  else wrap.innerHTML = messages.slice(0, 3).map(m =>
+    '<div class="mrow' + (m.read ? '' : ' unread') + '"><span class="mdot"></span><span class="mwho">' + esc(m.name) + '</span><span class="mt">' + esc(fmtMsgTime(m.ts)) + '</span><span class="mtx">' + esc(m.text) + '</span></div>').join('');
+  if (!$('#msgsheet').classList.contains('hidden')) renderMsgSheet();
+}
+function renderMsgSheet() {
+  const list = $('#msg-list'), sub = $('#msg-sub');
+  if (!list) return;
+  const unread = unreadCount();
+  sub.textContent = !messages.length ? '' : unread ? (unread === 1 ? '1 ny – trykk for å høre' : unread + ' nye – trykk for å høre') : 'Trykk på en beskjed for å høre den igjen';
+  list.innerHTML = '';
+  if (!messages.length) { list.innerHTML = '<div class="empty">Ingen beskjeder ennå 💌</div>'; return; }
+  messages.forEach((m, i) => {
+    const row = document.createElement('div');
+    row.dataset.id = m.id;
+    row.className = 'mitem' + (m.read ? '' : ' unread') + (speakingId === m.id ? ' speaking' : '');
+    row.innerHTML = '<button type="button" class="mplay"><span class="num">' + (i + 1) + '</span><span class="av"></span>' +
+      '<span class="body"><span class="meta"><span class="who">' + esc(m.name) + '</span><span class="time">' + esc(fmtMsgTime(m.ts)) + '</span></span>' +
+      '<span class="txt">' + esc(m.text) + '</span></span>' +
+      '<span class="state">' + (speakingId === m.id ? '🔊' : m.heard || m.read ? '🔁' : '▶') + '</span></button>' +
+      (m.read ? '<span class="done" title="Hørt og bekreftet">✓</span>'
+        : m.heard ? '<button type="button" class="confirm">✅ Hørt!</button>'
+        : '<span class="todo">Trykk for å høre</span>');
+    const av = row.querySelector('.av');
+    if (m.who) setAvatar(av, m.who); else av.innerHTML = '<span class="fallback">🙂</span>';
+    row.querySelector('.mplay').addEventListener('click', e => { e.stopPropagation(); speakMessage(m); });
+    const c = row.querySelector('.confirm');
+    if (c) c.addEventListener('click', e => { e.stopPropagation(); confirmMessage(m); });
+    list.appendChild(row);
+  });
+}
+function openMsgSheet(auto) { renderMsgSheet(); showOverlay('#msgsheet'); touchMsgSheet(auto); }
+function touchMsgSheet(auto) { clearTimeout(msgSheetTimer); msgSheetTimer = setTimeout(closeMsgSheet, auto ? 30000 : 60000); }
+function closeMsgSheet() {
+  clearTimeout(msgSheetTimer); msgSheetTimer = null;
+  speakingId = null;
+  const s = $('#msgsheet');
+  if (s && !s.classList.contains('hidden')) hideOverlay('#msgsheet');
+}
+$('#messages-panel').addEventListener('click', () => openMsgSheet(false));
+$('#msg-close').addEventListener('click', e => { e.stopPropagation(); closeMsgSheet(); });
+$('#msgsheet').addEventListener('click', e => { if (e.target === e.currentTarget) closeMsgSheet(); });
+$('#msg-sheet').addEventListener('click', () => touchMsgSheet(false));
 
 /* ---------------- "Jeg er hjemme" ---------------- */
 async function imHome() {
@@ -1884,11 +2112,16 @@ function renderStatus() {
   const ringHome = dcState === 'on' ? ['Discord-bot lytter ✓', 'on'] : dcState === 'connecting' ? ['Kobler til Discord…', 'busy']
     : ntfyState === 'on' ? ['ntfy: lytter på «' + n.topicKiosk + '» ✓', 'on'] : ntfyState === 'connecting' ? ['Kobler til ntfy…', 'busy']
     : ha.connected ? ['Via Home Assistant-hendelse', 'on'] : ['Av – legg inn bot-token og kanal-ID', 'off'];
+  const msgRow = !msgsOn() ? ['Av – legg inn kanal-ID for beskjeder', 'idle']
+    : dcNoContent ? ['Boten mangler «Message Content Intent» – slå på under Bot i Discord Developer Portal', 'off']
+    : dcState === 'on' ? ['Discord-bot lytter ✓ · ' + (unreadCount() ? unreadCount() + ' ulest' : 'alt lest'), 'on']
+    : dcState === 'connecting' ? ['Kobler til Discord…', 'busy'] : ['Ikke tilkoblet', 'off'];
   const rows = [
     ['Home Assistant', !haOn ? 'Ikke i bruk (valgfritt)' : ha.connected ? 'Tilkoblet ✓' : 'Ikke tilkoblet – ' + cfg.ha.url, !haOn ? 'idle' : ha.connected ? 'on' : 'off'],
     ['Videosamtale', cfg.call.backend ? 'LiveKit (' + cfg.call.backend.replace(/^https?:\/\//, '') + ')' : 'Ikke satt opp', cfg.call.backend ? 'on' : 'off'],
     ['Ringer telefonene via', ringVia[0], ringVia[1]],
     [cfg.people.mor.name + '/' + cfg.people.far.name.toLowerCase() + ' ringer hjem', ringHome[0], ringHome[1]],
+    ['Beskjeder', msgRow[0], msgRow[1]],
     ['Lapper', notesSource() === 'ha' ? 'Home Assistant (' + todoId + ')' : 'Lagres på kiosken', 'on'],
     ['Vær', (ha.connected && weatherId) ? 'Home Assistant (' + weatherId + ')' : 'Open-Meteo' + (cfg.weather.place ? ' (' + cfg.weather.place + ')' : ''), 'on'],
     ['Opplesing', (ha.connected && ttsId) ? ttsId : 'Nettleserens stemme', 'on'],
@@ -1982,6 +2215,8 @@ const SETTINGS = [
   { k: 'notify.discord.userFar', l: 'Fars Discord-bruker-ID', show: 'discord', num: true },
   { k: 'notify.discord.botToken', l: 'Bot-token', show: 'discord', hint: 'Bare for «ring hjem» fra telefonen – se SETUP.md' },
   { k: 'notify.discord.ringChannel', l: 'Kanal-ID kiosken lytter på', show: 'discord', num: true, hint: 'Alt mor/far skriver i denne kanalen ringer kiosken' },
+  { k: 'notify.discord.msgChannel', l: 'Kanal-ID for beskjeder', show: 'discord', num: true, hint: 'Det mor/far skriver her vises under BESKJEDER og leses opp. Boten trenger «Message Content Intent» – se SETUP.md' },
+  { k: 'messages.autoSpeak', l: 'Les opp nye beskjeder', show: 'discord', toggle: true, hint: 'Av = bare lyd og tall på skjermen, barnet trykker for å høre' },
   { k: 'notify.ntfy.server', l: 'ntfy-server', show: 'ntfy', hint: 'https://ntfy.sh eller din egen' },
   { k: 'notify.ntfy.topicMor', l: 'Emne for mors telefon', show: 'ntfy', hint: 'Det hun abonnerer på i ntfy-appen' },
   { k: 'notify.ntfy.topicFar', l: 'Emne for fars telefon', show: 'ntfy' },
@@ -2346,7 +2581,7 @@ function renderNoteList() {
   });
 }
 
-/* ---------------- I DAG schedule + KVELD actions + background (redesign) ---------------- */
+/* ---------------- I DAG schedule + background (redesign) ---------------- */
 function renderSchedule() {
   const listEl = $('#today-list'); if (!listEl) return;
   const now = new Date();
@@ -2370,37 +2605,6 @@ function renderSchedule() {
   const dw = now.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'short' });
   const when = $('#today-when'); if (when) when.textContent = dw.charAt(0).toUpperCase() + dw.slice(1);
   const foot = $('#today-foot'); if (foot) foot.textContent = '🌱 Du gjør en super jobb! 💚';
-}
-
-function eveningActions() {
-  const allLights = Object.keys(ha.states).filter(id => id.startsWith('light.'));
-  const onLights = allLights.filter(id => ha.states[id].state === 'on');
-  const locks = Object.keys(ha.states).filter(id => id.startsWith('lock.'));
-  const acts = [];
-  if (allLights.length) acts.push({ ic: '💡', label: 'Demp belysning', run: () =>
-    ha.callService('light', 'turn_on', { brightness_pct: 30 }, { entity_id: onLights.length ? onLights : allLights })
-      .then(() => toast('Dempet lyset')).catch(() => toast('Kunne ikke dempe lyset')) });
-  acts.push({ ic: '🌙', label: 'God natt', run: () => {
-    if (onLights.length) ha.callService('light', 'turn_off', null, { entity_id: onLights }).catch(() => {});
-    nightMode = 'on'; checkNight(); renderStatus(); toast('God natt 🌙');
-  } });
-  if (locks.length) acts.push({ ic: '🔒', label: 'Lås dører', run: () =>
-    ha.callService('lock', 'lock', null, { entity_id: locks }).then(() => toast('Låser dørene')).catch(() => toast('Kunne ikke låse')) });
-  return acts;
-}
-function renderEvening() {
-  const panel = $('#evening-panel'), grid = $('#bottom-grid'), wrap = $('#evening-actions');
-  if (!panel || !grid || !wrap) return;
-  if (!ha.connected) { panel.classList.add('hidden'); grid.classList.add('no-evening'); return; }
-  panel.classList.remove('hidden'); grid.classList.remove('no-evening');
-  wrap.innerHTML = '';
-  eveningActions().forEach(a => {
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'evening-action';
-    b.innerHTML = '<span class="ea-ic">' + a.ic + '</span><span>' + esc(a.label) + '</span><span class="ea-ar">›</span>';
-    b.addEventListener('click', a.run);
-    wrap.appendChild(b);
-  });
 }
 
 const BG_IMG = { day: 'assets/backgrounds/home-day.png', evening: 'assets/backgrounds/home-evening.png', night: 'assets/backgrounds/home-night.png' };
@@ -2838,6 +3042,7 @@ function init() {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { if (!overlayOpen() && !frameOn()) goPage(pageIdx + (e.key === 'ArrowRight' ? 1 : -1)); return; }
     if (e.key !== 'Escape') return;
     if (!$('#call').classList.contains('hidden')) endCall();
+    else if (!$('#msgsheet').classList.contains('hidden')) closeMsgSheet();
     else if (!$('#menu').classList.contains('hidden')) closeMenu();
     else if (!$('#pin').classList.contains('hidden')) { pinNext = null; hideOverlay('#pin'); }
     else if (frameOn()) { stopFrame(); checkNight(); }
@@ -2846,7 +3051,7 @@ function init() {
 
   tick(); setInterval(tick, 1000);
   pickBackground(); setInterval(pickBackground, 10 * 60 * 1000);
-  renderSchedule(); renderEvening();
+  renderSchedule(); renderMessages();
   renderNotes(); renderWeather(); setStatusDot();
   fetchOpenMeteo(); setInterval(fetchOpenMeteo, 15 * 60 * 1000);
   buildPages();

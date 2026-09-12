@@ -54,7 +54,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   assert(qa('#notes .note').length === 5, 'sample notes stored locally and rendered');
   assert(qa('#today-list .srow-day').length === 2, 'I DAG lists the two timed sample notes: ' + qa('#today-list .srow-day').length);
-  assert(q('#evening-panel').classList.contains('hidden') && q('#bottom-grid').classList.contains('no-evening'), 'KVELD panel hidden when Home Assistant not connected');
+  assert(q('#messages-panel').classList.contains('hidden') && q('#bottom-grid').classList.contains('no-messages'), 'BESKJEDER panel hidden when no Discord channel is configured');
   assert(q('#wx-temp').textContent === '14°' && q('#wx-icon').textContent === '🌧️', 'Open-Meteo weather shown: ' + q('#wx-temp').textContent + ' ' + q('#wx-icon').textContent);
   assert(q('#status').classList.contains('off'), 'HA dot grey (not in use)');
 
@@ -134,7 +134,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   // Settings
   click(q('.nav-item[data-pane="settings"]'));
   await wait(20);
-  assert(qa('#status-grid .srow').length === 8, 'status rows: ' + qa('#status-grid .srow').length);
+  assert(qa('#status-grid .srow').length === 9, 'status rows: ' + qa('#status-grid .srow').length);
   { const v = qa('#status-grid .srow').find(r => r.querySelector('.sk').textContent === 'Versjon'); assert(v && v.classList.contains('on') && /^000b6d4 · /.test(v.querySelector('.sv').textContent), 'version card from the helper: ' + (v && v.querySelector('.sv').textContent)); }
   assert(qa('#stabs .stab').length === 7 && q('#stabs .stab.on').textContent === 'Status', 'settings tabs: ' + qa('#stabs .stab').map(b => b.textContent).join(','));
   assert(!q('#settings-status').classList.contains('hidden') && q('.sgroup[data-tab="familie"]').classList.contains('hidden') && q('#save-row').classList.contains('hidden'), 'status tab open, form tabs and save row hidden');
@@ -211,9 +211,17 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(q2('#celebrate-sub').textContent.includes('beskjed'), 'celebrate text: ' + q2('#celebrate-sub').textContent);
 
   // Third load: Discord provider, incoming "ring hjem" via fake gateway; outbound still goes to the backend
-  const gwSent = [];
+  const gwSent = [], spoken = [];
   const third = mkdom(win => {
-    win.localStorage.setItem('menkerud.settings', JSON.stringify({ notify: { provider: 'discord', discord: { webhook: 'https://discord.com/api/webhooks/1/abc', userMor: '111', userFar: '222', botToken: 'Bot.token', ringChannel: '999' } } }));
+    win.localStorage.setItem('menkerud.settings', JSON.stringify({ notify: { provider: 'discord', discord: { webhook: 'https://discord.com/api/webhooks/1/abc', userMor: '111', userFar: '222', botToken: 'Bot.token', ringChannel: '999', msgChannel: '555' } } }));
+    // Beskjeder: the channel's history holds one older message from far; the browser voice is captured
+    const f0 = win.fetch;
+    win.fetch = (url, opts) => {
+      if (/\/channels\/555\/messages\?/.test(url)) return Promise.resolve({ ok: true, status: 200, json: async () => [{ id: '900', channel_id: '555', author: { id: '222', bot: false, global_name: 'Pappa' }, content: 'Husk gymtøy i morgen', timestamp: '2026-09-10T08:00:00.000Z' }] });
+      return f0(url, opts);
+    };
+    win.speechSynthesis = { cancel() {}, speak(u) { spoken.push(u.text); } };
+    win.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
     class FakeWS {
       constructor(url) { this.url = url; this.readyState = 1; FakeWS.last = this; setTimeout(() => { this.onmessage && this.onmessage({ data: JSON.stringify({ op: 10, d: { heartbeat_interval: 100000 } }) }); }, 5); }
       send(x) { gwSent.push(JSON.parse(x)); const m = JSON.parse(x); if (m.op === 2) setTimeout(() => this.onmessage({ data: JSON.stringify({ op: 0, t: 'READY', s: 1, d: {} }) }), 5); }
@@ -222,10 +230,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     win.WebSocket = FakeWS;
   });
   const w3 = third.dom.window, d3 = w3.document;
-  const q3 = s => d3.querySelector(s);
+  const q3 = s => d3.querySelector(s), qa3 = s => [...d3.querySelectorAll(s)];
   const click3 = el => el.dispatchEvent(new w3.MouseEvent('click', { bubbles: true }));
   await wait(100);
-  assert(gwSent.some(m => m.op === 2 && m.d.token === 'Bot.token' && m.d.intents === 513), 'discord identify sent');
+  assert(gwSent.some(m => m.op === 2 && m.d.token === 'Bot.token' && m.d.intents === 33281), 'discord identify sent with the message-content intent');
   const gw = w3.WebSocket.last;
   gw.onmessage({ data: JSON.stringify({ op: 0, t: 'MESSAGE_CREATE', s: 2, d: { channel_id: '999', author: { id: '222', bot: false }, content: '' } }) });
   await wait(10);
@@ -234,6 +242,44 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   gw.onmessage({ data: JSON.stringify({ op: 0, t: 'MESSAGE_CREATE', s: 3, d: { channel_id: '999', author: { id: '5', bot: false }, webhook_id: '77', content: 'x' } }) });
   await wait(10);
   assert(q3('#incoming').classList.contains('hidden'), 'webhook messages ignored');
+
+  // Beskjeder: history fetched on READY (one older message from far – unread, not read aloud), then a live one from mor
+  spoken.length = 0;
+  await wait(50);
+  assert(!q3('#messages-panel').classList.contains('hidden') && !q3('#bottom-grid').classList.contains('no-messages'), 'BESKJEDER panel shown when a channel is configured');
+  assert(q3('#msg-badge').textContent === '1' && qa3('#msgs .mrow').length === 1 && qa3('#msgs .mrow')[0].classList.contains('unread'), 'history message listed as unread, badge ' + q3('#msg-badge').textContent);
+  assert(spoken.length === 0, 'history is not read aloud at start');
+  gw.onmessage({ data: JSON.stringify({ op: 0, t: 'MESSAGE_CREATE', s: 4, d: { id: '901', channel_id: '555', author: { id: '111', bot: false }, content: 'Hei! Middag klokka fem <:pizza:123> 🍕' } }) });
+  await wait(800);
+  assert(!q3('#msgsheet').classList.contains('hidden'), 'a new message opens the Beskjeder sheet');
+  let items3 = qa3('#msg-list .mitem');
+  assert(items3.length === 2 && items3[0].querySelector('.txt').textContent === 'Hei! Middag klokka fem pizza 🍕' && items3[0].querySelector('.num').textContent === '1', 'newest first, numbered, custom emoji flattened: ' + (items3[0] && items3[0].querySelector('.txt').textContent));
+  assert(spoken.length === 1 && spoken[0] === 'Ny beskjed fra Mor: Hei! Middag klokka fem pizza 🍕', 'new message read aloud with the sender: ' + spoken[0]);
+  assert(items3[0].classList.contains('unread') && !!items3[0].querySelector('.confirm') && !items3[1].querySelector('.confirm'), 'heard message offers «Hørt!», the unheard one does not');
+  assert(q3('#msg-badge').textContent === '2', 'badge counts unconfirmed messages: ' + q3('#msg-badge').textContent);
+  const ack3 = () => third.fetchCalls.filter(c => /\/channels\/555\/messages\/\d+\/reactions\//.test(c.url) && c.opts && c.opts.method === 'PUT');
+  const hook3 = () => third.fetchCalls.filter(c => /discord\.com\/api\/webhooks\/1\/abc/.test(c.url));
+  click3(items3[0].querySelector('.confirm'));
+  await wait(30);
+  items3 = qa3('#msg-list .mitem');
+  assert(!items3[0].classList.contains('unread') && !!items3[0].querySelector('.done') && q3('#msg-badge').textContent === '1', 'confirmed message marked read, badge down to 1');
+  assert(ack3().length === 1 && /\/messages\/901\//.test(ack3()[0].url), 'confirmation reacts ✅ on the Discord message');
+  const hookBody3 = () => hook3()[0] && JSON.parse(hook3()[0].opts.body).content;
+  assert(hook3().length === 1 && /^<@111> ✅ \*\*Beskjeden er hørt\*\* \(\d\d:\d\d\): «Hei! Middag klokka fem pizza 🍕»$/.test(hookBody3()), 'confirmation posted in #hjemme mentioning mor: ' + hookBody3());
+  click3(items3[1].querySelector('.mplay'));
+  await wait(20);
+  assert(spoken.length === 2 && spoken[1] === 'Beskjed fra Far: Husk gymtøy i morgen', 'tapping an item reads it: ' + spoken[1]);
+  items3 = qa3('#msg-list .mitem');
+  click3(items3[1].querySelector('.confirm'));
+  await wait(30);
+  assert(q3('#msg-badge').classList.contains('hidden') && ack3().length === 2 && hook3().length === 2, 'all confirmed: badge gone, second ✅ and #hjemme post sent');
+  const stored3 = JSON.parse(w3.localStorage.getItem('menkerud.messages'));
+  assert(stored3.length === 2 && stored3.every(m => m.read && m.heard), 'heard/read state persisted');
+  click3(q3('#msg-close'));
+  assert(q3('#msgsheet').classList.contains('hidden'), 'Lukk closes the sheet');
+  gw.onmessage({ data: JSON.stringify({ op: 0, t: 'MESSAGE_DELETE', s: 5, d: { id: '900', channel_id: '555' } }) });
+  await wait(10);
+  assert(qa3('#msgs .mrow').length === 1, 'deleted on Discord → gone from the screen');
   // Outbound call still goes to the LiveKit backend (default URL), not to a Discord webhook
   third.fetchCalls.length = 0;
   click3(q3('#card-mor'));
@@ -242,6 +288,13 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(!!startReq3, 'outbound call posts to the backend: ' + (startReq3 && startReq3.url));
   assert(!third.fetchCalls.some(c => /discord\.com\/api\/webhooks/.test(c.url)), 'outbound call does not hit the Discord webhook');
   click3(q3('#hangup'));
+
+  // The bot lacks the Message Content intent (gateway close 4014): reconnect without it so ringing keeps working
+  const idents = () => gwSent.filter(m => m.op === 2);
+  const nId = idents().length;
+  gw.onclose({ code: 4014 });
+  await wait(600);
+  assert(idents().length === nId + 1 && idents().slice(-1)[0].d.intents === 513, 'after 4014 the bot re-identifies without the content intent: ' + (idents().slice(-1)[0] && idents().slice(-1)[0].d.intents));
 
   // Fourth load: Home Assistant through a fake WebSocket → page strip, presence badges, Huset, Lys (rooms + PIN), Kamera, the Sider tab
   const haSent = [];
