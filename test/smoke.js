@@ -107,14 +107,20 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   click(qa('#stepper button').find(b => b.dataset.d === 'h+'));
   click(q('#note-save'));
   await wait(20);
-  assert(qa('#notes .note').length === 6, 'local note added to board');
+  assert(qa('#notes .note').length === 5 && q('#notes-more').textContent === '+1 flere ›', 'board keeps five notes, the sixth shows as «+1 flere»: ' + q('#notes-more').textContent);
   assert(q('#toast').textContent.includes('hengt opp'), 'toast: ' + q('#toast').textContent);
-  const last = qa('#notes .note')[5];
-  assert(last.querySelector('.time').textContent === '18:00' && last.querySelector('.txt').textContent === 'Gym!', 'new note content');
+  const last = qa('#notes .note')[4];
+  assert(last.querySelector('.time').textContent === '18:00' && last.querySelector('.txt').textContent === 'Gym!', 'new note is on the board (newest five)');
   assert(JSON.parse(w.localStorage.getItem('menkerud.notes')).length === 6, 'notes persisted in localStorage');
+  click(q('#notes-more'));
+  assert(!q('#notesheet').classList.contains('hidden') && qa('#sheet-notes .note').length === 6 && q('#sheet-notes-sub').textContent === '6 lapper – trykk for å høre', 'Husk sheet lists every note: ' + qa('#sheet-notes .note').length);
+  click(qa('#sheet-notes .note')[0]);
+  assert(!q('#notesheet').classList.contains('hidden') && qa('#sheet-notes .note')[0].classList.contains('wiggle'), 'tapping a note in the sheet reads it and keeps the sheet open');
+  click(q('#sheet-notes-close'));
+  assert(q('#notesheet').classList.contains('hidden'), 'Lukk closes the Husk sheet');
   click(qa('#note-list .chip button')[0]);
   await wait(20);
-  assert(qa('#notes .note').length === 5, 'note removed');
+  assert(qa('#notes .note').length === 5 && q('#notes-more').classList.contains('hidden'), 'note removed, «flere» gone');
 
   // Calendar: add an event to today, see it under I DAG, then remove it
   click(q('.nav-item[data-pane="calendar"]'));

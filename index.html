@@ -176,27 +176,37 @@ header{display:grid;grid-template-columns:auto auto auto auto 1fr auto auto auto
 
 /* HUSK notes board */
 #board{padding-bottom:.4rem}
-.notes{display:flex;gap:1.8rem;align-items:center;justify-content:center;overflow-x:auto;overflow-y:hidden;padding:1.2rem .6rem .6rem;scrollbar-width:none;flex:1;min-height:0}
+.notes{display:flex;gap:.9rem;align-items:center;justify-content:center;overflow:hidden;padding:1.2rem .3rem .6rem;flex:1;min-height:0}
 .notes::-webkit-scrollbar{display:none}
 .note{
-  flex:none;width:10rem;height:9.4rem;border-radius:.4rem .4rem .7rem .7rem;color:#1f2340;position:relative;
+  flex:none;width:8.4rem;height:9.4rem;border-radius:.4rem .4rem .7rem .7rem;color:#1f2340;position:relative;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;padding:1.1rem .6rem .4rem;
   box-shadow:0 .9rem 1.8rem rgba(0,0,0,.4),inset 0 .1rem 0 rgba(255,255,255,.45);
   transform:rotate(var(--rot,0deg));transition:transform .15s;cursor:pointer;animation:noteFloat var(--float,6s) ease-in-out infinite}
 .note:active,.note.wiggle{transform:rotate(var(--rot,0deg)) scale(1.07);animation:none}
 @keyframes noteFloat{0%,100%{translate:0 0}50%{translate:0 -.18rem}}
 .note .pin{position:absolute;top:-.8rem;left:50%;transform:translateX(-50%);width:1.7rem;height:1.7rem;border-radius:50%;background:radial-gradient(circle at 35% 32%,#fff 0,var(--pin) 30%,color-mix(in srgb,var(--pin),#000 45%) 100%);box-shadow:0 .35rem .5rem rgba(0,0,0,.45),inset 0 .15rem .2rem rgba(255,255,255,.5)}
-.note .icon{font-size:2.8rem;line-height:1;filter:drop-shadow(0 .15rem .25rem rgba(0,0,0,.18))}
-.note .txt{font-family:var(--hand);font-size:1.55rem;font-weight:700;line-height:1;text-align:center;max-height:2.05em;overflow:hidden;padding:.1rem}
-.note .time{font-family:var(--hand);font-size:1.9rem;font-weight:700;line-height:1}
+.note .icon{font-size:2.5rem;line-height:1;filter:drop-shadow(0 .15rem .25rem rgba(0,0,0,.18))}
+.note .txt{font-family:var(--hand);font-size:1.4rem;font-weight:700;line-height:1;text-align:center;max-height:2.05em;overflow:hidden;padding:.1rem}
+.note .time{font-family:var(--hand);font-size:1.7rem;font-weight:700;line-height:1}
 .note.c0{background:#ffe95c;--pin:#ff3b3b}
 .note.c1{background:#ffb9dc;--pin:#2f8dff}
 .note.c2{background:#a9dcff;--pin:#22c55e}
 .note.c3{background:#b9f2b3;--pin:#ffb300}
 .note.c4{background:#ddc9ff;--pin:#ff45c4}
 .empty{opacity:.72;font-size:1.5rem;font-weight:700;text-align:center;padding:2rem 1rem;width:100%}
+.more-btn{margin-left:auto;font-family:var(--font);font-size:1.2rem;font-weight:900;letter-spacing:.02em;color:#fff;background:rgba(255,255,255,.14);border:1px solid var(--glass-line);border-radius:1.2rem;padding:.35rem .9rem;transition:transform .1s}
+.more-btn:active{transform:scale(.96)}
+.sheet-notes{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(5,11rem);grid-auto-rows:10.2rem;gap:2rem 1.6rem;justify-content:center;align-content:start;padding:1.4rem .6rem .8rem;scrollbar-width:none}
+.sheet-notes::-webkit-scrollbar{display:none}
+.sheet-notes .note{width:100%;height:100%;padding:1.3rem .8rem .5rem;animation:none}
+.sheet-notes .note .pin{width:1.9rem;height:1.9rem;top:-.95rem}
+.sheet-notes .note .icon{font-size:3.2rem}
+.sheet-notes .note .txt{font-size:1.8rem;max-height:2.1em}
+.sheet-notes .note .time{font-size:2.2rem}
+.sheet-notes .empty{grid-column:1/-1}
 
-/* BESKJEDER – compact panel on the front page + the full-screen sheet */
+/* BESKJEDER – compact panel on the front page + the full-screen sheet (.sheet is shared with Husk) */
 #messages-panel{cursor:pointer}
 .panel-title .badge{margin-left:auto;min-width:2.1rem;height:2.1rem;padding:0 .6rem;border-radius:1.1rem;background:#ff4d6d;color:#fff;font-family:var(--font);font-size:1.25rem;font-weight:900;display:grid;place-items:center;box-shadow:0 0 .9rem rgba(255,77,109,.7);animation:badgePop .35s both}
 @keyframes badgePop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
@@ -208,10 +218,10 @@ header{display:grid;grid-template-columns:auto auto auto auto 1fr auto auto auto
 .mrow .mtx{grid-area:tx;font-size:1.3rem;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mrow.unread{background:rgba(255,220,90,.18);border-color:rgba(255,213,74,.7)}
 .mrow.unread .mdot{background:#ffd54a;box-shadow:0 0 .7rem #ffd54a}
-.msg-sheet{background:var(--glass-strong);border:1px solid rgba(255,255,255,.18);border-radius:var(--radius-xl);width:min(72rem,94vw);max-height:84vh;display:flex;flex-direction:column;gap:1rem;padding:1.8rem 2rem 1.6rem;text-align:left;box-shadow:inset 0 .1rem 0 rgba(255,255,255,.12),var(--shadow-card)}
-.msg-head{display:flex;align-items:center;gap:1.2rem;flex:none}
-.msg-head .msg-h{font-family:var(--hand);font-size:2.8rem;color:#eef2ff}
-.msg-head .msg-sub{flex:1;font-size:1.4rem;font-weight:800;color:var(--text-muted)}
+.sheet{background:var(--glass-strong);border:1px solid rgba(255,255,255,.18);border-radius:var(--radius-xl);width:min(72rem,94vw);max-height:84vh;display:flex;flex-direction:column;gap:1rem;padding:1.8rem 2rem 1.6rem;text-align:left;box-shadow:inset 0 .1rem 0 rgba(255,255,255,.12),var(--shadow-card)}
+.sheet-head{display:flex;align-items:center;gap:1.2rem;flex:none}
+.sheet-h{font-family:var(--hand);font-size:2.8rem;color:#eef2ff}
+.sheet-sub{flex:1;font-size:1.4rem;font-weight:800;color:var(--text-muted)}
 .msg-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:.7rem;padding-right:.3rem;scrollbar-width:none}
 .msg-list::-webkit-scrollbar{display:none}
 .mitem{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1rem;padding:.6rem .9rem .6rem .6rem;border-radius:1.3rem;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);text-align:left;transition:background .2s}
@@ -590,7 +600,7 @@ select.inp option{color:#111}
   </section>
 
   <section class="glass-panel notes-panel" id="board">
-    <div class="panel-title">📌 <span>HUSK …</span></div>
+    <div class="panel-title">📌 <span>HUSK …</span><button type="button" class="more-btn hidden" id="notes-more"></button></div>
     <div class="notes" id="notes"></div>
   </section>
 
@@ -654,10 +664,18 @@ select.inp option{color:#111}
 </div>
 
 <!-- Beskjeder: the last messages from the parents' Discord channel; a tap reads one aloud -->
-<div id="msgsheet" class="overlay hidden">
-  <div class="msg-sheet" id="msg-sheet">
-    <div class="msg-head"><span class="msg-h">💬 Beskjeder</span><span class="msg-sub" id="msg-sub"></span><button type="button" class="chip-btn" id="msg-close">Lukk</button></div>
+<div id="msgsheet" class="overlay sheet-wrap hidden">
+  <div class="sheet" id="msg-sheet">
+    <div class="sheet-head"><span class="sheet-h">💬 Beskjeder</span><span class="sheet-sub" id="msg-sub"></span><button type="button" class="chip-btn" id="msg-close">Lukk</button></div>
     <div class="msg-list" id="msg-list"></div>
+  </div>
+</div>
+
+<!-- Husk: every note, big, when there are more than fit on the board -->
+<div id="notesheet" class="overlay sheet-wrap hidden">
+  <div class="sheet" id="note-sheet">
+    <div class="sheet-head"><span class="sheet-h">📌 Husk …</span><span class="sheet-sub" id="sheet-notes-sub"></span><button type="button" class="chip-btn" id="sheet-notes-close">Lukk</button></div>
+    <div class="sheet-notes" id="sheet-notes"></div>
   </div>
 </div>
 
@@ -889,9 +907,21 @@ function toast(msg, ms) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.add('hidden'), ms || 3000);
 }
-function showOverlay(sel) { if (sel !== '#frame' && frameOn()) stopFrame(); if (sel !== '#msgsheet') closeMsgSheet(); $(sel).classList.remove('hidden'); checkNight(); }
+function showOverlay(sel) { if (sel !== '#frame' && frameOn()) stopFrame(); closeSheets(sel); $(sel).classList.remove('hidden'); checkNight(); }
 function hideOverlay(sel) { $(sel).classList.add('hidden'); checkNight(); }
 function overlayOpen() { return $$('.overlay').some(o => !o.classList.contains('hidden')); }
+/* Sheets (Beskjeder, Husk): full-screen lists that close by themselves after a while without a tap; any other overlay closes them */
+const sheetTimers = {};
+function openSheet(sel, ms) { showOverlay(sel); touchSheet(sel, ms); }
+function touchSheet(sel, ms) { clearTimeout(sheetTimers[sel]); sheetTimers[sel] = setTimeout(() => closeSheet(sel), ms || 60000); }
+function closeSheet(sel) {
+  clearTimeout(sheetTimers[sel]); delete sheetTimers[sel];
+  if (sel === '#msgsheet') speakingId = null;
+  const s = $(sel);
+  if (s && !s.classList.contains('hidden')) hideOverlay(sel);
+}
+function closeSheets(except) { $$('.overlay.sheet-wrap').forEach(o => { if ('#' + o.id !== except) closeSheet('#' + o.id); }); }
+function sheetOpen() { return $$('.overlay.sheet-wrap').some(o => !o.classList.contains('hidden')); }
 
 function setAvatar(el, who) {
   const p = cfg.people[who] || {};
@@ -1357,29 +1387,53 @@ function noteHTML(p) {
     (p.text ? '<span class="txt">' + esc(p.text) + '</span>' : '') +
     (p.time ? '<span class="time">' + p.time + '</span>' : '');
 }
+const NOTES_ON_BOARD = 5;
+function noteEl(n, i) {
+  const p = parseNote(n.summary);
+  const el = document.createElement('div');
+  el.className = 'note c' + (i % 5);
+  el.style.setProperty('--rot', ROT[i % ROT.length]);
+  el.innerHTML = noteHTML(p);
+  el.addEventListener('click', e => {
+    e.stopPropagation();
+    el.classList.add('wiggle');
+    setTimeout(() => el.classList.remove('wiggle'), 350);
+    speak(spokenNote(p));
+  });
+  return el;
+}
+/* The board holds NOTES_ON_BOARD notes – the newest, so a fresh reminder is never hidden – and a «+N flere» pill
+   when there are more; the pill (or the panel) opens the Husk sheet with every note. */
 function renderNotes() {
-  const wrap = $('#notes');
+  const wrap = $('#notes'), more = $('#notes-more');
   const list = currentNotes();
+  const extra = Math.max(0, list.length - NOTES_ON_BOARD);
+  more.textContent = extra ? '+' + extra + ' flere ›' : '';
+  more.classList.toggle('hidden', !extra);
   wrap.innerHTML = '';
   if (!list.length) {
     wrap.innerHTML = '<div class="empty">Ingen lapper på tavla 🙂 (☰ → Ny lapp)</div>';
+    closeSheet('#notesheet');
     return;
   }
-  list.forEach((n, i) => {
-    const p = parseNote(n.summary);
-    const el = document.createElement('div');
-    el.className = 'note c' + (i % 5);
-    el.style.setProperty('--rot', ROT[i % ROT.length]);
-    el.innerHTML = noteHTML(p);
-    el.addEventListener('click', () => {
-      el.classList.add('wiggle');
-      setTimeout(() => el.classList.remove('wiggle'), 350);
-      speak(spokenNote(p));
-    });
-    wrap.appendChild(el);
-  });
+  const first = list.length - Math.min(list.length, NOTES_ON_BOARD);
+  list.slice(first).forEach((n, i) => wrap.appendChild(noteEl(n, first + i)));
+  if (!$('#notesheet').classList.contains('hidden')) renderNoteSheet();
   renderSchedule();
 }
+function renderNoteSheet() {
+  const list = currentNotes(), grid = $('#sheet-notes'), sub = $('#sheet-notes-sub');
+  sub.textContent = list.length ? list.length + (list.length === 1 ? ' lapp' : ' lapper') + ' – trykk for å høre' : '';
+  grid.innerHTML = '';
+  if (!list.length) { grid.innerHTML = '<div class="empty">Ingen lapper på tavla 🙂</div>'; return; }
+  list.forEach((n, i) => grid.appendChild(noteEl(n, i)));
+}
+function openNoteSheet() { renderNoteSheet(); openSheet('#notesheet'); }
+$('#notes-more').addEventListener('click', e => { e.stopPropagation(); openNoteSheet(); });
+$('#board').addEventListener('click', () => { if (currentNotes().length) openNoteSheet(); });
+$('#sheet-notes-close').addEventListener('click', e => { e.stopPropagation(); closeSheet('#notesheet'); });
+$('#notesheet').addEventListener('click', e => { if (e.target === e.currentTarget) closeSheet('#notesheet'); });
+$('#note-sheet').addEventListener('click', () => touchSheet('#notesheet'));
 async function addNote(summary) {
   if (notesSource() === 'ha') {
     await ha.callService('todo', 'add_item', { item: summary }, { entity_id: todoId });
@@ -1553,7 +1607,7 @@ const MSG_KEEP = 10;
 let messages = store.get('menkerud.messages');
 if (!Array.isArray(messages)) messages = [];
 messages = messages.filter(m => m && m.id && m.text).slice(0, MSG_KEEP);
-let msgSheetTimer = null, msgSpeakTimer = null, speakingId = null;
+let msgSpeakTimer = null, speakingId = null;
 function msgsOn() { const d = cfg.notify.discord; return !!(d.botToken && d.msgChannel); }
 function saveMessages() { store.set('menkerud.messages', messages); }
 function unreadCount() { return messages.filter(m => !m.read).length; }
@@ -1711,14 +1765,9 @@ function renderMsgSheet() {
     list.appendChild(row);
   });
 }
-function openMsgSheet(auto) { renderMsgSheet(); showOverlay('#msgsheet'); touchMsgSheet(auto); }
-function touchMsgSheet(auto) { clearTimeout(msgSheetTimer); msgSheetTimer = setTimeout(closeMsgSheet, auto ? 30000 : 60000); }
-function closeMsgSheet() {
-  clearTimeout(msgSheetTimer); msgSheetTimer = null;
-  speakingId = null;
-  const s = $('#msgsheet');
-  if (s && !s.classList.contains('hidden')) hideOverlay('#msgsheet');
-}
+function openMsgSheet(auto) { renderMsgSheet(); openSheet('#msgsheet', auto ? 30000 : 60000); }
+function touchMsgSheet(auto) { touchSheet('#msgsheet', auto ? 30000 : 60000); }
+function closeMsgSheet() { closeSheet('#msgsheet'); }
 $('#messages-panel').addEventListener('click', () => openMsgSheet(false));
 $('#msg-close').addEventListener('click', e => { e.stopPropagation(); closeMsgSheet(); });
 $('#msgsheet').addEventListener('click', e => { if (e.target === e.currentTarget) closeMsgSheet(); });
@@ -3042,7 +3091,7 @@ function init() {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { if (!overlayOpen() && !frameOn()) goPage(pageIdx + (e.key === 'ArrowRight' ? 1 : -1)); return; }
     if (e.key !== 'Escape') return;
     if (!$('#call').classList.contains('hidden')) endCall();
-    else if (!$('#msgsheet').classList.contains('hidden')) closeMsgSheet();
+    else if (sheetOpen()) closeSheets();
     else if (!$('#menu').classList.contains('hidden')) closeMenu();
     else if (!$('#pin').classList.contains('hidden')) { pinNext = null; hideOverlay('#pin'); }
     else if (frameOn()) { stopFrame(); checkNight(); }
