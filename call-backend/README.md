@@ -36,6 +36,13 @@ docker run -d --name LiveKit --network br0 --ip 192.168.68.2 --restart unless-st
 4. SWAG on Unraid: copy `swag/call.subdomain.conf` to `/config/nginx/proxy-confs/` (proxies `call.noobventure.com` → `menkerud-callapi:3000`; SWAG must be on `noobventure-network`), then `nginx -t && nginx -s reload`.
 5. Verify from anywhere: `curl https://call.noobventure.com/healthz` → `{"ok":true,"livekit":true,"discord":true}`. On the host you can also hit `http://<unraid-ip>:3008/healthz`.
 
+## C. Home Assistant behind SWAG (for the Companion apps)
+HA runs as `Home-Assistant-Container` on `br0` at `192.168.68.3`; the kiosk uses that LAN address directly. The phones need HA from outside so presence can turn Borte:
+1. Cloudflare: `ha.noobventure.com` (proxied) → the same public IP; SWAG's wildcard cert already covers it, no new port forward.
+2. SWAG: copy `swag/ha.subdomain.conf` to `/config/nginx/proxy-confs/` and `docker exec swag nginx -s reload` (proxies `ha.noobventure.com` → `192.168.68.3:8123`).
+3. HA (UI, not YAML – since 2026.8 a `http:` block in `configuration.yaml` is ignored after the one-time import): Settings → System → Network → "HTTP server" → *Trust X-Forwarded-For* on, *Trusted proxies* = `192.168.68.4` (SWAG's br0 IP). Save, let HA restart, and confirm the new settings within 5 minutes or HA reverts.
+4. Verify: `curl -o /dev/null -w '%{http_code}' https://ha.noobventure.com/` → `200`, `…/api/` → `401`. Then set *External URL* = `https://ha.noobventure.com` in every Companion app.
+
 ## Verify media before going live
 Temporarily set `DEV=1` in `.env`, `docker compose up -d`, and use the kiosk's "Ring far" (or `/dev/pair`) to prove a real call to a phone on mobile data. Set `DEV=0` again after.
 

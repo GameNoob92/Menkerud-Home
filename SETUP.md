@@ -131,14 +131,14 @@ Then Innstillinger → Bilderamme → Bildemappe = `/bilder/` (or a subfolder, `
 
 Adds: lights and cameras in the ☰ menu, notes from your phone (Companion app → To-do → Husk), a natural Google-Translate/Piper voice instead of the browser's, and a third way to ring the phones.
 
-Run HA as a Docker container on Unraid (Community Apps → Home-Assistant-Container, `network_mode: host`, `TZ=Europe/Oslo`), then in HA:
+Run HA as a Docker container on Unraid (Community Apps → Home-Assistant-Container, on the `br0` network with its own static LAN IP – here `192.168.68.3` – and `TZ=Europe/Oslo`), then in HA:
 
 1. Settings → Devices & services → Add integration → **Local To-do** → name `Husk`.
 2. Add integration → **Google Translate text-to-speech** → language Norwegian.
 3. Profile (bottom left) → Security → **Long-lived access tokens** → create "Kiosk".
 4. Put the URL and token in `config.js` (`ha.url`, `ha.token`) or under Innstillinger. Entities are auto-detected; the footer dot turns green when connected.
 5. **Extra pages.** With HA connected the screen gets three more pages to the right of the front page – swipe, or use ‹ › and the dots in the footer: **Huset** (who is home + status tiles), **Lys** (per room) and **Kamera**. Set them up under Innstillinger → **Sider**:
-   - *Hvem er hjemme:* the Companion app's location makes a `device_tracker`; attach it to a Person in HA (Settings → People) and pick that person as Mor / Far here (or leave «gjett på navnet» if the person is named like the parent). The front page's call cards get a small Hjemme / Borte badge too.
+   - *Hvem er hjemme:* the Companion app's location makes a `device_tracker`; attach it to a Person in HA (Settings → People) and pick that person as Mor / Far here (or leave «gjett på navnet» if the person is named like the parent). The front page's call cards get a small Hjemme / Borte badge too. **A phone can only report where it is when it can reach HA**, so each Companion app also needs the external address: Innstillinger → Companion app → the server → *External URL* = `https://ha.noobventure.com` (DEPLOYMENT.md §2 sets that subdomain up). With only the LAN address a phone reports on the home Wi-Fi alone and the tile never flips to Borte.
    - *Huset:* tap the entities to show as tiles (doors, temperature, appliances …). When the washing machine reaches HA (HomeWhiz integration), add its sensors here.
    - *Rom og lys:* «+ Nytt rom», name and icon, then for each light «I rommet» and – for the children's own lamps – «Barna kan styre». Lights without that mark ask for the PIN (once per two minutes). Without rooms the Lys page shows every light in one locked group.
    - «Tilbake til forsiden etter» slides back to the call buttons after that many seconds without a touch.

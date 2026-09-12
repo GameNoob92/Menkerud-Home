@@ -4,9 +4,10 @@
 
 ```
 Ubuntu touchscreen                         Unraid
-├─ nginx  → serves /var/www/menkerud-home  ├─ SWAG            (rtc. + call. subdomains)
+├─ nginx  → serves /var/www/menkerud-home  ├─ SWAG            (rtc. + call. + ha. subdomains)
 └─ Firefox (kiosk, http://localhost)       ├─ LiveKit  Docker (rtc.noobventure.com, UDP 7882)
-                                           └─ call-backend Docker (menkerud-callapi, :3000 → host 3008)
+                                           ├─ call-backend Docker (menkerud-callapi, :3000 → host 3008)
+                                           └─ Home Assistant Docker (br0 192.168.68.3:8123; ha.noobventure.com for the phones)
 ```
 
 Data flow: the kiosk calls `https://call.noobventure.com/api/*` → SWAG → the `menkerud-callapi` container, which mints LiveKit tokens and DMs the parent an answer link. Both ends join a room on LiveKit; media is a single UDP port, **7882**.
@@ -83,7 +84,7 @@ AutomaticLogin=menkerud-hjem
 
 No Chromium, no Electron, no Node.
 
-## 2. Unraid (SWAG + LiveKit + call-backend)
+## 2. Unraid (SWAG + LiveKit + call-backend + Home Assistant)
 
 Full detail in `call-backend/README.md`. In short:
 
@@ -91,6 +92,7 @@ Full detail in `call-backend/README.md`. In short:
 - **call-backend**: put the `call-backend/` folder on Unraid (e.g. `/mnt/user/appdata/menkerud-call/`), fill `.env` (LiveKit `key`/`secret` matching `config.yaml`, `DISCORD_BOT_TOKEN`, `DEVICE_KEY`), then `docker compose up -d --build`. It listens on 3000, publishes host **3008**, and joins **noobventure-network**. SWAG conf `swag/call.subdomain.conf` proxies `call.noobventure.com` → `menkerud-callapi:3000`.
 - **Router**: forward **UDP 7882** → `192.168.68.2` (LiveKit's br0 IP; both hops of the double-router; required); optionally **TCP 7881**; do not forward 7880.
 - The `DEVICE_KEY` in the backend `.env` must equal `call.deviceKey` in the kiosk's `config.js`, so only the screen can start calls (the backend is internet-facing).
+- **Home Assistant** (`Home-Assistant-Container`, official image, config in `/mnt/user/appdata/Home-Assistant-Container/`) runs on **`br0` with the static LAN IP `192.168.68.3`**. The kiosk talks to it over the LAN (`ha.url` in `config.js`, plain `http://192.168.68.3:8123`). The **Companion apps** must reach it from outside too, otherwise presence never turns Borte: SWAG conf `call-backend/swag/ha.subdomain.conf` proxies `ha.noobventure.com` → `192.168.68.3:8123` (Cloudflare-proxied DNS, SWAG's wildcard cert, no new port forward). HA then has to trust SWAG: **Settings → System → Network → "HTTP server"** → *Trust X-Forwarded-For* on, *Trusted proxies* = `192.168.68.4` (SWAG's own br0 IP – SWAG connects over br0, not through the host). Saving restarts HA and an admin must **confirm the new settings within 5 minutes** on the LAN address, or HA reverts them. Since HA 2026.8 these settings live in `.storage/http`; a `http:` block in `configuration.yaml` is imported once and ignored afterwards, so do not set it there. Until trust is set every proxied request gets **400** and HA's log says «not set-up for reverse proxies». SWAG does not unwrap Cloudflare's client IP, so HA sees Cloudflare's address as the visitor – leave HA's login-attempt banning off. Verify: `curl -o /dev/null -w '%{http_code}' https://ha.noobventure.com/` → `200`, `…/api/` → `401`.
 
 Verify: `curl https://call.noobventure.com/healthz` → `{"ok":true,"livekit":true,"discord":true}`.
 
@@ -124,6 +126,7 @@ Never commit `.env`, `config.js`, `livekit.yaml`, the Discord bot token or the L
 - [ ] `menkerud-callapi` container runs on Unraid, on `noobventure-network`, published on host 3008
 - [ ] `https://call.noobventure.com/healthz` returns all-true from outside
 - [ ] LiveKit reachable at `wss://rtc.noobventure.com`; UDP 7882 forwarded
+- [ ] `https://ha.noobventure.com/` returns 200 from outside (HA trusts `192.168.68.4`); both Companion apps have it as External URL
 - [ ] "Ring far" → Discord DM → parent taps Svar → video both ways on mobile data
 - [ ] `git pull` updates each side with no manual file copying
 
