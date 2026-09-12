@@ -38,7 +38,7 @@ html{font-size:min(1vw,1.7778vh)}
   --glass-blur:1.1rem;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
-html,body{height:100%;overflow:hidden;color:var(--text-main);font-family:var(--font);touch-action:manipulation}
+html,body{height:100%;overflow:hidden;color:var(--text-main);font-family:var(--font);touch-action:manipulation;overscroll-behavior:none}
 html{background:radial-gradient(circle at 65% 12%,#244b8f 0,#0c2856 38%,#07162f 100%)}
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation}
 button:focus-visible{outline:.28rem solid #fff;outline-offset:.2rem}
@@ -385,7 +385,8 @@ select.inp option{color:#111}
 .cal-side .chips{max-height:11rem;margin-bottom:.4rem;flex:none}
 
 /* ---------- Pages: a horizontal strip under the header (Hjem · Huset · Lys · Kamera), swiped or stepped with the footer arrows ---------- */
-#pages{position:relative;min-height:0;overflow:hidden;touch-action:pan-y}
+#pages{position:relative;min-height:0;overflow:hidden;touch-action:none}
+.house-grid,.rooms,.cam-grid{touch-action:pan-y}
 .strip{display:flex;height:100%;transition:transform .38s cubic-bezier(.2,.7,.2,1);will-change:transform}
 .page{flex:none;width:100%;height:100%;min-height:0;min-width:0}
 .page.home{display:grid;grid-template-rows:minmax(0,1.02fr) minmax(0,1fr);gap:1.1rem}
@@ -2573,11 +2574,12 @@ function swipeStart(e) {
   if (e.button && e.button !== 0) return;
   if (pageList.length < 2 || overlayOpen()) return;
   if (e.target.closest && e.target.closest('.notes, .emoji-grid, input, select')) return;
-  swipe = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId, moved: false };
+  swipe = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId, moved: false, lastX: e.clientX };
 }
 function swipeMove(e) {
   if (!swipe) return;
   const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+  swipe.lastX = e.clientX;
   if (!swipe.moved) {
     if (Math.abs(dx) < 14 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
     swipe.moved = true;
@@ -2598,7 +2600,9 @@ function swipeEnd(e) {
   const strip = $('#strip');
   strip.style.transition = '';
   if (!s.moved) return;
-  const dx = e.clientX - s.x, dt = Math.max(1, Date.now() - s.t), v = dx / dt;
+  // pointercancel (the browser took the touch) carries no useful position – judge by where the finger last was
+  const endX = e.type === 'pointercancel' ? s.lastX : e.clientX;
+  const dx = endX - s.x, dt = Math.max(1, Date.now() - s.t), v = dx / dt;
   const w = $('#pages').clientWidth || 0;
   let target = pageIdx;
   if (dx < -w * 0.2 || v < -0.45) target = pageIdx + 1;
