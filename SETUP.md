@@ -45,8 +45,8 @@ Keep `#ring-hjem` for that one purpose – every human message there rings the s
 1. Create a channel `#beskjeder` (this family's has the ID `1548461787517820968`). Developer mode → long-press → Copy Channel ID.
 2. `discord.com/developers/applications` → your application → Bot → **Privileged Gateway Intents** → turn on **Message Content Intent**. The screen needs the text itself here; without it the Beskjeder status card says so and only ringing works.
 3. Make sure the bot can see `#beskjeder` with View Channel, Read Message History and Add Reactions (the OAuth link in step 2 above grants them server-wide).
-4. On the screen: Innstillinger → Samtale → **Kanal-ID for beskjeder** → Lagre. «Les opp nye beskjeder» (on by default) decides whether a new message is read the moment it arrives or only chimes and waits for a tap.
-5. Write something in `#beskjeder`. The BESKJEDER panel gets a red number, a sheet opens with the message as number 1 and the screen says «Ny beskjed fra Mor: …». The child taps **✅ Hørt!** – your message gets a ✅ reaction and `#hjemme` gets «@Mor ✅ Beskjeden er hørt (14:32): «…»». Tapping the panel shows the last 10 messages; tapping one replays it. Deleting a message in Discord removes it from the screen.
+4. On the screen: Innstillinger → Samtale → **Kanal-ID for beskjeder** → Lagre. «Les opp nye beskjeder med en gang» is off by default: a new message only chimes and shows a number, since nobody may be home yet. Turn it on if you want the screen to open and read a message the moment it arrives.
+5. Write something in `#beskjeder`. The screen chimes and the BESKJEDER panel gets a red number – the Bilderamme shows one too. The child taps the panel, the sheet opens with the message as number 1, a tap reads «Beskjed fra Mor: …», and then the child taps **✅ Hørt!** – your message gets a ✅ reaction and `#hjemme` gets «@Mor ✅ Beskjeden er hørt (14:32): «…»». Tapping the panel shows the last 10 messages; tapping one replays it. Deleting a message in Discord removes it from the screen.
 
 At night, while the screen is off or during a call nothing is read out – the number waits until someone taps. The last 10 messages are fetched every time the screen starts, so nothing is lost while it was off.
 
@@ -238,6 +238,6 @@ ring_hjemme_mor:
 - [ ] "Ring mor" → parent gets a Discord DM → taps **Svar** → video both ways; screen shows the big red "Legg på"
 - [ ] "Jeg er hjemme" → both of you get the message
 - [ ] Bot token + channel ID; writing in `#ring-hjem` rings the screen; "Svar" connects
-- [ ] Kanal-ID for beskjeder; writing in `#beskjeder` → red number, sheet, read aloud; «Hørt!» → ✅ on the message and a line in `#hjemme`
+- [ ] Kanal-ID for beskjeder; writing in `#beskjeder` → chime + red number (also on the Bilderamme); tap → sheet → tap reads it; «Hørt!» → ✅ on the message and a line in `#hjemme`
 - [ ] Ny lapp → note appears on the board, tap reads it aloud
 - [ ] Innstillinger → Status: «Versjon» shows a commit, «Hent oppdatering» answers «Allerede oppdatert»

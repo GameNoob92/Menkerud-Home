@@ -510,6 +510,8 @@ select.inp option{color:#111}
 #frame .slide.show{opacity:1}
 #frame .slide .bgblur{position:absolute;inset:-4rem;background-size:cover;background-position:center;filter:blur(2.5rem) brightness(.5)}
 #frame .slide img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+#frame .frame-badge{position:absolute;right:2.4rem;top:2rem;z-index:2;display:flex;align-items:center;gap:.7rem;padding:1rem 1.7rem;border-radius:3rem;background:rgba(255,77,109,.94);color:#fff;font-size:1.9rem;font-weight:900;box-shadow:0 .6rem 1.8rem rgba(0,0,0,.5);cursor:pointer;animation:framePulse 2.4s ease-in-out infinite}
+@keyframes framePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
 #frame .fclock{position:absolute;right:2.6rem;bottom:2rem;z-index:2;font-size:3rem;font-weight:900;letter-spacing:-.02em;text-shadow:0 .2rem 1rem rgba(0,0,0,.8);opacity:.85}
 #toast{position:fixed;left:50%;bottom:4rem;transform:translateX(-50%);z-index:70;background:rgba(20,26,60,.95);border:1px solid var(--glass-line);border-radius:2rem;padding:1rem 2rem;font-size:1.6rem;font-weight:800;box-shadow:var(--shadow-card);max-width:80vw;text-align:center}
 #confetti{position:fixed;inset:0;z-index:60;pointer-events:none;width:100%;height:100%}
@@ -817,7 +819,7 @@ select.inp option{color:#111}
   </div>
 </div>
 
-<div id="frame" class="hidden"><div class="fclock" id="frame-clock"></div></div>
+<div id="frame" class="hidden"><button type="button" class="frame-badge hidden" id="frame-msgs"></button><div class="fclock" id="frame-clock"></div></div>
 <div id="night" class="hidden"></div>
 <div id="toast" class="hidden"></div>
 <canvas id="confetti"></canvas>
@@ -855,7 +857,7 @@ const DEFAULTS = {
   screen: { offEnabled: true, offFrom: '23:00', offTo: '06:00', helper: 'http://127.0.0.1:7777' },   // display off via the kiosk screen helper (SETUP.md §3)
   photos: { dir: 'photos/', intervalSec: 20, idleMin: 0 },          // Bilderamme; idleMin = start by itself after n minutes without a touch (0 = never)
   pages: { huset: true, lys: true, kamera: true, homeAfterSec: 60 },  // extra swipe pages (need Home Assistant); back to the front page after n s without a touch
-  messages: { autoSpeak: true },                                   // Beskjeder: read a new Discord message aloud the moment it arrives
+  messages: { autoSpeak: false },                                  // Beskjeder: false = chime + badge, someone taps to hear; true = open the sheet and read it as it arrives
   house: { entities: [] },                                          // entity ids shown as tiles on the Huset page
   rooms: [],                                                        // [{ id, name, icon, lights: [ids], kids: [ids the children may toggle] }]
   emojis: ['⚽','🏀','🏊','⛷️','🎿','🚲','🥾','🏃','🎒','📚','✏️','🎨','🎵','🎹','🎮','📺','🦷','🛁','🧼','😴','🌙','⏰','🍎','🥪','🍕','🍦','🎂','🎁','🎉','❤️','⭐','😊','🧸','🐶','🐱','🐴','🧥','🧦','👟','🧤','☀️','🌧️','❄️','🚌','🚗','🏠','👵','👴','🎈','🧹']
@@ -1659,12 +1661,13 @@ function updateMessage(msg) {
 }
 function onNewMessage(item) {
   if (!addMessage(item)) return;
-  renderMessages();
-  if (quietHours() || currentCall || incomingWho) return;         // stays unread; the badge shows it
-  awakeUntil = Date.now() + 120000; checkNight();
+  renderMessages();                                                // badge on the panel and on the photo frame
+  if (quietHours() || currentCall || incomingWho) return;         // stays unread, silently
   chime();
+  if (!cfg.messages.autoSpeak) return;                            // default: nobody may be home yet – it waits for a tap
+  awakeUntil = Date.now() + 120000; checkNight();
   openMsgSheet(true);
-  if (cfg.messages.autoSpeak !== false) setTimeout(() => speakMessage(item, true), 700);
+  setTimeout(() => speakMessage(item, true), 700);
 }
 function speakMessage(m, fresh) {
   if (!m.heard) { m.heard = true; saveMessages(); }
@@ -1732,10 +1735,12 @@ async function fetchMessageHistory() {
 function renderMessages() {
   const panel = $('#messages-panel'), grid = $('#bottom-grid'), wrap = $('#msgs'), badge = $('#msg-badge');
   if (!panel || !grid || !wrap) return;
-  const on = msgsOn();
+  const on = msgsOn(), unread = on ? unreadCount() : 0;
   panel.classList.toggle('hidden', !on); grid.classList.toggle('no-messages', !on);
+  const fb = $('#frame-msgs');                                     // the photo frame shows new messages too
+  fb.textContent = unread ? '💬 ' + unread + (unread === 1 ? ' ny beskjed' : ' nye beskjeder') : '';
+  fb.classList.toggle('hidden', !unread);
   if (!on) return;
-  const unread = unreadCount();
   badge.textContent = unread ? String(unread) : '';
   badge.classList.toggle('hidden', !unread);
   if (!messages.length) wrap.innerHTML = '<div class="empty">Ingen beskjeder ennå 💌</div>';
@@ -1773,6 +1778,7 @@ function openMsgSheet(auto) { renderMsgSheet(); openSheet('#msgsheet', auto ? 30
 function touchMsgSheet(auto) { touchSheet('#msgsheet', auto ? 30000 : 60000); }
 function closeMsgSheet() { closeSheet('#msgsheet'); }
 $('#messages-panel').addEventListener('click', () => openMsgSheet(false));
+$('#frame-msgs').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); awakeUntil = Date.now() + 120000; openMsgSheet(false); });
 $('#msg-close').addEventListener('click', e => { e.stopPropagation(); closeMsgSheet(); });
 $('#msgsheet').addEventListener('click', e => { if (e.target === e.currentTarget) closeMsgSheet(); });
 $('#msg-sheet').addEventListener('click', () => touchMsgSheet(false));
@@ -2269,7 +2275,7 @@ const SETTINGS = [
   { k: 'notify.discord.botToken', l: 'Bot-token', show: 'discord', hint: 'Bare for «ring hjem» fra telefonen – se SETUP.md' },
   { k: 'notify.discord.ringChannel', l: 'Kanal-ID kiosken lytter på', show: 'discord', num: true, hint: 'Alt mor/far skriver i denne kanalen ringer kiosken' },
   { k: 'notify.discord.msgChannel', l: 'Kanal-ID for beskjeder', show: 'discord', num: true, hint: 'Det mor/far skriver her vises under BESKJEDER og leses opp. Boten trenger «Message Content Intent» – se SETUP.md' },
-  { k: 'messages.autoSpeak', l: 'Les opp nye beskjeder', show: 'discord', toggle: true, hint: 'Av = bare lyd og tall på skjermen, barnet trykker for å høre' },
+  { k: 'messages.autoSpeak', l: 'Les opp nye beskjeder med en gang', show: 'discord', toggle: true, hint: 'Av (standard) = bare lyd og et tall på skjermen, barnet trykker for å høre. På = skjermen åpner og leser beskjeden når den kommer' },
   { k: 'notify.ntfy.server', l: 'ntfy-server', show: 'ntfy', hint: 'https://ntfy.sh eller din egen' },
   { k: 'notify.ntfy.topicMor', l: 'Emne for mors telefon', show: 'ntfy', hint: 'Det hun abonnerer på i ntfy-appen' },
   { k: 'notify.ntfy.topicFar', l: 'Emne for fars telefon', show: 'ntfy' },
