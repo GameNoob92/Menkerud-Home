@@ -1608,6 +1608,7 @@ let messages = store.get('menkerud.messages');
 if (!Array.isArray(messages)) messages = [];
 messages = messages.filter(m => m && m.id && m.text).slice(0, MSG_KEEP);
 let msgSpeakTimer = null, speakingId = null;
+const msgApi = { history: '', ack: '' };                       // last result of the two REST calls, shown on the Beskjeder status card
 function msgsOn() { const d = cfg.notify.discord; return !!(d.botToken && d.msgChannel); }
 function saveMessages() { store.set('menkerud.messages', messages); }
 function unreadCount() { return messages.filter(m => !m.read).length; }
@@ -1685,10 +1686,12 @@ function confirmMessage(m) {
 function ackMessage(m) {
   const d = cfg.notify.discord;
   if (!msgsOn()) return;
+  const done = s => { msgApi.ack = s; renderStatus(); };
   try {
     fetch('https://discord.com/api/v10/channels/' + d.msgChannel + '/messages/' + m.id + '/reactions/' + encodeURIComponent('✅') + '/@me',
-      { method: 'PUT', headers: { Authorization: 'Bot ' + d.botToken } }).catch(() => {});
-  } catch (e) {}
+      { method: 'PUT', headers: { Authorization: 'Bot ' + d.botToken }, body: '' })
+      .then(r => done('HTTP ' + r.status), e => { console.warn('discord reaction', e); done('feilet: ' + e.message); });
+  } catch (e) { done('feilet: ' + e.message); }
 }
 /* The confirmation the parents see on their phones: posted through the same webhook as «Jeg er hjemme» (#hjemme),
    mentioning the sender so it buzzes even under «only @mentions». Resolves false when no webhook is configured. */
@@ -1714,7 +1717,8 @@ async function fetchMessageHistory() {
     const r = await fetch('https://discord.com/api/v10/channels/' + d.msgChannel + '/messages?limit=' + MSG_KEEP, { headers: { Authorization: 'Bot ' + d.botToken } });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     list = await r.json();
-  } catch (e) { console.warn('discord history', e); return; }
+    msgApi.history = 'HTTP ' + r.status + (Array.isArray(list) ? ' · ' + list.length + ' meldinger' : '');
+  } catch (e) { console.warn('discord history', e); msgApi.history = 'feilet: ' + e.message; renderStatus(); return; }
   if (!Array.isArray(list)) return;
   const ids = new Set(list.map(m => String(m.id)));
   let oldest = null;
@@ -2163,7 +2167,7 @@ function renderStatus() {
     : ha.connected ? ['Via Home Assistant-hendelse', 'on'] : ['Av – legg inn bot-token og kanal-ID', 'off'];
   const msgRow = !msgsOn() ? ['Av – legg inn kanal-ID for beskjeder', 'idle']
     : dcNoContent ? ['Boten mangler «Message Content Intent» – slå på under Bot i Discord Developer Portal', 'off']
-    : dcState === 'on' ? ['Discord-bot lytter ✓ · ' + (unreadCount() ? unreadCount() + ' ulest' : 'alt lest'), 'on']
+    : dcState === 'on' ? ['Discord-bot lytter ✓ · ' + (unreadCount() ? unreadCount() + ' ulest' : 'alt lest') + (msgApi.history ? ' · historikk: ' + msgApi.history : '') + (msgApi.ack ? ' · siste ✅: ' + msgApi.ack : ''), msgApi.ack.startsWith('feilet') || msgApi.history.startsWith('feilet') ? 'busy' : 'on']
     : dcState === 'connecting' ? ['Kobler til Discord…', 'busy'] : ['Ikke tilkoblet', 'off'];
   const rows = [
     ['Home Assistant', !haOn ? 'Ikke i bruk (valgfritt)' : ha.connected ? 'Tilkoblet ✓' : 'Ikke tilkoblet – ' + cfg.ha.url, !haOn ? 'idle' : ha.connected ? 'on' : 'off'],
