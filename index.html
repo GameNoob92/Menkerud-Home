@@ -1685,16 +1685,23 @@ function confirmMessage(m) {
   ackMessage(m);
   postConfirmation(m).then(ok => toast(ok ? 'Sendt til ' + m.name + ' 💌' : 'Merket som hørt 👍')).catch(() => toast('Merket som hørt 👍'));
 }
-/* Best effort: a ✅ reaction on the parent's message (the bot needs «Add Reactions» in the channel). */
+/* The two REST calls go through the call-backend: Discord answers 403 (code 40333) to a bot token sent from a
+   browser, and without CORS headers on that answer the page only sees «Failed to fetch». The backend holds its own
+   bot token; the kiosk just names the channel (and sends the device key when one is set). */
+function backendApi(path, opts) {
+  const base = String((cfg.call && cfg.call.backend) || '').trim().replace(/\/+$/, '');
+  if (!base) return Promise.reject(new Error('ingen call-backend'));
+  const headers = Object.assign({}, (opts && opts.headers) || {});
+  if (cfg.call.deviceKey) headers['X-Device-Key'] = cfg.call.deviceKey;
+  return fetch(base + path, Object.assign({}, opts, { headers }));
+}
+/* «Hørt!» → the backend puts a ✅ on the parent's message (best effort; needs Read Message History + Add Reactions). */
 function ackMessage(m) {
   const d = cfg.notify.discord;
   if (!msgsOn()) return;
   const done = s => { msgApi.ack = s; renderStatus(); };
-  try {
-    fetch('https://discord.com/api/v10/channels/' + d.msgChannel + '/messages/' + m.id + '/reactions/' + encodeURIComponent('✅') + '/@me',
-      { method: 'PUT', headers: { Authorization: 'Bot ' + d.botToken }, body: '' })
-      .then(r => done('HTTP ' + r.status), e => { console.warn('discord reaction', e); done('feilet: ' + e.message); });
-  } catch (e) { done('feilet: ' + e.message); }
+  backendApi('/api/messages/' + encodeURIComponent(d.msgChannel) + '/' + encodeURIComponent(m.id) + '/ack', { method: 'POST' })
+    .then(r => done('HTTP ' + r.status), e => { console.warn('discord reaction', e); done('feilet: ' + e.message); });
 }
 /* The confirmation the parents see on their phones: posted through the same webhook as «Jeg er hjemme» (#hjemme),
    mentioning the sender so it buzzes even under «only @mentions». Resolves false when no webhook is configured. */
@@ -1717,7 +1724,7 @@ async function fetchMessageHistory() {
   if (!msgsOn()) return;
   let list;
   try {
-    const r = await fetch('https://discord.com/api/v10/channels/' + d.msgChannel + '/messages?limit=' + MSG_KEEP, { headers: { Authorization: 'Bot ' + d.botToken } });
+    const r = await backendApi('/api/messages?channel=' + encodeURIComponent(d.msgChannel) + '&limit=' + MSG_KEEP);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     list = await r.json();
     msgApi.history = 'HTTP ' + r.status + (Array.isArray(list) ? ' · ' + list.length + ' meldinger' : '');

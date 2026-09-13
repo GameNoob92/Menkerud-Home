@@ -223,7 +223,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     // Beskjeder: the channel's history holds one older message from far; the browser voice is captured
     const f0 = win.fetch;
     win.fetch = (url, opts) => {
-      if (/\/channels\/555\/messages\?/.test(url)) return Promise.resolve({ ok: true, status: 200, json: async () => [{ id: '900', channel_id: '555', author: { id: '222', bot: false, global_name: 'Pappa' }, content: 'Husk gymtøy i morgen', timestamp: '2026-09-10T08:00:00.000Z' }] });
+      if (/\/api\/messages\?channel=555&limit=10$/.test(url)) return Promise.resolve({ ok: true, status: 200, json: async () => [{ id: '900', channel_id: '555', author: { id: '222', bot: false, global_name: 'Pappa' }, content: 'Husk gymtøy i morgen', timestamp: '2026-09-10T08:00:00.000Z' }] });
       return f0(url, opts);
     };
     win.speechSynthesis = { cancel() {}, speak(u) { spoken.push(u.text); } };
@@ -270,13 +270,13 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(spoken.length === 1 && spoken[0] === 'Beskjed fra Mor: Hei! Middag klokka fem pizza 🍕', 'tapping reads it with the sender: ' + spoken[0]);
   items3 = qa3('#msg-list .mitem');
   assert(items3[0].classList.contains('unread') && !!items3[0].querySelector('.confirm') && !items3[1].querySelector('.confirm'), 'heard message offers «Hørt!», the unheard one does not');
-  const ack3 = () => third.fetchCalls.filter(c => /\/channels\/555\/messages\/\d+\/reactions\//.test(c.url) && c.opts && c.opts.method === 'PUT');
+  const ack3 = () => third.fetchCalls.filter(c => /\/api\/messages\/555\/\d+\/ack$/.test(c.url) && c.opts && c.opts.method === 'POST');
   const hook3 = () => third.fetchCalls.filter(c => /discord\.com\/api\/webhooks\/1\/abc/.test(c.url));
   click3(items3[0].querySelector('.confirm'));
   await wait(30);
   items3 = qa3('#msg-list .mitem');
   assert(!items3[0].classList.contains('unread') && !!items3[0].querySelector('.done') && q3('#msg-badge').textContent === '1', 'confirmed message marked read, badge down to 1');
-  assert(ack3().length === 1 && /\/messages\/901\//.test(ack3()[0].url), 'confirmation reacts ✅ on the Discord message');
+  assert(ack3().length === 1 && /call\.noobventure\.com\/api\/messages\/555\/901\/ack$/.test(ack3()[0].url), 'confirmation asks the call-backend to react ✅ on the Discord message: ' + ack3()[0].url);
   const hookBody3 = () => hook3()[0] && JSON.parse(hook3()[0].opts.body).content;
   assert(hook3().length === 1 && /^<@111> ✅ \*\*Beskjeden er hørt\*\* \(\d\d:\d\d\): «Hei! Middag klokka fem pizza 🍕»$/.test(hookBody3()), 'confirmation posted in #hjemme mentioning mor: ' + hookBody3());
   click3(items3[1].querySelector('.mplay'));

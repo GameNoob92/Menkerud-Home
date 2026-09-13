@@ -36,6 +36,8 @@ docker run -d --name LiveKit --network br0 --ip 192.168.68.2 --restart unless-st
 4. SWAG on Unraid: copy `swag/call.subdomain.conf` to `/config/nginx/proxy-confs/` (proxies `call.noobventure.com` → `menkerud-callapi:3000`; SWAG must be on `noobventure-network`), then `nginx -t && nginx -s reload`.
 5. Verify from anywhere: `curl https://call.noobventure.com/healthz` → `{"ok":true,"livekit":true,"discord":true}`. On the host you can also hit `http://<unraid-ip>:3008/healthz`.
 
+6. **Beskjeder proxy.** The kiosk's messages channel is read, and «Hørt!» acknowledged with a ✅, through `GET /api/messages?channel=<id>&limit=10` and `POST /api/messages/<channel>/<id>/ack` (device-key protected, same `DISCORD_BOT_TOKEN`). Discord refuses bot tokens sent from a browser (403, code 40333), so the page cannot do this itself. To update the backend after a change: `git pull` in the checkout on Unraid, then `docker compose up -d --build` in this folder.
+
 ## C. Home Assistant behind SWAG (for the Companion apps)
 HA runs as `Home-Assistant-Container` on `br0` at `192.168.68.3`; the kiosk uses that LAN address directly. The phones need HA from outside so presence can turn Borte:
 1. Cloudflare: `ha.noobventure.com` (proxied) → the same public IP; SWAG's wildcard cert already covers it, no new port forward.

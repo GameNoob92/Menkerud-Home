@@ -78,6 +78,22 @@ function rateLimit(req, res, next) {
 
 app.get('/healthz', (req, res) => res.json({ ok: true, livekit: lkOk(), discord: discord.configured() }));
 
+// Beskjeder: Discord refuses bot tokens sent from a browser (403, code 40333), so the kiosk reads its messages
+// channel and acknowledges with a ✅ through here. The kiosk only names the channel; the token stays on the server.
+const SNOWFLAKE = /^\d{5,25}$/;
+app.get('/api/messages', deviceAuth, async (req, res) => {
+  const channel = String(req.query.channel || '');
+  if (!SNOWFLAKE.test(channel)) return res.status(400).json({ error: 'ugyldig kanal' });
+  try { res.json(await discord.channelMessages(channel, req.query.limit)); }
+  catch (e) { log('messages error', e.message); res.status(e.status === 403 || e.status === 404 ? 404 : 502).json({ error: e.message }); }
+});
+app.post('/api/messages/:channel/:id/ack', deviceAuth, async (req, res) => {
+  const { channel, id } = req.params;
+  if (!SNOWFLAKE.test(channel) || !SNOWFLAKE.test(id)) return res.status(400).json({ error: 'ugyldig id' });
+  try { await discord.react(channel, id, '✅'); res.json({ ok: true }); }
+  catch (e) { log('ack error', e.message); res.status(502).json({ error: e.message }); }
+});
+
 // Start a call: create room + tablet token, DM the parent an answer link, arm the ring timeout.
 app.post('/api/calls', deviceAuth, rateLimit, async (req, res) => {
   const target = String((req.body && req.body.target) || '');
