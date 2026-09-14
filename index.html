@@ -1145,8 +1145,8 @@ function inScreenOff(d) { return !!(cfg.screen && cfg.screen.offEnabled) && inWi
 /* Skjerm av: #night goes fully black (.dark) and the page asks the kiosk's screen helper (scripts/kiosk-screen.py,
    cfg.screen.helper) to switch the display off; when the page should be visible again – a touch, an incoming call,
    the end of the night window – it asks for it back on. Without the helper only the black overlay remains. */
-let restMode = false;                                  // ⏻ pressed – until the next touch
-let lastDark = null;
+let restMode = false;                                  // ⏻ pressed – until the next touch, or until the screen-off window ends (mornings win)
+let lastDark = null, lastInOff = null;
 function helperUrl() { return String((cfg.screen && cfg.screen.helper) || '').trim().replace(/\/+$/, ''); }
 function screenPower(on) {
   const h = helperUrl();
@@ -1155,8 +1155,11 @@ function screenPower(on) {
 }
 function checkNight(d) {
   d = d || new Date();
+  const inOff = inScreenOff(d);
+  if (lastInOff === true && !inOff) restMode = false;       // ⏻ in the evening must not keep the screen dark past the morning
+  lastInOff = inOff;
   const awake = Date.now() < awakeUntil;
-  let dark = restMode || (!awake && inScreenOff(d));
+  let dark = restMode || (!awake && inOff);
   if (dark && frameOn() && frameAuto) stopFrame();           // an auto-started slideshow must not keep the screen on all night
   let on = dark || nightMode === 'on' || (nightMode === 'auto' && cfg.night.enabled && inNight(d));
   if (awake || overlayOpen() || frameOn()) { on = false; dark = false; }

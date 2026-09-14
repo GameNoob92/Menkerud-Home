@@ -139,7 +139,12 @@ state = {'wanted_off': False, 'off_at': 0.0, 'saved': 0, 'method': 'backlight' i
 lock = threading.Lock()
 
 
+def log(*a):
+    print(time.strftime('%Y-%m-%d %H:%M:%S'), *a, flush=True)   # -> journalctl --user -u menkerud-screen.service
+
+
 def request_off():
+    log('off requested by the page')
     with lock:
         state['wanted_off'] = True
         state['off_at'] = time.time()
@@ -154,7 +159,8 @@ def request_off():
         set_power(3)                  # no backlight control on this machine: real DPMS off
 
 
-def request_on():
+def request_on(source='page'):
+    log('on', '(' + source + ')')
     with lock:
         state['wanted_off'] = False
         saved = state['saved']
@@ -177,9 +183,10 @@ def watcher():
             continue
         last_input = time.time() - idle / 1000.0
         if last_input > off_at + 0.5:                 # someone touched it after the "off" request
-            request_on()
+            request_on('touch')
         elif time.time() - off_at > 3:
             if BL and get_brightness() > 0:
+                log('re-darkened (something else lit the screen while off was wanted)')
                 set_brightness(0)
             elif not BL and get_power() == 0:
                 set_power(3)
@@ -261,6 +268,7 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split('?', 1)[0]
         if path == '/update':
             code, body = update()
+            log('update', code, json.dumps(body)[:160])
             self._send(code, json.dumps(body).encode())
         else:
             self._send(404, b'{"error":"unknown path"}')
@@ -273,5 +281,6 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
+    log('helper started; backlight', BL or 'none', 'on port', PORT)
     threading.Thread(target=watcher, daemon=True).start()
     ThreadingHTTPServer(('127.0.0.1', PORT), Handler).serve_forever()

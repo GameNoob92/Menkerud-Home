@@ -28,7 +28,7 @@ function mkdom(beforeParse) {
       };
       // Deterministic clock (12:00 on a fixed date) so night dimming and the screen-off window never depend on when the test runs.
       const FIXED = new window.Date(2026, 8, 10, 12, 0, 0).getTime(), RealDate = window.Date;
-      window.Date = class extends RealDate { constructor(...a) { if (a.length) super(...a); else super(FIXED); } static now() { return FIXED; } };
+      window.Date = class extends RealDate { constructor(...a) { if (a.length) super(...a); else super(window.__now || FIXED); } static now() { return window.__now || FIXED; } };
       window.HTMLMediaElement.prototype.play = () => Promise.resolve();
       window.HTMLCanvasElement.prototype.getContext = () => ({ clearRect(){}, save(){}, restore(){}, translate(){}, rotate(){}, fillRect(){}, drawImage(){} });
       // Minimal LiveKit client stub so the call path runs without the real CDN library.
@@ -71,6 +71,16 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await wait(20);
   assert(q('#night').classList.contains('hidden') && helperCalls().slice(-1)[0] === '/on', 'completed tap hides the overlay and asks for display on: ' + helperCalls().join());
   assert(q('#call').classList.contains('hidden'), 'waking the screen did not start a call');
+  // ⏻ pressed in the evening: dark through the night, but the end of the screen-off window (06:00) wakes the screen again
+  w.__now = new w.Date(2026, 8, 10, 23, 30, 0).getTime();
+  click(q('#rest-btn'));
+  await wait(20);
+  assert(q('#night').classList.contains('dark') && helperCalls().slice(-1)[0] === '/off', '⏻ at 23:30: dark, display off');
+  w.__now = new w.Date(2026, 8, 11, 6, 5, 0).getTime();
+  await wait(1150);
+  assert(!q('#night').classList.contains('dark') && helperCalls().slice(-1)[0] === '/on', 'at 06:05 the ⏻ rest is over and the display is asked back on: ' + helperCalls().slice(-2).join());
+  w.__now = 0;
+  await wait(1150);
 
   // Bilderamme: folder walked through the (mocked) nginx listing, subfolder included, clutter skipped; shown full-screen until touched
   click(q('#frame-btn'));
