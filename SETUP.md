@@ -78,6 +78,8 @@ On the screen: Innstillinger → Samtale → **Call-backend URL** = `https://cal
 
 ---
 
+**Answer in Chrome, not inside Discord.** Discord's built-in browser can show the kiosk's picture but cannot ask for your camera and microphone, so the screen sees and hears nothing and keeps ringing. The DM says so, and the answer page shows a big «Åpne i Chrome» button when it detects that browser; you can also turn off Discord's in-app browser in its settings so links always open in Chrome.
+
 ## 3. The screen PC (Ubuntu + nginx + Firefox)
 
 Full production setup — the git checkout at `/var/www/menkerud-home` as the web root, nginx (static only), Firefox fullscreen and GDM autologin — is in **`DEPLOYMENT.md`**. The call-backend is not here; it runs as a Docker container on Unraid. Two things worth calling out:

@@ -17,7 +17,10 @@
   @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.07)}}
   h1{font-size:26px;font-weight:900;margin:14px 0 6px}
   p{font-weight:700;opacity:.82;font-size:17px;line-height:1.4}
-  .btn{display:inline-flex;align-items:center;gap:10px;margin-top:22px;padding:16px 30px;border:0;border-radius:40px;background:#22c55e;color:#fff;font:inherit;font-weight:900;font-size:20px;cursor:pointer}
+  .btn{display:inline-flex;align-items:center;gap:10px;margin:22px 6px 0;padding:16px 30px;border:0;border-radius:40px;background:#22c55e;color:#fff;font:inherit;font-weight:900;font-size:20px;cursor:pointer;text-decoration:none}
+  .btn.blue{background:#2f8dff}
+  .small{margin-top:16px;font-size:15px}
+  .small a{color:#9fb3d9}
   .btn.red{background:#ff3b3b}
   #hangup{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:4;display:none}
   .spin{width:54px;height:54px;border:6px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;margin:0 auto 8px;animation:rot 1s linear infinite}
@@ -44,7 +47,16 @@
       card = document.getElementById('card'), stage = document.getElementById('stage'),
       remote = document.getElementById('remote'), local = document.getElementById('local'), hangup = document.getElementById('hangup');
   var token = decodeURIComponent((location.pathname.split('/answer/')[1] || '').replace(/\/+$/, ''));
-  var room = null, callId = null, ending = false;
+  var room = null, callId = null, ending = false, failed = false;
+  // Discord, Facebook and friends open links in an embedded browser that cannot ask for camera and microphone,
+  // so the kiosk would see and hear nothing. Android marks such WebViews with "; wv)" in the user agent; the
+  // intent: link hands the very same URL to Chrome (falling back to a normal open where that is not possible).
+  var ua = navigator.userAgent || '';
+  var inApp = /; wv\)/.test(ua) || /\bDiscord\b/i.test(ua) || /FBAN|FBAV|Instagram|Line\//.test(ua);
+  var chromeUrl = /Android/i.test(ua)
+    ? 'intent://' + location.host + location.pathname + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end'
+    : location.href;
+  function chromeButton() { return '<a class="btn blue" href="' + chromeUrl + '">🌐 Åpne i Chrome</a>'; }
 
   function show(title, sub, spinner) {
     stage.style.display = 'flex';
@@ -52,38 +64,60 @@
       '<h1>' + title + '</h1><p>' + sub + '</p><div id="cta"></div>';
     cta = document.getElementById('cta');
   }
-  function fail(title, sub) { show(title, sub || '', false); }
+  function fail(title, sub) { failed = true; stage.style.background = 'rgba(7,22,47,.85)'; show(title, sub || '', false); }
 
   if (!token) { fail('Mangler lenke', 'Åpne lenken fra meldingen på nytt.'); return; }
   if (!LK) { fail('Kunne ikke laste', 'Sjekk nettforbindelsen og prøv igjen.'); return; }
 
-  show('Svarer…', 'Kobler til samtalen', true);
+  if (inApp) {
+    show('Åpne i Chrome', 'Nettleseren inni appen får ikke bruke kamera og mikrofon, så skjermen hjemme ville ikke sett eller hørt deg. Trykk knappen, så fortsetter samtalen i Chrome.', false);
+    cta.innerHTML = chromeButton() + '<p class="small"><a href="#" id="anyway">Fortsett her likevel</a></p>';
+    document.getElementById('anyway').addEventListener('click', function (e) { e.preventDefault(); start(); });
+  } else start();
 
-  fetch('/api/calls/answer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answerToken: token }) })
-    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-    .then(function (res) {
-      if (!res.ok) { fail('Anropet er ikke aktivt', (res.j && res.j.error) || 'Prøv igjen når det ringer.'); return; }
-      callId = res.j.callId;
-      return connect(res.j.livekit.url, res.j.livekit.token);
-    })
-    .catch(function () { fail('Noe gikk galt', 'Prøv igjen om litt.'); });
+  function start() {
+    show('Svarer…', 'Kobler til samtalen', true);
+    fetch('/api/calls/answer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answerToken: token }) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { fail('Anropet er ikke aktivt', (res.j && res.j.error) || 'Prøv igjen når det ringer.'); return; }
+        callId = res.j.callId;
+        return connect(res.j.livekit.url, res.j.livekit.token);
+      })
+      .catch(function () { fail('Noe gikk galt', 'Prøv igjen om litt.'); });
+  }
+
+  // Camera/mic refused (an in-app browser, or «Block» in the prompt): the kiosk's picture may still arrive, but this
+  // message must stay on top of it – the parent has to know the kiosk sees and hears nothing from them.
+  function mediaFailed() {
+    fail('Får ikke tilgang til kamera/mikrofon', 'Skjermen hjemme ser og hører deg ikke ennå. Tillat kamera og mikrofon og trykk «Prøv igjen», eller åpne lenken i Chrome.');
+    cta.innerHTML = '<button class="btn" id="retry">🔄 Prøv igjen</button>' + chromeButton();
+    document.getElementById('retry').addEventListener('click', publishMedia);
+    hangup.style.display = 'inline-flex';
+  }
+  async function publishMedia() {
+    show('Prøver igjen…', 'Tillat kamera og mikrofon', true);
+    try {
+      await room.localParticipant.enableCameraAndMicrophone();
+      failed = false; stage.style.background = '';
+      var cam = room.localParticipant.getTrackPublication(LK.Track.Source.Camera);
+      if (cam && cam.videoTrack) { cam.videoTrack.attach(local); local.style.display = 'block'; }
+      hangup.style.display = 'inline-flex';
+      // If the tablet is already here, its picture is showing; otherwise say we are waiting for it.
+      if (remote.style.display === 'block') stage.style.display = 'none'; else show('Tilkoblet', 'Venter på bildet…', true);
+    } catch (e) { mediaFailed(); }
+  }
 
   async function connect(url, tok) {
     room = new LK.Room({ adaptiveStream: true, dynacast: true });
     room.on(LK.RoomEvent.TrackSubscribed, function (track) {
-      if (track.kind === 'video') { track.attach(remote); remote.style.display = 'block'; stage.style.display = 'none'; }
+      if (track.kind === 'video') { track.attach(remote); remote.style.display = 'block'; if (!failed) stage.style.display = 'none'; }
       else if (track.kind === 'audio') { track.attach(); }
     });
     room.on(LK.RoomEvent.Disconnected, function () { if (!ending) closed('Samtalen er avsluttet'); });
-    try {
-      await room.connect(url, tok);
-      await room.localParticipant.enableCameraAndMicrophone();
-      var cam = room.localParticipant.getTrackPublication(LK.Track.Source.Camera);
-      if (cam && cam.videoTrack) { cam.videoTrack.attach(local); local.style.display = 'block'; }
-      hangup.style.display = 'inline-flex';
-      // If the tablet is already here, the remote track handler hides the stage; otherwise show "waiting".
-      if (!remote.srcObject && remote.style.display !== 'block') show('Tilkoblet', 'Venter på bildet…', true);
-    } catch (e) { fail('Får ikke tilgang til kamera/mikrofon', 'Tillat kamera og mikrofon i nettleseren og åpne lenken på nytt.'); }
+    try { await room.connect(url, tok); }
+    catch (e) { fail('Kunne ikke koble til', 'Sjekk nettforbindelsen og prøv igjen.'); return; }
+    await publishMedia();
   }
 
   function closed(msg) {

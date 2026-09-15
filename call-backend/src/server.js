@@ -114,7 +114,7 @@ app.post('/api/calls', deviceAuth, rateLimit, async (req, res) => {
 
   const link = PUBLIC_URL + '/answer/' + answerToken;
   try {
-    call.discord = await discord.dm(p.discordUserId, '🏠 **Det ringer hjemmefra**\n\nBarna vil snakke med deg.\n\n📞 Trykk for å svare:\n' + link + '\n\nAnropet utløper om ' + RING + ' sekunder.');
+    call.discord = await discord.dm(p.discordUserId, '🏠 **Det ringer hjemmefra**\n\nBarna vil snakke med deg.\n\n📞 Trykk for å svare:\n' + link + '\n\n💡 Åpne lenken i **Chrome** – nettleseren inni Discord får ikke bruke kamera og mikrofon.\nAnropet utløper om ' + RING + ' sekunder.');
   } catch (e) {
     calls.delete(id);
     log('discord error', e.message);

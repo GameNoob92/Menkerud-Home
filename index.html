@@ -1917,6 +1917,17 @@ async function startCallLiveKit(who) {
       } else if (track.kind === 'audio') { track.attach(); }
     });
     lkRoom.on(LK.RoomEvent.Disconnected, () => { if (currentCall) endCall(); });
+    lkRoom.on(LK.RoomEvent.ParticipantConnected, () => {           // the parent is in the room: stop ringing, wait for the picture
+      if (currentCall !== who || $('#calling').classList.contains('hidden')) return;
+      ring.stop(); clearTimeout(lkTimer);
+      $('#call-status').textContent = p.name + ' er med – venter på bildet…';
+      lkTimer = setTimeout(() => {                                   // joined but no video (camera refused on the phone, in-app browser …)
+        if (currentCall !== who || $('#calling').classList.contains('hidden')) return;
+        $('#call-status').textContent = 'Bildet fra ' + p.name.toLowerCase() + ' kom ikke fram 😕 Prøv igjen.';
+        speak('Bildet fra ' + p.name + ' kom ikke fram. Prøv å ringe igjen.');
+        lkTimer = setTimeout(endCall, 6000);
+      }, 20000);
+    });
     await lkRoom.connect(data.livekit.url, data.livekit.token);
     await lkRoom.localParticipant.enableCameraAndMicrophone();
   } catch (e) {

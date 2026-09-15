@@ -33,8 +33,8 @@ function mkdom(beforeParse) {
       window.HTMLCanvasElement.prototype.getContext = () => ({ clearRect(){}, save(){}, restore(){}, translate(){}, rotate(){}, fillRect(){}, drawImage(){} });
       // Minimal LiveKit client stub so the call path runs without the real CDN library.
       window.LivekitClient = {
-        Room: class { constructor(){ this._h = {}; } on(ev, cb){ this._h[ev] = cb; return this; } async connect(){ } get localParticipant(){ return { enableCameraAndMicrophone: async () => {}, getTrackPublication: () => null }; } disconnect(){} },
-        RoomEvent: { TrackSubscribed: 'TrackSubscribed', Disconnected: 'Disconnected' },
+        Room: class { constructor(){ this._h = {}; window.LivekitClient.Room.last = this; } on(ev, cb){ this._h[ev] = cb; return this; } async connect(){ } get localParticipant(){ return { enableCameraAndMicrophone: async () => {}, getTrackPublication: () => null }; } disconnect(){} },
+        RoomEvent: { TrackSubscribed: 'TrackSubscribed', Disconnected: 'Disconnected', ParticipantConnected: 'ParticipantConnected' },
         Track: { Source: { Camera: 'camera' } }
       };
       if (beforeParse) beforeParse(window);
@@ -309,6 +309,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await wait(60);
   const startReq3 = third.fetchCalls.find(c => /\/api\/calls$/.test(c.url) && c.opts && c.opts.method === 'POST');
   assert(!!startReq3, 'outbound call posts to the backend: ' + (startReq3 && startReq3.url));
+  assert(/^Ringer mor/.test(q3('#call-status').textContent), 'ringing text while nobody has joined: ' + q3('#call-status').textContent);
+  w3.LivekitClient.Room.last._h.ParticipantConnected({});
+  assert(q3('#call-status').textContent === 'Mor er med – venter på bildet…', 'the parent joining ends the ringing text: ' + q3('#call-status').textContent);
   assert(!third.fetchCalls.some(c => /discord\.com\/api\/webhooks/.test(c.url)), 'outbound call does not hit the Discord webhook');
   click3(q3('#hangup'));
 
