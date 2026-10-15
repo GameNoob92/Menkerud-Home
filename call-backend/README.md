@@ -1,6 +1,6 @@
 # Menkerud Home – call backend (LiveKit + Discord)
 
-The one-tap calling service. It is **separate** from `index.html` and runs as a **Docker container on Unraid** (`menkerud-callapi`); **LiveKit** also runs on Unraid. The Ubuntu touchscreen only serves the static frontend and runs Firefox — it does not host or proxy the backend. See `../DEPLOYMENT.md` for the whole picture.
+The one-tap calling service. It is **separate** from `index.html` and runs as a **Docker container on Unraid** (`menkerud-callapi`); **LiveKit** also runs on Unraid. The Ubuntu touchscreen only serves the static frontend and runs Google Chrome in kiosk mode — it does not host or proxy the backend. See `../DEPLOYMENT.md` for the whole picture.
 
 ```
 Kiosk (Ubuntu, http://localhost)  --https /api-->  SWAG (Unraid)  -->  menkerud-callapi:3000 (Docker, Unraid)

@@ -2,13 +2,13 @@
 
 Kids' touchscreen dashboard for a family home in Raufoss, Norway. The children cannot read yet, so the main screen is three giant picture buttons (call mor, call far, "I'm home") and a sticky-note board with emoji. Parents configure everything behind a PIN. Norwegian UI (bokmål), English code and docs.
 
-Status: v0.4. **Video calls run on LiveKit** (`call-backend/`, §11); Jitsi was removed on 2026-09-10. The front-end was redesigned around a scenic background, glass panels, richer call cards and two new panels — **I DAG** (today's timed notes) and **KVELD** (Home Assistant evening actions); the art pack lives in `assets/`. The LiveKit backend is built and unit-tested but **not yet deployed on Tower**, so calls show a "not set up" message until `cfg.call.backend` points at a running service. Not yet run on the real touchscreen PC. Everything in this document is implemented unless listed under *Backlog* or *Planned*. **Since 2026-09-12** the body is a swipe strip of pages – Hjem · Huset · Lys · Kamera – fed by Home Assistant; see §3.19 and §4.
+Status: v0.4, **in daily use on the kiosk** (an Asus Vivo AIO touchscreen running Google Chrome in kiosk mode) since 2026-09-10. **One-tap video calls run on LiveKit** through the `call-backend/` service on Unraid (§11) and work end-to-end; call quality is limited by the kiosk's 2-core Celeron, not by the software. The front page is a scenic background with glass panels: three call cards, then **I DAG** (today's timed notes and events) · **HUSK** (sticky notes) · **BESKJEDER** (a Discord channel read aloud). Since 2026-09-12 the body is a swipe strip of pages – Hjem · Huset · Lys · Kamera – fed by Home Assistant (§3.19, §4). **Skjerm av**, **Bilderamme** and **Hent oppdatering** run through the kiosk screen helper. The art pack lives in `assets/`. Everything in this document is implemented unless listed under *Backlog*.
 
 ## 1. Files
 
 | File | Role |
 |---|---|
-| `index.html` | The entire app: CSS + HTML + one IIFE of vanilla JS. No build step, no dependencies, no bundler. ~2300 lines. |
+| `index.html` | The entire app: CSS + HTML + one IIFE of vanilla JS. No build step, no dependencies, no bundler. |
 | `config.js` | Optional defaults, loaded by a `<script src>` before the app. Sets `window.MENKERUD_CONFIG`. Missing file = fine. Holds the family's real webhook/tokens → gitignored. `config.example.js` is the committed template. |
 | `ring.html` | Tiny standalone page for the parents' phones (ntfy path only): publishes to the kiosk's ntfy topic, then opens the call-room link. |
 | `photos/mor.jpg`, `photos/far.jpg` | Optional photos. Photos picked on-screen are stored as data URLs in settings instead. |
@@ -20,7 +20,7 @@ Status: v0.4. **Video calls run on LiveKit** (`call-backend/`, §11); Jitsi was 
 
 ## 2. Runtime model
 
-One page of static files, shown on a Linux desktop PC (Ubuntu) with a touchscreen, webcam and mic. In production a **local nginx serves it and Firefox opens `http://localhost`** fullscreen (SETUP.md §3); it also still works opened straight from `file://`. Non-negotiable constraints on wherever it is served:
+One page of static files, shown on a Linux desktop PC (Ubuntu) with a touchscreen, webcam and mic. In production a **local nginx serves it and Google Chrome opens `http://localhost`** in kiosk mode (SETUP.md §3); it also still works opened straight from `file://`. Non-negotiable constraints on wherever it is served:
 
 - The origin must be a **secure context** so `getUserMedia` (the LiveKit call) works. `http://localhost`, `https://` and `file://` all qualify; **`http://<LAN-IP>` does not** and would silently lose camera/mic — never serve the screen on the LAN IP over plain http.
 - The page must not be subject to **mixed-content blocking** of the `ws://` link to Home Assistant on the LAN. An `http://localhost` page (or `file://`) is fine; a `https://` page would need Home Assistant over `wss://`.
@@ -72,7 +72,7 @@ Person keys are `mor` / `far` throughout (`cfg.people`, `data-who`, `data-name`,
 
 ### Layout system
 
-`html { font-size: min(1vw, 1.7778vh) }` → **1rem = 1 % of screen width on a 16:9 screen**, so every size in the CSS is in `rem` and the whole layout scales to any resolution. `body` is a 3-row grid (header / **`#pages`** `1fr` / footer) locked to `100vh`, `overflow: hidden`. `#pages` clips a horizontal flex **strip** of full-size `.page`s; the first, `.page.home`, is itself a 2-row grid (cards `1.02fr` / **bottom-grid** `1fr`) – the layout the kids see – and the others (Huset, Lys, Kamera) are plain grids over the scenic background. The bottom row is a three-column grid — **I DAG · HUSK… · KVELD** (`.bottom-grid`, `~1 / 2 / 1`); when Home Assistant is not connected the KVELD column is removed and the grid falls back to two columns (`.no-evening`). A fixed scenic photo sits behind everything (`#bg`, set by `pickBackground`) over a CSS aurora/gradient fallback, under a legibility gradient. The primary target is 1920×1080 landscape (design canvas); narrower landscape sizes only tighten spacing. Portrait shows a "snu skjermen" message rather than reflowing. Fonts: Nunito (UI) and Caveat (handwriting: tagline, notes, footer) from Google Fonts with system fallbacks; emoji rely on the OS emoji font (`fonts-noto-color-emoji` on Linux).
+`html { font-size: min(1vw, 1.7778vh) }` → **1rem = 1 % of screen width on a 16:9 screen**, so every size in the CSS is in `rem` and the whole layout scales to any resolution. `body` is a 3-row grid (header / **`#pages`** `1fr` / footer) locked to `100vh`, `overflow: hidden`. `#pages` clips a horizontal flex **strip** of full-size `.page`s; the first, `.page.home`, is itself a 2-row grid (cards `1.02fr` / **bottom-grid** `1fr`) – the layout the kids see – and the others (Huset, Lys, Kamera) are plain grids over the scenic background. The bottom row is a three-column grid — **I DAG · HUSK… · BESKJEDER** (`.bottom-grid`, `~1 / 2 / 1`); when Beskjeder is not set up (no bot token or message channel) its column is removed and the grid falls back to two columns (`.no-messages`). A fixed scenic photo sits behind everything (`#bg`, set by `pickBackground`) over a CSS aurora/gradient fallback, under a legibility gradient. The primary target is 1920×1080 landscape (design canvas); narrower landscape sizes only tighten spacing. Portrait shows a "snu skjermen" message rather than reflowing. Fonts: Nunito (UI) and Caveat (handwriting: tagline, notes, footer) from Google Fonts with system fallbacks; emoji rely on the OS emoji font (`fonts-noto-color-emoji` on Linux).
 
 ## 3. Module map (order inside the IIFE in `index.html`)
 
@@ -130,7 +130,7 @@ Person keys are `mor` / `far` throughout (`cfg.people`, `data-who`, `data-name`,
 
 ## 6. Conventions
 
-- Vanilla JS, no framework, no build. Keep it one file; the operator copies three files to the PC.
+- Vanilla JS, no framework, no build. Keep it one file; the kiosk deploys with a `git pull` of static files (§4 «Hent oppdatering»).
 - All user-visible text is Norwegian bokmål, sentence case, plain verbs. Kids never need to read: anything the child must act on is a picture or a colour (green = yes, red = stop).
 - Escape everything dynamic with `esc()`. Never `innerHTML` raw user data.
 - Every network feature must fail into a toast or a status row, never into a broken screen. Offline = clock, notes, night mode still work.
@@ -154,10 +154,10 @@ Nothing about LiveKit, ntfy, Discord or HA is exercised against real services in
 
 ## 8. Decisions and why
 
-- **Standalone page, not a Lovelace dashboard**: HA became optional, and Lovelace can't host the Jitsi iframe with camera access from `http://`.
+- **Standalone page, not a Lovelace dashboard**: HA became optional, and a Lovelace dashboard could not host the call UI with camera access (originally the Jitsi iframe, now the LiveKit client).
 - **Jitsi, self-hosted on Unraid** *(historical; replaced by LiveKit on 2026-09-10, §11)*: browser-only video, IFrame API join/leave events for the "ringing" UX. The Jitsi UX still required joining a meeting, which is wrong for a child.
 - **Discord default for notifications**: the family already uses it, zero new apps, and the channel doubles as a log. Known limit: cannot ring through a phone on silent/DND. ntfy kept as the alternative that can (priority 5).
-- **Discord bot in the page** instead of a server-side bot: keeps the install to three files; the token is on a LAN device only.
+- **Discord bot in the page** instead of a server-side bot: keeps the screen to static files; the token is on a LAN device only. The gateway (ringing, Beskjeder) still runs in the page; only the two REST calls Discord refuses from browsers go through the call-backend (§5).
 - **Settings in `localStorage`** with `config.js` defaults: parents can set up everything on the touchscreen; tokens can be pre-seeded in the file.
 - **Local notes fallback**: the board must work without HA; HA to-do list wins when present so parents can add from phones.
 - **`rem` = 1 % width**: one number system for a fixed-aspect screen, no media-query soup.
@@ -180,7 +180,7 @@ Rule of thumb: if the bot is stable and always on, B keeps the token out of the 
 
 ## 10. Backlog / ideas (not implemented)
 
-- Real-browser check on the actual touchscreen PC: touch scrolling of the emoji strip and settings form, photo picker dialog under the chosen desktop/Wayland, audio device selection.
+- Incoming calls over LiveKit: today «Svar» on a parent's ring simply calls the parent back (a new outgoing call); a proper parent→screen flow would let the parent start the room and the screen join it.
 - QR code (inline, no CDN) in Innstillinger for the `ring.html` links and the call room.
 - Settings export/import (JSON download/upload) and a "copy diagnostics" button.
 - Outgoing push retry policy: currently one push + one repeat at 25 s; consider a third at 45 s or a Discord message edit.
@@ -192,16 +192,16 @@ Rule of thumb: if the bot is stable and always on, B keeps the token out of the 
 - Bilderamme: a Ken Burns / slow-zoom option.
 - Unit tests for `parseNote`, `spokenTime`, `wmoIcon` outside jsdom.
 
-## 11. Planned: call migration to LiveKit + Discord
+## 11. Calls: LiveKit + Discord (live since 2026-09-10)
 
-Jitsi's UX was wrong for a child (join a meeting, type a name, pick a room), so it was replaced with a one-tap flow: tap a parent → the screen rings and joins a private LiveKit room → the parent gets a Discord message with an **Svar** link → tapping it opens a tiny answer page that joins the same room. Full spec: the LiveKit design doc supplied by the operator.
+Jitsi's UX was wrong for a child (join a meeting, type a name, pick a room), so it was replaced with a one-tap flow: tap a parent → the screen rings and joins a private LiveKit room → the parent gets a Discord message with an **Svar** link → tapping it opens a tiny answer page that joins the same room. Full spec: the LiveKit design doc supplied by the operator. The flow has worked end-to-end (video and audio both ways) since the evening of 2026-09-10.
 
-Decisions locked for this project (2026-09-10):
+Decisions (locked 2026-09-10):
 
-- **Separate backend, not in `index.html`.** A small Node service — a **Docker container on Unraid** (`menkerud-callapi`, `call-backend/`, listens on 3000, host-published 3008, joined to `noobventure-network`) — owns the LiveKit API secret, the Discord bot token (reuse GameNoobBot's), the call state, one-time answer tokens and short-lived LiveKit JWTs. Since 2026-09-13 it also proxies the two Beskjeder REST calls (`GET /api/messages`, `POST /api/messages/:channel/:id/ack`), because Discord refuses bot tokens from browsers. The kiosk keeps every `CLAUDE.md` rule: one file, still works from `file://`; the LiveKit client is lazy-loaded from a CDN only during a call. The Ubuntu screen only serves static files and runs Firefox — no Node, no backend.
+- **Separate backend, not in `index.html`.** A small Node service — a **Docker container on Unraid** (`menkerud-callapi`, `call-backend/`, listens on 3000, host-published 3008, joined to `noobventure-network`) — owns the LiveKit API secret, the Discord bot token (reuse GameNoobBot's), the call state, one-time answer tokens and short-lived LiveKit JWTs. Since 2026-09-13 it also proxies the two Beskjeder REST calls (`GET /api/messages`, `POST /api/messages/:channel/:id/ack`), because Discord refuses bot tokens from browsers. The kiosk keeps every `CLAUDE.md` rule: one file, still works from `file://`; the LiveKit client is lazy-loaded from a CDN only during a call. The Ubuntu screen only serves static files and runs Chrome — no Node, no backend.
 - **Domains** (SWAG + Cloudflare, proxied): `rtc.noobventure.com` → LiveKit `:7880` on Unraid (WSS); `call.noobventure.com` → the `menkerud-callapi` container (SWAG resolves it by name over `noobventure-network`) for the kiosk's `/api` calls and the parent answer page; `ha.noobventure.com` → Home Assistant `192.168.68.3:8123` (added 2026-09-12) so the Companion apps can post location and sensors from outside – the kiosk itself keeps the LAN URL, and HA trusts SWAG's br0 IP `192.168.68.4` as its reverse proxy (a UI setting since HA 2026.8; DEPLOYMENT.md §2). **UDP 7882** forwarded WAN → Tower for WebRTC media (two hops; see SETUP.md §2 for the double-router note).
 - **Parent notification:** a private Discord **DM** from the bot with the answer link (fallback: post to `#hjemme` like today).
 - **Single call engine:** LiveKit is now the only call path (`startCallLiveKit`). The Jitsi client, the `cfg.call.provider` toggle, the SWAG `meet` conf and the UDP 10000 forward were all removed on 2026-09-10.
 - **Child UI reuses the redesigned call states** (idle → ringer → tilkoblet → svarte ikke) already in `index.html`; only the transport underneath changes.
 
-**Implemented so far (2026-09-10):** the `call-backend/` service (Express + `livekit-server-sdk` + Discord DM over REST) with `POST /api/calls`, `/api/calls/answer`, `/api/calls/:id/cancel|end`, `GET /api/calls/:id`, the parent answer page (`public/answer.html`, `livekit-client` from CDN), `Dockerfile` + `docker-compose.yml` (the `menkerud-callapi` container on `noobventure-network`, host 3008→3000) + `livekit.example.yaml` (LiveKit reference), `deploy/nginx-menkerud.conf` (Ubuntu static site), the two SWAG confs, plus `README.md` and the top-level **`DEPLOYMENT.md`** (source of truth for deployment). In `index.html`, `startCall(who)` → `startCallLiveKit` + `loadLiveKit` (lazy CDN); `cfg.call.backend` defaults to `https://call.noobventure.com` (a blank value would fall back to same-origin), with `cfg.call.deviceKey` / `cfg.call.timeoutSec`; Jitsi is gone. The LiveKit signalling path (SWAG → LiveKit, token accepted, WS handshake) was verified from the dev PC on 2026-09-10. **Not yet done:** deploy the container per DEPLOYMENT.md, real media test on mobile data, and a proper parent→screen (incoming) flow over LiveKit (today “Svar” on an incoming call simply calls the parent back).
+**What was built:** the `call-backend/` service (Express + `livekit-server-sdk` + Discord DM over REST) with `POST /api/calls`, `/api/calls/answer`, `/api/calls/:id/cancel|end`, `GET /api/calls/:id`, the parent answer page (`public/answer.html`, `livekit-client` from CDN), `Dockerfile` + `docker-compose.yml` (the `menkerud-callapi` container on `noobventure-network`, host 3008→3000) + `livekit.example.yaml` (LiveKit reference), `deploy/nginx-menkerud.conf` (Ubuntu static site), the SWAG confs in `swag/` (`rtc.`, `call.`, and since 2026-09-12 `ha.`), plus `README.md` and the top-level **`DEPLOYMENT.md`** (source of truth for deployment). In `index.html`, `startCall(who)` → `startCallLiveKit` + `loadLiveKit` (lazy CDN); `cfg.call.backend` defaults to `https://call.noobventure.com` (a blank value would fall back to same-origin), with `cfg.call.deviceKey` / `cfg.call.timeoutSec`; Jitsi is gone. The container was deployed on Tower and the first real call went through on 2026-09-10. Later changes: the Beskjeder proxy routes (2026-09-13) and the in-app-browser guard on the answer page (2026-09-15, §4). Still open: a proper parent→screen (incoming) flow over LiveKit (§10).

@@ -1,8 +1,8 @@
 {
   "name": "menkerud-home",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
-  "description": "Kids' touchscreen dashboard: video-call mor/far via Jitsi, note board, weather. No build step; index.html is the whole app.",
+  "description": "Kids' touchscreen dashboard: one-tap video calls to mor/far (LiveKit), note board, messages read aloud, Home Assistant pages. No build step; index.html is the whole app.",
   "scripts": {
     "check": "node scripts/check.js",
     "test": "node scripts/check.js && node test/smoke.js"

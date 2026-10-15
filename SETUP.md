@@ -3,7 +3,7 @@
 Nothing here needs Home Assistant. The screen works on its own; HA is an optional add-on for lights, cameras and adding notes from your phone.
 
 ```
-Screen PC (Ubuntu; nginx serves the files, Firefox opens http://localhost fullscreen)
+Screen PC (Ubuntu; nginx serves the files, Google Chrome opens http://localhost in kiosk mode)
    ├─ Clock, weather (Open-Meteo), notes stored on the PC
    ├─ "Ring mor/far"   →  Discord DM with an "Svar" link  →  tap it  →  video in LiveKit
    ├─ "Jeg er hjemme"  →  Discord message to both of you
@@ -74,39 +74,31 @@ In short:
 - `call.noobventure.com` → the backend API and the parent's answer page.
 - The screen calls the backend and joins a private room; the backend DMs the parent an **Svar** link that joins the same room. No app to install — it opens in the phone's browser.
 
-On the screen: Innstillinger → Samtale → **Call-backend URL** = `https://call.noobventure.com` (already the default in `config.js`). The camera and mic are pre-granted by the Firefox policy in §3 and work because the page is served from `http://localhost` (a secure context).
+On the screen: Innstillinger → Samtale → **Call-backend URL** = `https://call.noobventure.com` (already the default in `config.js`). The camera and mic are pre-granted by the Chrome policy in §3 and work because the page is served from `http://localhost` (a secure context).
 
 ---
 
 **Answer in Chrome, not inside Discord.** Discord's built-in browser can show the kiosk's picture but cannot ask for your camera and microphone, so the screen sees and hears nothing and keeps ringing. The DM says so, and the answer page shows a big «Åpne i Chrome» button when it detects that browser; you can also turn off Discord's in-app browser in its settings so links always open in Chrome.
 
-## 3. The screen PC (Ubuntu + nginx + Firefox)
+## 3. The screen PC (Ubuntu + nginx + Chrome)
 
-Full production setup — the git checkout at `/var/www/menkerud-home` as the web root, nginx (static only), Firefox fullscreen and GDM autologin — is in **`DEPLOYMENT.md`**. The call-backend is not here; it runs as a Docker container on Unraid. Two things worth calling out:
+Full production setup — the git checkout at `/var/www/menkerud-home` as the web root, nginx (static only), Google Chrome in kiosk mode and GDM autologin — is in **`DEPLOYMENT.md`**. The call-backend is not here; it runs as a Docker container on Unraid. Two things worth calling out:
 
-**Serve from localhost, never the LAN IP.** The camera and mic (the LiveKit call) need a *secure context*; `http://localhost` and `https://` qualify, `http://<LAN-IP>` does not, so the LAN IP would silently kill calling. nginx is bound to `127.0.0.1` so `config.js` and its token stay on the machine, and Firefox opens `http://localhost`. The page also still works opened from `file://` for a quick test.
+**Serve from localhost, never the LAN IP.** The camera and mic (the LiveKit call) need a *secure context*; `http://localhost` and `https://` qualify, `http://<LAN-IP>` does not, so the LAN IP would silently kill calling. nginx is bound to `127.0.0.1` so `config.js` and its token stay on the machine, and Chrome opens `http://localhost`. The page also still works opened from `file://` for a quick test.
 
-**Pre-grant camera/mic so Firefox never prompts** (enterprise policy):
+**Pre-grant camera/mic so Chrome never prompts** (enterprise policy, as `menkerud`):
 
 ```bash
-sudo mkdir -p /etc/firefox/policies
-sudo tee /etc/firefox/policies/policies.json >/dev/null <<'POLICY'
+sudo mkdir -p /etc/opt/chrome/policies/managed
+sudo tee /etc/opt/chrome/policies/managed/menkerud.json >/dev/null <<'POLICY'
 {
-  "policies": {
-    "Permissions": {
-      "Camera":     { "Allow": ["http://localhost"], "BlockNewRequests": true },
-      "Microphone": { "Allow": ["http://localhost"], "BlockNewRequests": true }
-    },
-    "Autoplay": { "Default": "allow-audio-video" },
-    "PasswordManagerEnabled": false,
-    "DisableTelemetry": true,
-    "DisableFirefoxStudies": true,
-    "DontCheckDefaultBrowser": true,
-    "OverrideFirstRunPage": ""
-  }
+  "VideoCaptureAllowedUrls": ["http://localhost"],
+  "AudioCaptureAllowedUrls": ["http://localhost"]
 }
 POLICY
 ```
+
+`chrome://policy` on the screen lists both once Chrome has restarted.
 
 Check the default audio device (`pavucontrol` / `wpctl status`) so the call uses the right mic and speakers.
 
@@ -136,6 +128,8 @@ sudo mkdir -p /mnt/bilder
 echo '//<server>/Bilder /mnt/bilder cifs credentials=/etc/cifs-bilder,ro,uid=menkerud-hjem,gid=menkerud-hjem,iocharset=utf8,vers=3.0,x-systemd.automount,_netdev,nofail 0 0' | sudo tee -a /etc/fstab
 sudo systemctl daemon-reload && sudo mount /mnt/bilder && ls /mnt/bilder | head
 ```
+
+A public share (no user) mounts with `guest` instead of `credentials=…` – this family's kiosk uses `//192.168.68.74/Felles_Disk /mnt/bilder cifs guest,ro,uid=menkerud-hjem,gid=menkerud-hjem,iocharset=utf8,vers=3.0,x-systemd.automount,_netdev,nofail 0 0` and skips the credentials file.
 
 Then Innstillinger → Bilderamme → Bildemappe = `/bilder/` (or a subfolder, `/bilder/Familie/`). Read-only, `nofail` and the automount mean a server that is asleep never blocks the boot – the frame just reports that it found no pictures. Alternative without mounting: serve the folder over HTTP from the server (any nginx with `autoindex on; autoindex_format json;` **and** `add_header Access-Control-Allow-Origin *;` on that location – the listing is fetched cross-origin) and put that `http://…/` address in Bildemappe.
 

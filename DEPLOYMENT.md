@@ -1,18 +1,18 @@
 # DEPLOYMENT.md — Menkerud Home production deployment
 
-**Source of truth for deployment.** Target: a permanently mounted **Ubuntu Desktop touchscreen** at **1920×1080 landscape** showing the dashboard in Firefox. It serves only static files and runs Firefox — no Node, no backend. The call-backend and LiveKit run on **Unraid**.
+**Source of truth for deployment.** Target: a permanently mounted **Ubuntu Desktop touchscreen** at **1920×1080 landscape** showing the dashboard in Google Chrome (kiosk mode). It serves only static files and runs Chrome — no Node, no backend. (This family's screen: an Asus Vivo AIO, Ubuntu 26.04 on Wayland, Chrome 153.) The call-backend and LiveKit run on **Unraid**.
 
 ```
 Ubuntu touchscreen                         Unraid
 ├─ nginx  → serves /var/www/menkerud-home  ├─ SWAG            (rtc. + call. + ha. subdomains)
-└─ Firefox (kiosk, http://localhost)       ├─ LiveKit  Docker (rtc.noobventure.com, UDP 7882)
-                                           ├─ call-backend Docker (menkerud-callapi, :3000 → host 3008)
+├─ Chrome (kiosk, http://localhost)        ├─ LiveKit  Docker (rtc.noobventure.com, UDP 7882)
+└─ screen helper (127.0.0.1:7777)          ├─ call-backend Docker (menkerud-callapi, :3000 → host 3008)
                                            └─ Home Assistant Docker (br0 192.168.68.3:8123; ha.noobventure.com for the phones)
 ```
 
 Data flow: the kiosk calls `https://call.noobventure.com/api/*` → SWAG → the `menkerud-callapi` container, which mints LiveKit tokens and DMs the parent an answer link. Both ends join a room on LiveKit; media is a single UDP port, **7882**.
 
-Ubuntu must **not** host or proxy the backend. There is **no Node and no systemd service** on the touchscreen.
+Ubuntu must **not** host or proxy the backend. There is **no Node and no system service** of ours on the touchscreen; the only process besides nginx and Chrome is the kiosk screen helper, a user-level systemd unit (Python, stdlib only) for screen off/on and «Hent oppdatering».
 
 ## Paths / identity (Ubuntu)
 
@@ -23,10 +23,12 @@ Ubuntu must **not** host or proxy the backend. There is **no Node and no systemd
 
 The git checkout at `/var/www/menkerud-home` is the web root. Do not clone a second copy under `/home`.
 
-## 1. Ubuntu touchscreen (static + Firefox)
+## 1. Ubuntu touchscreen (static + Chrome)
 
 ```bash
-sudo apt install -y nginx firefox fonts-noto-color-emoji speech-dispatcher espeak-ng xdotool
+sudo apt install -y nginx curl git fonts-noto-color-emoji speech-dispatcher espeak-ng
+wget -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+sudo apt install -y /tmp/chrome.deb      # Google Chrome; also adds Google's apt repo, so it updates with the system
 
 # The git checkout is the web root; owned by the kiosk user
 sudo mkdir -p /var/www/menkerud-home
@@ -39,7 +41,7 @@ sudo -u menkerud-hjem cp config.example.js config.js   # then fill in real value
 ### nginx (static only; no /api proxy)
 
 ```bash
-sudo cp /var/www/menkerud-home/call-backend/deploy/nginx-menkerud.conf /etc/nginx/sites-available/menkerud   # re-run after a conf change (2026-09-12: Cache-Control no-cache on /)
+sudo cp /var/www/menkerud-home/call-backend/deploy/nginx-menkerud.conf /etc/nginx/sites-available/menkerud   # re-run after a conf change (2026-09-12: Cache-Control no-cache on /; `grep no-cache /etc/nginx/sites-enabled/menkerud` shows whether it is in)
 sudo ln -sf /etc/nginx/sites-available/menkerud /etc/nginx/sites-enabled/menkerud
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl restart nginx   # restart, not reload: see below
@@ -60,21 +62,47 @@ curl -s http://127.0.0.1:7777/status      # {"power": 0, ...} = running
 
 `scripts/kiosk-screen.py` blacks out the screen for the page (⏻ button, «Skjerm av» window, incoming calls) by setting the backlight to 0 through logind – not DPMS, which would also power down the AIO's USB touch controller; keep GNOME's own screen blanking at Never. Pictures for the photo frame go in `/var/www/menkerud-home/photos/` (gitignored) or on a network share mounted at `/mnt/bilder` (`cifs-utils`, fstab with `x-systemd.automount,nofail`); the nginx conf above lists both (`/photos/`, `/bilder/`). Details in SETUP.md §3.
 
-### Firefox (fullscreen appliance) + GDM autologin
+### Chrome (kiosk appliance) + GDM autologin
+
+A launcher script waits for nginx, then starts Chrome full-screen with its own persistent profile; a GNOME autostart entry runs it at login. As `menkerud-hjem`:
 
 ```bash
-sudo -u menkerud-hjem firefox -CreateProfile "Menkerud Home"   # once
-sudo -u menkerud-hjem mkdir -p /home/menkerud-hjem/.config/autostart
-sudo -u menkerud-hjem tee /home/menkerud-hjem/.config/autostart/menkerud-home.desktop >/dev/null <<'EOF'
+mkdir -p ~/.local/bin ~/.config/autostart
+tee ~/.local/bin/menkerud-home.sh >/dev/null <<'EOF'
+#!/bin/bash
+# Menkerud Home kiosk launcher -- Google Chrome on Wayland.
+until curl -s http://127.0.0.1/ >/dev/null; do sleep 1; done
+exec google-chrome-stable \
+  --kiosk http://localhost \
+  --ozone-platform=wayland \
+  --user-data-dir="$HOME/.config/menkerud-chrome" \
+  --password-store=basic \
+  --no-first-run --no-default-browser-check \
+  --disable-session-crashed-bubble --disable-infobars
+EOF
+chmod +x ~/.local/bin/menkerud-home.sh
+tee ~/.config/autostart/menkerud-home.desktop >/dev/null <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=Menkerud Home
-Exec=sh -c 'firefox -P "Menkerud Home" http://localhost/ & sleep 8; xdotool search --sync --onlyvisible --class firefox windowactivate key F11'
+Comment=Start Menkerud Home Dashboard
+Exec=/home/menkerud-hjem/.local/bin/menkerud-home.sh
+Terminal=false
 X-GNOME-Autostart-enabled=true
 EOF
 ```
 
-Pre-grant camera/mic so Firefox never prompts (SETUP.md §3 has the `policies.json`). GDM autologin — edit `/etc/gdm3/custom.conf`:
+Why the flags: `--kiosk` = full-screen with no way out by touch; `--ozone-platform=wayland` = native Wayland (touch and scaling behave); `--user-data-dir` = a dedicated profile that keeps the page's localStorage (on-screen settings, notes, calendar); `--password-store=basic` = no GNOME-keyring unlock prompt after autologin; the rest silences first-run and «restore pages?» bubbles. The live kiosk's script also carries `--enable-features=VaapiVideoDecoder,VaapiVideoEncoder --disable-features=UseChromeOSDirectVideoDecoder` from an attempt at hardware video decode; on this Celeron/UHD 600 it never took effect for WebRTC, so it is harmless and not needed – don't spend time on it again.
+
+Pre-grant camera/mic so Chrome never prompts (SETUP.md §3 has the policy file, `/etc/opt/chrome/policies/managed/menkerud.json`). Leave GNOME's blanking and lock off – the screen helper does all the switching:
+
+```bash
+gsettings set org.gnome.desktop.session idle-delay 0
+gsettings set org.gnome.desktop.screensaver lock-enabled false
+gsettings set org.gnome.settings-daemon.plugins.power idle-dim false
+```
+
+GDM autologin — edit `/etc/gdm3/custom.conf`:
 
 ```ini
 [daemon]
@@ -82,7 +110,7 @@ AutomaticLoginEnable=true
 AutomaticLogin=menkerud-hjem
 ```
 
-No Chromium, no Electron, no Node.
+To restart Chrome without a reboot (e.g. after a policy change): log the kiosk user out and back in, or reboot. No Electron, no Node.
 
 ## 2. Unraid (SWAG + LiveKit + call-backend + Home Assistant)
 
@@ -98,7 +126,7 @@ Verify: `curl https://call.noobventure.com/healthz` → `{"ok":true,"livekit":tr
 
 ## Settings (why they must not reset)
 
-On-screen settings (names, PIN, weather place, night mode) are saved in the browser's **localStorage**, which is tied to the exact URL and to the Firefox profile. They persist across restarts **only if** the kiosk always opens the same `http://localhost` in the same persistent "Menkerud Home" profile, and Firefox is not set to clear history/site data on close (and is not in private mode). To be safe against any storage wipe, put the values you want permanent into **`config.js`**, which is loaded fresh every boot and underlies localStorage:
+On-screen settings (names, PIN, weather place, night mode) are saved in the browser's **localStorage**, which is tied to the exact URL and to the Chrome profile. They persist across restarts **only if** the kiosk always opens the same `http://localhost` with the same `--user-data-dir` (`~/.config/menkerud-chrome`), and Chrome is not set to clear site data on exit (and is not in incognito/guest mode). To be safe against any storage wipe, put the values you want permanent into **`config.js`**, which is loaded fresh every boot and underlies localStorage:
 
 ```js
 weather: { place: "Raufoss", lat: 60.725, lon: 10.617 },
@@ -121,8 +149,8 @@ Never commit `.env`, `config.js`, `livekit.yaml`, the Discord bot token or the L
 ## Acceptance checklist
 
 - [ ] Ubuntu boots and logs in automatically (GDM, user `menkerud-hjem`)
-- [ ] Firefox launches to `http://localhost`, fullscreen; nginx serves `/var/www/menkerud-home`
-- [ ] No Node/systemd/backend on the touchscreen
+- [ ] Chrome launches to `http://localhost` in kiosk mode; nginx serves `/var/www/menkerud-home`; `chrome://policy` shows the camera/mic allow-list
+- [ ] `menkerud-screen.service` runs as a user unit (`curl -s http://127.0.0.1:7777/status`); no Node/backend on the touchscreen
 - [ ] `menkerud-callapi` container runs on Unraid, on `noobventure-network`, published on host 3008
 - [ ] `https://call.noobventure.com/healthz` returns all-true from outside
 - [ ] LiveKit reachable at `wss://rtc.noobventure.com`; UDP 7882 forwarded
@@ -132,4 +160,4 @@ Never commit `.env`, `config.js`, `livekit.yaml`, the Discord bot token or the L
 
 ## Constraints for future changes
 
-Single repo; the backend is Docker on Unraid (never on the touchscreen); LiveKit stays on Unraid on the `br0` macvlan network with a dedicated static IP (`192.168.68.2`, not host networking) and the single UDP mux 7882 (never 50000-60000); nginx on Ubuntu serves static files only; Firefox is the client; design for 1920×1080 landscape; keep everything Git-update compatible.
+Single repo; the backend is Docker on Unraid (never on the touchscreen); LiveKit stays on Unraid on the `br0` macvlan network with a dedicated static IP (`192.168.68.2`, not host networking) and the single UDP mux 7882 (never 50000-60000); nginx on Ubuntu serves static files only; Google Chrome (kiosk mode) is the client; design for 1920×1080 landscape; keep everything Git-update compatible.
