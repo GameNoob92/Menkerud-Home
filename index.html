@@ -486,6 +486,31 @@ select.inp option{color:#111}
 .cam-full img{width:100%;height:100%;object-fit:contain}
 .cam-full .back{position:absolute;top:1rem;left:1rem;z-index:2}
 
+/* Lapper og lister: every note + the shopping list side by side */
+.page.lister{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:1.2rem}
+.page.lister .glass-panel{padding:1.3rem 1.6rem}
+.lnotes{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(10.4rem,1fr));grid-auto-rows:10.4rem;gap:2rem 1.4rem;align-content:start;padding:1.4rem .5rem .6rem;touch-action:pan-y;scrollbar-width:none}
+.lnotes::-webkit-scrollbar{display:none}
+.lnotes .note{width:100%;height:100%;padding:1.3rem .8rem .5rem;animation:none}
+.lnotes .note .icon{font-size:3rem}
+.lnotes .note .txt{font-size:1.7rem;max-height:2.1em}
+.lnotes .note .time{font-size:2rem}
+.lnotes .empty,.shop-list .empty{grid-column:1/-1}
+.empty small{display:block;font-size:1.25rem;margin-top:.5rem;opacity:.85}
+
+/* Handleliste rows (the sheet and the Lapper og lister page): tap = ticked off / back on */
+.shop-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:.6rem;touch-action:pan-y;scrollbar-width:none}
+.shop-list::-webkit-scrollbar{display:none}
+.sitem{flex:none;display:grid;grid-template-columns:3.2rem minmax(0,1fr);align-items:center;gap:1.1rem;width:100%;padding:.8rem 1.1rem;border-radius:1.2rem;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);text-align:left;transition:transform .12s,background .2s}
+.sitem:active{transform:scale(.985);background:rgba(255,255,255,.14)}
+.sitem .box{width:3.2rem;height:3.2rem;border-radius:.9rem;border:.25rem solid rgba(255,255,255,.6);display:grid;place-items:center;font-size:2rem;font-weight:900;line-height:1;color:#fff}
+.sitem .st{font-size:1.9rem;font-weight:800;line-height:1.2;overflow:hidden;text-overflow:ellipsis}
+.sitem .sd{display:block;font-size:1.3rem;font-weight:700;color:var(--text-muted);margin-top:.15rem}
+.sitem.done{opacity:.5}
+.sitem.done .box{background:var(--green-1);border-color:var(--green-1);color:#053b26}
+.sitem.done .st{text-decoration:line-through}
+.shop-sep{flex:none;font-size:1.25rem;font-weight:900;letter-spacing:.08em;color:var(--text-muted);margin:.7rem 0 0 .3rem}
+
 /* Settings: rooms editor and entity pickers */
 .fblock{padding:.6rem 0 .2rem}
 .room-ed{border:1px solid rgba(255,255,255,.1);border-radius:1.4rem;padding:1rem 1.2rem;margin:.6rem 0;background:rgba(255,255,255,.03)}
@@ -513,6 +538,12 @@ select.inp option{color:#111}
 #frame .frame-badge{position:absolute;right:2.4rem;top:2rem;z-index:2;display:flex;align-items:center;gap:.7rem;padding:1rem 1.7rem;border-radius:3rem;background:rgba(255,77,109,.94);color:#fff;font-size:1.9rem;font-weight:900;box-shadow:0 .6rem 1.8rem rgba(0,0,0,.5);cursor:pointer;animation:framePulse 2.4s ease-in-out infinite}
 @keyframes framePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
 #frame .fclock{position:absolute;right:2.6rem;bottom:2rem;z-index:2;font-size:3rem;font-weight:900;letter-spacing:-.02em;text-shadow:0 .2rem 1rem rgba(0,0,0,.8);opacity:.85}
+/* The shopping list on the frame. A solid tint, no backdrop-filter: a live blur over the 1.2 s crossfade costs the kiosk's small CPU too much */
+#frame .frame-shop{position:absolute;left:2.4rem;top:2rem;z-index:2;width:30rem;max-height:calc(100% - 4rem);overflow:hidden;display:flex;flex-direction:column;gap:.45rem;padding:1.3rem 1.7rem 1.3rem;border-radius:var(--radius-lg);background:rgba(10,14,38,.7);border:1px solid rgba(255,255,255,.22);box-shadow:0 .8rem 2.4rem rgba(0,0,0,.55);text-align:left;color:#fff;cursor:pointer}
+#frame .frame-shop .fs-h{display:block;font-family:var(--hand);font-size:2.5rem;line-height:1;color:#eef2ff;margin-bottom:.3rem}
+#frame .frame-shop .fs-i{display:block;font-size:1.75rem;font-weight:800;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#frame .frame-shop .fs-i::before{content:'•';margin-right:.6rem;color:#ffe95c}
+#frame .frame-shop .fs-more{display:block;font-size:1.35rem;font-weight:900;color:var(--text-soft);margin-top:.2rem}
 #toast{position:fixed;left:50%;bottom:4rem;transform:translateX(-50%);z-index:70;background:rgba(20,26,60,.95);border:1px solid var(--glass-line);border-radius:2rem;padding:1rem 2rem;font-size:1.6rem;font-weight:800;box-shadow:var(--shadow-card);max-width:80vw;text-align:center}
 #confetti{position:fixed;inset:0;z-index:60;pointer-events:none;width:100%;height:100%}
 
@@ -613,6 +644,16 @@ select.inp option{color:#111}
 </section>
 </section>
 
+<section class="page lister hidden" data-page="lister">
+  <section class="glass-panel" id="lister-notes-panel">
+    <div class="panel-title">📌 <span>HUSK …</span><span class="when" id="lister-notes-sub"></span></div>
+    <div class="lnotes" id="lister-notes"></div>
+  </section>
+  <section class="glass-panel" id="lister-shop-panel">
+    <div class="panel-title">🛒 <span>HANDLELISTE</span><span class="when" id="lister-shop-sub"></span></div>
+    <div class="shop-list" id="lister-shop"></div>
+  </section>
+</section>
 <section class="page huset hidden" data-page="huset">
   <div class="who" id="who"></div>
   <div class="house-grid" id="house-grid"></div>
@@ -678,6 +719,14 @@ select.inp option{color:#111}
   <div class="sheet" id="note-sheet">
     <div class="sheet-head"><span class="sheet-h">📌 Husk …</span><span class="sheet-sub" id="sheet-notes-sub"></span><button type="button" class="chip-btn" id="sheet-notes-close">Lukk</button></div>
     <div class="sheet-notes" id="sheet-notes"></div>
+  </div>
+</div>
+
+<!-- Handleliste: the whole Home Assistant shopping list; a tap ticks an item off (or back on) -->
+<div id="shopsheet" class="overlay sheet-wrap hidden">
+  <div class="sheet" id="shop-sheet">
+    <div class="sheet-head"><span class="sheet-h">🛒 Handleliste</span><span class="sheet-sub" id="shop-sub"></span><button type="button" class="chip-btn hidden" id="shop-clear">Fjern kjøpte</button><button type="button" class="chip-btn" id="shop-close">Lukk</button></div>
+    <div class="shop-list" id="shop-list"></div>
   </div>
 </div>
 
@@ -819,7 +868,7 @@ select.inp option{color:#111}
   </div>
 </div>
 
-<div id="frame" class="hidden"><button type="button" class="frame-badge hidden" id="frame-msgs"></button><div class="fclock" id="frame-clock"></div></div>
+<div id="frame" class="hidden"><button type="button" class="frame-badge hidden" id="frame-msgs"></button><button type="button" class="frame-shop hidden" id="frame-shop"></button><div class="fclock" id="frame-clock"></div></div>
 <div id="night" class="hidden"></div>
 <div id="toast" class="hidden"></div>
 <canvas id="confetti"></canvas>
@@ -848,6 +897,7 @@ const DEFAULTS = {
   },
   ha: {
     url: '', token: '', weatherEntity: '', todoEntity: '', ttsEntity: '', ttsLanguage: 'no', includeSwitches: false,
+    shopEntity: '',                                                  // the shopping list (todo.*); '' = the to-do list called «Handle…»
     personMor: '', personFar: '',                                    // person.* entities for the presence badges ('' = match by name)
     scripts: { mor: 'script.ring_mor', far: 'script.ring_far', home: 'script.jeg_er_hjemme' },
     callEvent: 'menkerud_call'
@@ -855,8 +905,8 @@ const DEFAULTS = {
   pin: '061111',
   night: { enabled: true, from: '21:00', to: '06:30' },
   screen: { offEnabled: true, offFrom: '23:00', offTo: '06:00', helper: 'http://127.0.0.1:7777' },   // display off via the kiosk screen helper (SETUP.md §3)
-  photos: { dir: 'photos/', intervalSec: 20, idleMin: 0 },          // Bilderamme; idleMin = start by itself after n minutes without a touch (0 = never)
-  pages: { huset: true, lys: true, kamera: true, homeAfterSec: 60 },  // extra swipe pages (need Home Assistant); back to the front page after n s without a touch
+  photos: { dir: 'photos/', intervalSec: 20, idleMin: 0, shopList: true },  // Bilderamme; idleMin = start by itself after n minutes without a touch (0 = never); shopList = the shopping list on top
+  pages: { lister: true, huset: true, lys: true, kamera: true, homeAfterSec: 60 },  // extra swipe pages (need Home Assistant); back to the front page after n s without a touch
   messages: { autoSpeak: false },                                  // Beskjeder: false = chime + badge, someone taps to hear; true = open the sheet and read it as it arrives
   house: { entities: [] },                                          // entity ids shown as tiles on the Huset page
   rooms: [],                                                        // [{ id, name, icon, lights: [ids], kids: [ids the children may toggle] }]
@@ -1023,6 +1073,7 @@ class HA {
 const ha = new HA(cfg.ha.url, cfg.ha.token);
 let weatherId = '', todoId = '', ttsId = '';
 let haNotes = [];
+let shopId = '', shopItems = [];
 
 function setStatusDot() {
   const d = $('#status');
@@ -1038,7 +1089,9 @@ ha.onready = async () => {
     list.forEach(s => { ha.states[s.entity_id] = s; });
   } catch (e) { console.warn('get_states', e); }
   weatherId = cfg.ha.weatherEntity || ha.firstEntity('weather');
-  todoId = cfg.ha.todoEntity || ha.firstEntity('todo');
+  shopId = cfg.ha.shopEntity || findShopEntity();
+  // the notes board never picks the shopping list by itself
+  todoId = cfg.ha.todoEntity || Object.keys(ha.states).find(id => id.startsWith('todo.') && id !== shopId) || '';
   ttsId = cfg.ha.ttsEntity || ha.firstEntity('tts');
   renderWeather(); renderLights(); renderCams(); renderStatus();
   buildPages(); renderPresence();
@@ -1061,6 +1114,15 @@ ha.onready = async () => {
     }).catch(e => { console.warn('todo sub', e); todoId = ''; renderNotes(); });
   } else renderNotes();
 
+  shopItems = [];
+  if (shopId) {
+    ha.subscribe({ type: 'todo/item/subscribe', entity_id: shopId }, ev => {
+      shopItems = ev.items || [];
+      renderShop();
+    }).catch(e => { console.warn('shop sub', e); shopId = ''; renderShop(); });
+  }
+  renderShop();
+
   if (cfg.ha.callEvent) {
     ha.subscribe({ type: 'subscribe_events', event_type: cfg.ha.callEvent }, ev => {
       const who = (ev.data && ev.data.from) || 'mor';
@@ -1068,7 +1130,7 @@ ha.onready = async () => {
     }).catch(e => console.warn('call sub', e));
   }
 };
-ha.onclose = () => { setStatusDot(); renderNotes(); renderWeather(); renderStatus(); buildPages(); renderPresence(); };
+ha.onclose = () => { setStatusDot(); renderNotes(); renderWeather(); renderStatus(); buildPages(); renderPresence(); renderShop(); };
 
 /* ---------------- Clock, weather, night ---------------- */
 function tick() {
@@ -1251,6 +1313,7 @@ async function startFrame(auto) {
   for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
   framePhotos = list; frameIdx = 0; frameAuto = !!auto;
   $('#frame-clock').textContent = $('#clock').textContent;
+  renderShop();
   $('#frame').classList.remove('hidden');
   nextSlide();
   clearInterval(frameTimer);
@@ -1412,6 +1475,7 @@ function noteEl(n, i) {
 function renderNotes() {
   const wrap = $('#notes'), more = $('#notes-more');
   const list = currentNotes();
+  if (curPageId() === 'lister') renderListerNotes();
   const extra = Math.max(0, list.length - NOTES_ON_BOARD);
   more.textContent = extra ? '+' + extra + ' flere ›' : '';
   more.classList.toggle('hidden', !extra);
@@ -1434,6 +1498,13 @@ function renderNoteSheet() {
   list.forEach((n, i) => grid.appendChild(noteEl(n, i)));
 }
 function openNoteSheet() { renderNoteSheet(); openSheet('#notesheet'); }
+function renderListerNotes() {   // the Lapper og lister page: every note, tap = wiggle + read aloud
+  const list = currentNotes(), box = $('#lister-notes');
+  $('#lister-notes-sub').textContent = list.length ? plural(list.length, 'lapp', 'lapper') : '';
+  box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<div class="empty">Ingen lapper på tavla 🙂</div>'; return; }
+  list.forEach((n, i) => box.appendChild(noteEl(n, i)));
+}
 $('#notes-more').addEventListener('click', e => { e.stopPropagation(); openNoteSheet(); });
 $('#board').addEventListener('click', () => { if (currentNotes().length) openNoteSheet(); });
 $('#sheet-notes-close').addEventListener('click', e => { e.stopPropagation(); closeSheet('#notesheet'); });
@@ -1457,6 +1528,71 @@ async function removeNote(uid) {
     renderNotes(); renderNoteList();
   }
 }
+
+/* ---------------- Handleliste (a Home Assistant to-do list) ---------------- */
+/* Its own HA to-do list – cfg.ha.shopEntity, or by itself the todo.* whose id or name says «handle…» – kept live
+   through todo/item/subscribe. It shows on the photo frame (the open items; a tap opens the sheet), in the sheet
+   and on the Lapper og lister page. A tap on an item ticks it off or back on (todo.update_item); bought items
+   stay at the bottom until «Fjern kjøpte» (todo.remove_completed_items). Parents add from the Companion app. */
+const SHOP_ON_FRAME = 8;
+function findShopEntity() { return Object.keys(ha.states).find(id => id.startsWith('todo.') && /handle/i.test(id + ' ' + friendly(id))) || ''; }
+function shopOn() { return ha.connected && !!shopId; }
+function shopOpen() { return shopItems.filter(i => i.status !== 'completed'); }
+function shopDone() { return shopItems.filter(i => i.status === 'completed'); }
+function shopCount() { const n = shopOpen().length; return !shopItems.length ? '' : n ? plural(n, 'ting', 'ting') + ' å kjøpe' : 'Alt er kjøpt ✓'; }
+function shopRowsHTML() {
+  if (!shopItems.length) return '<div class="empty">Handlelisten er tom 🎉<small>Legg til fra Home Assistant-appen på telefonen</small></div>';
+  const row = i => '<button type="button" class="sitem' + (i.status === 'completed' ? ' done' : '') + '" data-uid="' + esc(i.uid) + '">' +
+    '<span class="box">' + (i.status === 'completed' ? '✓' : '') + '</span>' +
+    '<span class="st">' + esc(i.summary) + (i.description ? '<span class="sd">' + esc(i.description) + '</span>' : '') + '</span></button>';
+  const done = shopDone();
+  return shopOpen().map(row).join('') + (done.length ? '<div class="shop-sep">KJØPT</div>' + done.map(row).join('') : '');
+}
+function renderShop() {
+  const on = shopOn(), open = on ? shopOpen() : [];
+  const card = $('#frame-shop'), show = on && cfg.photos.shopList !== false && open.length > 0;
+  card.classList.toggle('hidden', !show);
+  card.innerHTML = !show ? '' : '<span class="fs-h">🛒 Handleliste</span>' +
+    open.slice(0, SHOP_ON_FRAME).map(i => '<span class="fs-i">' + esc(i.summary) + '</span>').join('') +
+    (open.length > SHOP_ON_FRAME ? '<span class="fs-more">+' + (open.length - SHOP_ON_FRAME) + ' til ›</span>' : '');
+  if (!$('#shopsheet').classList.contains('hidden')) { if (on) renderShopSheet(); else closeSheet('#shopsheet'); }
+  if (curPageId() === 'lister') renderListerShop();
+}
+function renderShopSheet() {
+  $('#shop-sub').textContent = shopCount();
+  $('#shop-clear').classList.toggle('hidden', !shopDone().length);
+  $('#shop-list').innerHTML = shopRowsHTML();
+}
+function openShopSheet() { if (!shopOn()) return; renderShopSheet(); openSheet('#shopsheet'); }
+function renderListerShop() {
+  const sub = $('#lister-shop-sub'), box = $('#lister-shop');
+  if (!shopOn()) {
+    sub.textContent = '';
+    box.innerHTML = '<div class="empty">Fant ingen handleliste i Home Assistant<small>Lag en liste som heter «Handleliste», eller velg den under Innstillinger → Home Assistant</small></div>';
+    return;
+  }
+  sub.textContent = shopCount();
+  box.innerHTML = shopRowsHTML();
+}
+function toggleShopItem(uid) {
+  const it = shopItems.find(i => i.uid === uid);
+  if (!it || !shopOn()) return;
+  const was = it.status, status = was === 'completed' ? 'needs_action' : 'completed';
+  it.status = status; renderShop();                    // at once – the subscription confirms (or corrects) it
+  ha.callService('todo', 'update_item', { item: uid, status }, { entity_id: shopId })
+    .catch(() => { it.status = was; renderShop(); toast('Fikk ikke oppdatert handlelisten'); });
+}
+function onShopTap(e) { const b = e.target.closest && e.target.closest('.sitem[data-uid]'); if (b) toggleShopItem(b.dataset.uid); }
+$('#shop-list').addEventListener('click', onShopTap);
+$('#lister-shop').addEventListener('click', onShopTap);
+$('#shop-sheet').addEventListener('click', () => touchSheet('#shopsheet'));
+$('#shopsheet').addEventListener('click', e => { if (e.target === e.currentTarget) closeSheet('#shopsheet'); });
+$('#shop-close').addEventListener('click', e => { e.stopPropagation(); closeSheet('#shopsheet'); });
+$('#shop-clear').addEventListener('click', () => {
+  if (!shopOn()) return;
+  ha.callService('todo', 'remove_completed_items', null, { entity_id: shopId }).catch(() => toast('Fikk ikke fjernet de kjøpte'));
+});
+$('#frame-shop').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); awakeUntil = Date.now() + 120000; openShopSheet(); });
 
 /* ---------------- Ringing the phones (ntfy / Home Assistant / webhook) ---------------- */
 async function sendPush(target, kind) {
@@ -2203,6 +2339,8 @@ function renderStatus() {
     [cfg.people.mor.name + '/' + cfg.people.far.name.toLowerCase() + ' ringer hjem', ringHome[0], ringHome[1]],
     ['Beskjeder', msgRow[0], msgRow[1]],
     ['Lapper', notesSource() === 'ha' ? 'Home Assistant (' + todoId + ')' : 'Lagres på kiosken', 'on'],
+    ['Handleliste', !haOn ? 'Krever Home Assistant' : !ha.connected ? 'Venter på Home Assistant' : shopId ? shopId + ' · ' + (shopOpen().length ? plural(shopOpen().length, 'ting', 'ting') + ' å kjøpe' : 'tom') : 'Fant ingen – lag en «Handleliste» i Home Assistant',
+      !haOn ? 'idle' : shopOn() ? 'on' : 'off'],
     ['Vær', (ha.connected && weatherId) ? 'Home Assistant (' + weatherId + ')' : 'Open-Meteo' + (cfg.weather.place ? ' (' + cfg.weather.place + ')' : ''), 'on'],
     ['Opplesing', (ha.connected && ttsId) ? ttsId : 'Nettleserens stemme', 'on'],
     ['Versjon', swVersion && swVersion.head ? swVersion.head + ' · ' + fmtStamp(swVersion.date) : swVersion === false ? (helperUrl() ? 'Ukjent – skjermhjelperen svarer ikke' : 'Ukjent – ingen skjermhjelper') : 'Sjekker…',
@@ -2307,9 +2445,11 @@ const SETTINGS = [
   { k: 'ha.url', l: 'Adresse', hint: 'F.eks. http://192.168.1.10:8123 – tom = ikke i bruk' },
   { k: 'ha.token', l: 'Tilgangstoken', hint: 'Lang – enklest med USB-tastatur eller i config.js' },
   { k: 'ha.weatherEntity', l: 'Vær-entitet', hint: 'Tom = første weather.*', kind: 'entity', domain: 'weather' },
-  { k: 'ha.todoEntity', l: 'Lappeliste', hint: 'Tom = første todo.*', kind: 'entity', domain: 'todo' },
+  { k: 'ha.todoEntity', l: 'Lappeliste', hint: 'Tom = første todo.* som ikke er handlelisten', kind: 'entity', domain: 'todo' },
+  { k: 'ha.shopEntity', l: 'Handleliste', hint: 'Vises på bilderammen og på siden «Lapper og lister». Tom = listen som heter «Handle…»', kind: 'entity', domain: 'todo', auto: '(finn «Handleliste»)' },
   { k: 'ha.ttsEntity', l: 'Opplesing', hint: 'Tom = første tts.*', kind: 'entity', domain: 'tts' },
   { tab: 'sider', l: 'Sider', intro: 'Ekstra sider til høyre for forsiden – sveip, eller bruk pilene nederst. Krever Home Assistant.' },
+  { k: 'pages.lister', l: 'Side: Lapper og lister', hint: 'Alle lappene og handlelisten. Trykk på en vare for å krysse den av', toggle: true },
   { k: 'pages.huset', l: 'Side: Huset', hint: 'Hvem er hjemme + status fra huset', toggle: true },
   { k: 'pages.lys', l: 'Side: Lys', hint: 'Lys per rom. Barna kan styre de lysene du merker for dem', toggle: true },
   { k: 'pages.kamera', l: 'Side: Kamera', toggle: true },
@@ -2334,7 +2474,8 @@ const SETTINGS = [
   { tab: 'bilder', l: 'Bilderamme' },
   { k: 'photos.dir', l: 'Bildemappe', hint: 'photos/ i appen, /bilder/ for nettverksmappa (se SETUP.md) eller en http://-adresse. Undermapper tas med' },
   { k: 'photos.intervalSec', l: 'Sekunder per bilde', num: true, number: true },
-  { k: 'photos.idleMin', l: 'Start av seg selv', hint: 'Minutter uten berøring før bilderammen starter. 0 = aldri. Stopper når skjermen skal være av', num: true, number: true }
+  { k: 'photos.idleMin', l: 'Start av seg selv', hint: 'Minutter uten berøring før bilderammen starter. 0 = aldri. Stopper når skjermen skal være av', num: true, number: true },
+  { k: 'photos.shopList', l: 'Vis handlelisten på bilderammen', hint: 'Bare når det står noe på den. Trykk på lista for å se alt og krysse av. Krever Home Assistant', toggle: true }
 ];
 const STATUS_TAB = { tab: 'status', l: 'Status' };
 let draft = null, settingsTab = 'status';
@@ -2815,12 +2956,13 @@ $$('#cal-stepper button').forEach(b => b.addEventListener('click', () => {
 $('#cal-repeat').addEventListener('change', () => { if (calForm) calForm.repeat = $('#cal-repeat').value; });
 $('#cal-add').addEventListener('click', addEvent);
 
-/* ---------------- Pages: Hjem · Huset · Lys · Kamera (swipe strip under the header) ---------------- */
+/* ---------------- Pages: Hjem · Lapper og lister · Huset · Lys · Kamera (swipe strip under the header) ---------------- */
 /* The extra pages need Home Assistant; without it the strip holds only Hjem and the footer arrows hide.
    A page is rendered when it comes into view (and on state changes while it is in view); the camera page
    loads snapshots only while visible and drops every stream when swiped away – the kiosk CPU is small. */
 const PAGE_DEFS = [
   { id: 'hjem', always: true },
+  { id: 'lister', on: () => !!cfg.pages.lister },
   { id: 'huset', on: () => !!cfg.pages.huset },
   { id: 'lys', on: () => !!cfg.pages.lys },
   { id: 'kamera', on: () => !!cfg.pages.kamera }
@@ -2848,6 +2990,7 @@ function goPage(i, animate) {
   $('#page-next').disabled = i >= pageList.length - 1;
   const id = curPageId();
   if (id === 'kamera') camPageShow(); else camPageHide();
+  if (id === 'lister') { renderListerNotes(); renderListerShop(); }
   if (id === 'huset') renderHouse();
   if (id === 'lys') renderRooms();
 }

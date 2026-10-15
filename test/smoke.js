@@ -150,7 +150,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   // Settings
   click(q('.nav-item[data-pane="settings"]'));
   await wait(20);
-  assert(qa('#status-grid .srow').length === 9, 'status rows: ' + qa('#status-grid .srow').length);
+  assert(qa('#status-grid .srow').length === 10, 'status rows: ' + qa('#status-grid .srow').length);
   { const v = qa('#status-grid .srow').find(r => r.querySelector('.sk').textContent === 'Versjon'); assert(v && v.classList.contains('on') && /^000b6d4 · /.test(v.querySelector('.sv').textContent), 'version card from the helper: ' + (v && v.querySelector('.sv').textContent)); }
   assert(qa('#stabs .stab').length === 7 && q('#stabs .stab.on').textContent === 'Status', 'settings tabs: ' + qa('#stabs .stab').map(b => b.textContent).join(','));
   assert(!q('#settings-status').classList.contains('hidden') && q('.sgroup[data-tab="familie"]').classList.contains('hidden') && q('#save-row').classList.contains('hidden'), 'status tab open, form tabs and save row hidden');
@@ -331,8 +331,15 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     { entity_id: 'light.stue', state: 'on', attributes: { friendly_name: 'Stue' } },
     { entity_id: 'binary_sensor.ytterdor', state: 'on', attributes: { friendly_name: 'Ytterdør', device_class: 'door' } },
     { entity_id: 'sensor.stue_temp', state: '21.5', attributes: { friendly_name: 'Stue temperatur', device_class: 'temperature', unit_of_measurement: '°C' } },
-    { entity_id: 'camera.inngang', state: 'idle', attributes: { friendly_name: 'Inngang', access_token: 'abc' } }
+    { entity_id: 'camera.inngang', state: 'idle', attributes: { friendly_name: 'Inngang', access_token: 'abc' } },
+    // the shopping list comes first on purpose: the notes board must still pick the other to-do list
+    { entity_id: 'todo.handleliste', state: '2', attributes: { friendly_name: 'Handleliste' } },
+    { entity_id: 'todo.shopping_list', state: '1', attributes: { friendly_name: 'Shopping list' } }
   ];
+  const TODO_ITEMS = {
+    'todo.handleliste': [{ uid: 's1', summary: 'Melk', status: 'needs_action' }, { uid: 's2', summary: 'Brød', status: 'needs_action', description: 'grovt' }, { uid: 's3', summary: 'Egg', status: 'completed' }],
+    'todo.shopping_list': [{ uid: 'n1', summary: '⚽ 17:00 Fotball', status: 'needs_action' }]
+  };
   const fourth = mkdom(win => {
     win.MENKERUD_CONFIG = { ha: { url: 'http://ha.test:8123', token: 'tok' }, rooms: [{ id: 'r1', name: 'Barnerommet', icon: '🧸', lights: ['light.barnerom'], kids: ['light.barnerom'] }], house: { entities: ['binary_sensor.ytterdor', 'sensor.stue_temp'] } };
     class FakeHA {
@@ -342,6 +349,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
         const reply = o => setTimeout(() => this.onmessage({ data: JSON.stringify(o) }), 5);
         if (m.type === 'auth') reply({ type: 'auth_ok' });
         else if (m.type === 'get_states') reply({ id: m.id, type: 'result', success: true, result: STATES });
+        else if (m.type === 'todo/item/subscribe') { reply({ id: m.id, type: 'result', success: true, result: null }); reply({ id: m.id, type: 'event', event: { items: TODO_ITEMS[m.entity_id] || [] } }); }
         else if (m.id) reply({ id: m.id, type: 'result', success: true, result: null });
       }
       close() { this.readyState = 3; this.onclose && this.onclose(); }
@@ -353,19 +361,33 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const click4 = el => el.dispatchEvent(new w4.MouseEvent('click', { bubbles: true }));
   await wait(200);
   assert(q4('#status').classList.contains('on'), 'fake HA connected');
-  assert(qa4('#page-dots span').length === 4 && !q4('#page-nav').classList.contains('hidden'), 'four pages with HA: ' + qa4('#page-dots span').length);
+  assert(qa4('#page-dots span').length === 5 && !q4('#page-nav').classList.contains('hidden'), 'five pages with HA: ' + qa4('#page-dots span').length);
   assert(q4('#pres-mor').classList.contains('home') && q4('#pres-mor').textContent.includes('Hjemme'), 'presence badge on Ring mor: ' + q4('#pres-mor').textContent);
   assert(q4('#pres-far').classList.contains('away') && q4('#pres-far').textContent.includes('Borte'), 'presence badge on Ring far: ' + q4('#pres-far').textContent);
-  // footer arrow → Huset
+  assert(qa4('#notes .note').length === 1 && q4('#notes .note .txt').textContent === 'Fotball', 'notes board uses the other to-do list, not Handleliste: ' + qa4('#notes .note').length);
+  assert(haSent.some(m => m.type === 'todo/item/subscribe' && m.entity_id === 'todo.handleliste'), 'subscribed to the shopping list');
+  // footer arrow → Lapper og lister: every note + the shopping list
   click4(q4('#page-next'));
   assert(qa4('#page-dots span')[1].classList.contains('on') && q4('#strip').style.transform === 'translateX(-100%)', 'arrow moves to page 2: ' + q4('#strip').style.transform);
+  assert(qa4('#lister-notes .note').length === 1, 'Lapper og lister shows the notes');
+  const srows = qa4('#lister-shop .sitem');
+  assert(srows.length === 3 && srows[2].classList.contains('done') && q4('.page.lister .shop-sep') && srows[1].querySelector('.sd').textContent === 'grovt', 'shopping list on the page: open items first, bought under KJØPT: ' + srows.map(r => r.textContent).join(' | '));
+  assert(q4('#lister-shop-sub').textContent === '2 ting å kjøpe', 'shopping count: ' + q4('#lister-shop-sub').textContent);
+  haSent.length = 0;
+  click4(q4('#lister-shop .sitem[data-uid="s1"]'));
+  await wait(10);
+  assert(haSent.some(m => m.type === 'call_service' && m.domain === 'todo' && m.service === 'update_item' && m.service_data.item === 's1' && m.service_data.status === 'completed' && m.target.entity_id === 'todo.handleliste'), 'tap ticks Melk off in HA');
+  assert(q4('#lister-shop .sitem[data-uid="s1"]').classList.contains('done') && q4('#lister-shop-sub').textContent === '1 ting å kjøpe', 'ticked item moves under KJØPT at once');
+  // footer arrow → Huset
+  click4(q4('#page-next'));
+  assert(qa4('#page-dots span')[2].classList.contains('on') && q4('#strip').style.transform === 'translateX(-200%)', 'arrow moves to page 3: ' + q4('#strip').style.transform);
   assert(qa4('#who .who-tile').length === 2 && qa4('#who .who-tile')[0].classList.contains('home'), 'who-is-home tiles');
   const htiles = qa4('#house-grid .h-tile');
   assert(htiles.length === 2 && htiles[0].classList.contains('alert') && htiles[0].querySelector('.v').textContent === 'Åpen' && htiles[1].querySelector('.v').textContent === '21,5 °C', 'house tiles: ' + htiles.map(t => t.querySelector('.v').textContent).join(' | '));
   // swipe left with pointer events → Lys
   const pev = (type, x) => q4('#pages').dispatchEvent(new w4.MouseEvent(type, { bubbles: true, clientX: x, clientY: 300 }));
   pev('pointerdown', 900); pev('pointermove', 850); pev('pointermove', 600); pev('pointerup', 500);
-  assert(qa4('#page-dots span')[2].classList.contains('on'), 'swipe left moves to page 3');
+  assert(qa4('#page-dots span')[3].classList.contains('on'), 'swipe left moves to page 4');
   await wait(420);   // the click that follows a swipe is swallowed for a moment
   const rooms = qa4('#rooms .room');
   assert(rooms.length === 2 && rooms[0].querySelector('.room-title').textContent.includes('Barnerommet') && rooms[1].querySelector('.room-title').textContent.includes('Andre lys'), 'rooms rendered: ' + rooms.map(r => r.querySelector('.room-title').textContent).join(' | '));
@@ -390,6 +412,23 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(/camera_proxy_stream\/camera\.inngang/.test(q4('#cam-full-img').getAttribute('src')) && !q4('#cam-full').classList.contains('hidden'), 'tap opens the live stream');
   click4(q4('#page-prev'));
   assert(!q4('#cam-full-img').getAttribute('src') && q4('#cam-full').classList.contains('hidden'), 'leaving the page drops the stream');
+  // Bilderamme: the open shopping items sit on top of the pictures; a tap opens the whole list
+  click4(q4('#frame-btn'));
+  await wait(60);
+  assert(!q4('#frame').classList.contains('hidden'), 'photo frame running');
+  const fshop = q4('#frame-shop');
+  assert(!fshop.classList.contains('hidden') && qa4('#frame-shop .fs-i').map(e => e.textContent).join(',') === 'Brød', 'frame shows the open shopping items: ' + fshop.textContent);
+  click4(fshop);
+  assert(q4('#frame').classList.contains('hidden') && !q4('#shopsheet').classList.contains('hidden'), 'tap on the card closes the frame and opens the shopping sheet');
+  assert(qa4('#shop-list .sitem').length === 3 && !q4('#shop-clear').classList.contains('hidden'), 'sheet lists every item and offers «Fjern kjøpte»');
+  haSent.length = 0;
+  click4(q4('#shop-list .sitem[data-uid="s3"]'));
+  click4(q4('#shop-clear'));
+  await wait(10);
+  assert(haSent.some(m => m.service === 'update_item' && m.service_data.item === 's3' && m.service_data.status === 'needs_action'), 'tapping a bought item puts it back on the list');
+  assert(haSent.some(m => m.service === 'remove_completed_items' && m.target.entity_id === 'todo.handleliste'), '«Fjern kjøpte» clears the bought items in HA');
+  click4(q4('#shop-close'));
+  assert(q4('#shopsheet').classList.contains('hidden'), 'shopping sheet closes');
   // Sider tab in Innstillinger: entity pickers and the rooms editor
   click4(q4('#menu-btn'));
   ['0', '6', '1', '1', '1', '1'].forEach(k => click4(qa4('#pin-pad button').find(b => b.textContent === k)));
@@ -400,6 +439,11 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(pm && pm.tagName === 'SELECT' && [...pm.options].some(o => o.value === 'person.mor_test'), 'person picker lists HA persons');
   const we = inputFor4('Vær-entitet');
   assert(we && we.tagName === 'SELECT', 'weather entity is a picker when HA is connected');
+  const se = inputFor4('Handleliste');
+  assert(se && se.tagName === 'SELECT' && [...se.options].some(o => o.value === 'todo.handleliste'), 'shopping list picker lists the to-do lists');
+  { const tog = l => { const row = qa4('#settings-form .frow').find(r => r.querySelector('.flabel').textContent.startsWith(l)); return row && row.querySelector('button.chip-btn'); };
+    assert(tog('Side: Lapper og lister') && tog('Side: Lapper og lister').textContent === 'På ✓' && tog('Vis handlelisten på bilderammen').textContent === 'På ✓', 'page and frame toggles in the settings, on by default'); }
+  { const r = qa4('#status-grid .srow').find(x => x.querySelector('.sk').textContent === 'Handleliste'); assert(r && r.classList.contains('on') && r.querySelector('.sv').textContent.startsWith('todo.handleliste'), 'Handleliste status card: ' + (r && r.querySelector('.sv').textContent)); }
   assert(inputFor4('Vis på Huset-siden') && qa4('.ent-list .chip-btn').length === 2 && qa4('.ent-list .chip-btn.on').length === 2, 'house entity chips: ' + qa4('.ent-list .chip-btn').length + ' (' + qa4('.ent-list .chip-btn.on').length + ' on)');
   assert(qa4('#settings-form .room-ed').length === 1 && qa4('#settings-form .room-ed .lightrow').length === 2, 'rooms editor shows the room with both lights');
   click4(qa4('#settings-form .chip-btn').find(b => b.textContent === '+ Nytt rom'));
