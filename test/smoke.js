@@ -412,12 +412,12 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(/camera_proxy_stream\/camera\.inngang/.test(q4('#cam-full-img').getAttribute('src')) && !q4('#cam-full').classList.contains('hidden'), 'tap opens the live stream');
   click4(q4('#page-prev'));
   assert(!q4('#cam-full-img').getAttribute('src') && q4('#cam-full').classList.contains('hidden'), 'leaving the page drops the stream');
-  // Bilderamme: the open shopping items sit on top of the pictures; a tap opens the whole list
+  // Bilderamme: a cart with the open count sits on top of the pictures; a tap opens the whole list
   click4(q4('#frame-btn'));
   await wait(60);
   assert(!q4('#frame').classList.contains('hidden'), 'photo frame running');
   const fshop = q4('#frame-shop');
-  assert(!fshop.classList.contains('hidden') && qa4('#frame-shop .fs-i').map(e => e.textContent).join(',') === 'Brød', 'frame shows the open shopping items: ' + fshop.textContent);
+  assert(!fshop.classList.contains('hidden') && q4('#frame-shop .fs-n').textContent === '1' && !q4('#frame-shop .fs-i'), 'frame shows the cart with the open count: ' + fshop.textContent);
   click4(fshop);
   assert(q4('#frame').classList.contains('hidden') && !q4('#shopsheet').classList.contains('hidden'), 'tap on the card closes the frame and opens the shopping sheet');
   assert(qa4('#shop-list .sitem').length === 3 && !q4('#shop-clear').classList.contains('hidden'), 'sheet lists every item and offers «Fjern kjøpte»');

@@ -538,12 +538,10 @@ select.inp option{color:#111}
 #frame .frame-badge{position:absolute;right:2.4rem;top:2rem;z-index:2;display:flex;align-items:center;gap:.7rem;padding:1rem 1.7rem;border-radius:3rem;background:rgba(255,77,109,.94);color:#fff;font-size:1.9rem;font-weight:900;box-shadow:0 .6rem 1.8rem rgba(0,0,0,.5);cursor:pointer;animation:framePulse 2.4s ease-in-out infinite}
 @keyframes framePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
 #frame .fclock{position:absolute;right:2.6rem;bottom:2rem;z-index:2;font-size:3rem;font-weight:900;letter-spacing:-.02em;text-shadow:0 .2rem 1rem rgba(0,0,0,.8);opacity:.85}
-/* The shopping list on the frame. A solid tint, no backdrop-filter: a live blur over the 1.2 s crossfade costs the kiosk's small CPU too much */
-#frame .frame-shop{position:absolute;left:2.4rem;top:2rem;z-index:2;width:30rem;max-height:calc(100% - 4rem);overflow:hidden;display:flex;flex-direction:column;gap:.45rem;padding:1.3rem 1.7rem 1.3rem;border-radius:var(--radius-lg);background:rgba(10,14,38,.7);border:1px solid rgba(255,255,255,.22);box-shadow:0 .8rem 2.4rem rgba(0,0,0,.55);text-align:left;color:#fff;cursor:pointer}
-#frame .frame-shop .fs-h{display:block;font-family:var(--hand);font-size:2.5rem;line-height:1;color:#eef2ff;margin-bottom:.3rem}
-#frame .frame-shop .fs-i{display:block;font-size:1.75rem;font-weight:800;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#frame .frame-shop .fs-i::before{content:'•';margin-right:.6rem;color:#ffe95c}
-#frame .frame-shop .fs-more{display:block;font-size:1.35rem;font-weight:900;color:var(--text-soft);margin-top:.2rem}
+/* The shopping list on the frame: just a cart with the open count; a tap opens the list. A solid tint, no backdrop-filter: a live blur over the 1.2 s crossfade costs the kiosk's small CPU too much */
+#frame .frame-shop{position:absolute;left:2.4rem;top:2rem;z-index:2;width:6.6rem;height:6.6rem;display:flex;align-items:center;justify-content:center;padding:0;border-radius:50%;background:rgba(10,14,38,.7);border:1px solid rgba(255,255,255,.22);box-shadow:0 .8rem 2.4rem rgba(0,0,0,.55);color:#fff;cursor:pointer}
+#frame .frame-shop .fs-cart{font-size:3.3rem;line-height:1}
+#frame .frame-shop .fs-n{position:absolute;right:-.7rem;top:-.7rem;min-width:3rem;height:3rem;padding:0 .7rem;border-radius:1.5rem;display:flex;align-items:center;justify-content:center;background:#ffe95c;color:#1a1d3a;font-size:1.7rem;font-weight:900;line-height:1;box-shadow:0 .3rem .9rem rgba(0,0,0,.45)}
 #toast{position:fixed;left:50%;bottom:4rem;transform:translateX(-50%);z-index:70;background:rgba(20,26,60,.95);border:1px solid var(--glass-line);border-radius:2rem;padding:1rem 2rem;font-size:1.6rem;font-weight:800;box-shadow:var(--shadow-card);max-width:80vw;text-align:center}
 #confetti{position:fixed;inset:0;z-index:60;pointer-events:none;width:100%;height:100%}
 
@@ -1534,7 +1532,6 @@ async function removeNote(uid) {
    through todo/item/subscribe. It shows on the photo frame (the open items; a tap opens the sheet), in the sheet
    and on the Lapper og lister page. A tap on an item ticks it off or back on (todo.update_item); bought items
    stay at the bottom until «Fjern kjøpte» (todo.remove_completed_items). Parents add from the Companion app. */
-const SHOP_ON_FRAME = 8;
 function findShopEntity() { return Object.keys(ha.states).find(id => id.startsWith('todo.') && /handle/i.test(id + ' ' + friendly(id))) || ''; }
 function shopOn() { return ha.connected && !!shopId; }
 function shopOpen() { return shopItems.filter(i => i.status !== 'completed'); }
@@ -1552,9 +1549,8 @@ function renderShop() {
   const on = shopOn(), open = on ? shopOpen() : [];
   const card = $('#frame-shop'), show = on && cfg.photos.shopList !== false && open.length > 0;
   card.classList.toggle('hidden', !show);
-  card.innerHTML = !show ? '' : '<span class="fs-h">🛒 Handleliste</span>' +
-    open.slice(0, SHOP_ON_FRAME).map(i => '<span class="fs-i">' + esc(i.summary) + '</span>').join('') +
-    (open.length > SHOP_ON_FRAME ? '<span class="fs-more">+' + (open.length - SHOP_ON_FRAME) + ' til ›</span>' : '');
+  card.innerHTML = !show ? '' : '<span class="fs-cart" aria-hidden="true">🛒</span><span class="fs-n">' + open.length + '</span>';
+  card.setAttribute('aria-label', show ? 'Handleliste: ' + shopCount() : 'Handleliste');
   if (!$('#shopsheet').classList.contains('hidden')) { if (on) renderShopSheet(); else closeSheet('#shopsheet'); }
   if (curPageId() === 'lister') renderListerShop();
 }
