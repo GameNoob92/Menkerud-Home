@@ -285,6 +285,8 @@ footer .brand{letter-spacing:.28em;font-weight:800;color:var(--text-soft);font-s
 #hangup:active{transform:translateX(-50%) scale(.95)}
 
 /* PIN – the gate to the parents' area. The scene stays visible behind a soft blur. */
+/* A sheet over the running photo frame: a light dim and no blur, so the pictures stay visible and the crossfade stays cheap */
+.overlay.sheet-wrap.on-frame{background:rgba(0,0,0,.42);backdrop-filter:none;-webkit-backdrop-filter:none}
 #pin.overlay,#menu.overlay{background:rgba(4,10,26,.5);backdrop-filter:blur(1.6rem);-webkit-backdrop-filter:blur(1.6rem)}
 .pin-box{background:var(--glass-strong);border:1px solid rgba(255,255,255,.18);border-radius:var(--radius-xl);padding:2.6rem 3.4rem 2.2rem;display:flex;flex-direction:column;align-items:center;gap:1.7rem;box-shadow:inset 0 .1rem 0 rgba(255,255,255,.12),var(--shadow-card)}
 .pin-box h3{font-family:var(--hand);font-size:3.2rem;font-weight:700;line-height:1}
@@ -957,12 +959,13 @@ function toast(msg, ms) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.add('hidden'), ms || 3000);
 }
-function showOverlay(sel) { if (sel !== '#frame' && frameOn()) stopFrame(); closeSheets(sel); $(sel).classList.remove('hidden'); checkNight(); }
+function showOverlay(sel, keepFrame) { if (sel !== '#frame' && frameOn() && !keepFrame) stopFrame(); closeSheets(sel); $(sel).classList.remove('hidden'); checkNight(); }
 function hideOverlay(sel) { $(sel).classList.add('hidden'); checkNight(); }
 function overlayOpen() { return $$('.overlay').some(o => !o.classList.contains('hidden')); }
-/* Sheets (Beskjeder, Husk): full-screen lists that close by themselves after a while without a tap; any other overlay closes them */
+/* Sheets (Beskjeder, Husk): full-screen lists that close by themselves after a while without a tap; any other overlay closes them.
+   keepFrame (Handleliste from the 🛒 on the frame): the sheet sits on top of the running slideshow (.on-frame) and closing it goes back to the pictures */
 const sheetTimers = {};
-function openSheet(sel, ms) { showOverlay(sel); touchSheet(sel, ms); }
+function openSheet(sel, ms, keepFrame) { keepFrame = !!keepFrame && frameOn(); $(sel).classList.toggle('on-frame', keepFrame); showOverlay(sel, keepFrame); touchSheet(sel, ms); }
 function touchSheet(sel, ms) { clearTimeout(sheetTimers[sel]); sheetTimers[sel] = setTimeout(() => closeSheet(sel), ms || 60000); }
 function closeSheet(sel) {
   clearTimeout(sheetTimers[sel]); delete sheetTimers[sel];
@@ -1324,6 +1327,7 @@ function stopFrame() {
   framePhotos = [];
   $('#frame').classList.add('hidden');
   $$('#frame .slide').forEach(s => s.remove());
+  $$('.sheet-wrap.on-frame').forEach(o => o.classList.remove('on-frame'));
 }
 $('#frame').addEventListener('pointerdown', e => e.preventDefault());   // same as #night: close on the completed tap, never on the touch-down
 
@@ -1559,7 +1563,7 @@ function renderShopSheet() {
   $('#shop-clear').classList.toggle('hidden', !shopDone().length);
   $('#shop-list').innerHTML = shopRowsHTML();
 }
-function openShopSheet() { if (!shopOn()) return; renderShopSheet(); openSheet('#shopsheet'); }
+function openShopSheet(overFrame) { if (!shopOn()) return; renderShopSheet(); openSheet('#shopsheet', 0, overFrame); }
 function renderListerShop() {
   const sub = $('#lister-shop-sub'), box = $('#lister-shop');
   if (!shopOn()) {
@@ -1588,7 +1592,7 @@ $('#shop-clear').addEventListener('click', () => {
   if (!shopOn()) return;
   ha.callService('todo', 'remove_completed_items', null, { entity_id: shopId }).catch(() => toast('Fikk ikke fjernet de kjøpte'));
 });
-$('#frame-shop').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); awakeUntil = Date.now() + 120000; openShopSheet(); });
+$('#frame-shop').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); awakeUntil = Date.now() + 120000; openShopSheet(true); });
 
 /* ---------------- Ringing the phones (ntfy / Home Assistant / webhook) ---------------- */
 async function sendPush(target, kind) {
