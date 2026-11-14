@@ -4,3 +4,4 @@ photos/*
 config.js
 !call-backend/src/config.js
 __pycache__/
+.dev/

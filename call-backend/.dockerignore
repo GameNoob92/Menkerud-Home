@@ -6,3 +6,7 @@ deploy
 swag
 livekit.example.yaml
 *.log
+dev
+scripts
+test
+.env.dev.example

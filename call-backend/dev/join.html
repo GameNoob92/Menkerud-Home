@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stand-in-telefon – Menkerud Home (utvikling)</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; height: 100vh; display: grid; grid-template-rows: auto 1fr auto; background: #04070f; color: #eef2ff; font: 16px/1.4 system-ui, sans-serif; }
+  header, footer { padding: 12px 16px; }
+  footer { display: flex; gap: 14px; align-items: center; }
+  #stage { position: relative; min-height: 0; background: #000; }
+  #remote { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  #local { position: absolute; right: 12px; bottom: 12px; width: 22%; max-width: 220px; border-radius: 10px; border: 2px solid rgba(255, 255, 255, .35); background: #111; }
+  button { font: inherit; font-weight: 700; padding: 12px 24px; border: 0; border-radius: 999px; background: #e5484d; color: #fff; cursor: pointer; }
+  button:disabled { opacity: .4; cursor: default; }
+  #detail { opacity: .7; font-size: 14px; }
+</style>
+</head>
+<body>
+<header><strong>Stand-in-telefon</strong> (kun utviklingskopien) – <span id="status">Kobler til…</span></header>
+<div id="stage"><video id="remote" autoplay playsinline></video><video id="local" autoplay playsinline muted></video></div>
+<footer><button id="hangup" type="button">Legg på</button><span id="detail"></span></footer>
+<script src="https://cdn.jsdelivr.net/npm/livekit-client@2.22.3/dist/livekit-client.umd.min.js"></script>
+<script>
+// Stands in for the parent app's call screen while developing: joins the LiveKit room named in the URL fragment
+// (#api=…&call=…&url=…&token=…, the link scripts/fake-phone.js prints) with camera and microphone. It is opened from
+// disk – the backend never serves this file, and nothing of it exists on call.noobventure.com.
+(async () => {
+  const q = new URLSearchParams(location.hash.slice(1));
+  const api = q.get('api'), callId = q.get('call'), url = q.get('url'), token = q.get('token');
+  const $ = id => document.getElementById(id);
+  const say = (text, detail) => { $('status').textContent = text; $('detail').textContent = detail || ''; };
+  const LK = window.LivekitClient;
+  if (!url || !token) return say('Mangler rom og billett i adressen', 'Åpne lenken som fake-phone.js skriver ut.');
+  if (!LK) return say('Fikk ikke lastet LiveKit-klienten');
+
+  const room = new LK.Room({ adaptiveStream: true, dynacast: true });
+  let over = false, picture = false;
+  function end(text) {
+    if (over) return;
+    over = true;
+    say(text);
+    $('hangup').disabled = true;
+    try { room.disconnect(); } catch (e) {}
+    // Tell the backend, as the app will: that is what ends the call for the other side at once.
+    if (api && callId) fetch(api + '/api/calls/' + encodeURIComponent(callId) + '/end', { method: 'POST' }).catch(() => {});
+  }
+  room.on(LK.RoomEvent.TrackSubscribed, track => {
+    if (track.kind === 'video') { picture = true; track.attach($('remote')); say('I samtalen'); }
+    else if (track.kind === 'audio') track.attach();
+  });
+  room.on(LK.RoomEvent.ParticipantConnected, () => { if (!picture) say('Den andre er med – venter på bildet…'); });
+  room.on(LK.RoomEvent.Disconnected, () => end('Samtalen er avsluttet'));
+  $('hangup').addEventListener('click', () => end('Du la på'));
+  try {
+    await room.connect(url, token);
+    if (!over && !picture) say(room.remoteParticipants.size ? 'Den andre er med – venter på bildet…' : 'Venter på den andre…');
+    await room.localParticipant.enableCameraAndMicrophone();
+    const cam = room.localParticipant.getTrackPublication(LK.Track.Source.Camera);
+    if (cam && cam.track) cam.track.attach($('local'));
+  } catch (e) {
+    if (!over) say('Klarte ikke å koble til', String((e && e.message) || e));
+  }
+})();
+</script>
+</body>
+</html>
