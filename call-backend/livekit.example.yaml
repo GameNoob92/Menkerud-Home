@@ -7,6 +7,8 @@ rtc:
   tcp_port: 7881          # optional WebRTC-over-TCP fallback
   udp_port: 7882          # single-port UDP mux; no 50000-60000 range needed
   use_external_ip: true   # STUN-discover the public IP so phones on mobile data can reach the media
+  advertise_internal_ip: true   # ALSO offer the LAN address (192.168.68.2): the routers do not loop traffic back to the
+                                # public IP, so devices at home (the kiosk, a phone on the Wi-Fi) need it. See README.md §A
 logging:
   level: info
 keys:
