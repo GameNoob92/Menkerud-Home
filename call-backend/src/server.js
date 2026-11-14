@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { createApp } = require('./app');
 const { createDevices } = require('./devices');
+const { createAdminApp } = require('./admin');
 const livekit = require('./livekit');
 const discord = require('./discord');
 
@@ -19,3 +20,7 @@ const devices = createDevices({ file: path.join(config.dataDir, 'devices.json'),
 
 const app = createApp({ config, livekit, discord, devices, log });
 app.listen(config.port, () => log('call backend on :' + config.port, '| public', config.publicUrl, '| ring', config.ringSec + 's', '| livekit', livekit.configured(), '| discord', discord.configured()));
+
+// The local pairing page, on its own port. That port is published on the host only – SWAG must never proxy it.
+if (config.adminPassword) createAdminApp({ config, devices, log }).listen(config.adminPort, () => log('pairing page on :' + config.adminPort + ' (local network only)'));
+else log('admin page disabled: set ADMIN_PASSWORD');

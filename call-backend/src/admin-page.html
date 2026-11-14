@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Menkerud Home – telefoner</title>
+<style>
+  /* Same visual language as the kids' screen: deep blue, glass panels, pink / blue / green accents. */
+  :root{--bg:#07162f;--glass:rgba(11,27,61,.72);--line:rgba(255,255,255,.16);--soft:rgba(255,255,255,.78);--muted:rgba(255,255,255,.55);
+        --pink:#ff5c96;--blue:#19b9ff;--green:#25e08f;--red:#ff5b6b}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;color:#fff;font-family:'Nunito','Segoe UI',system-ui,-apple-system,sans-serif;font-size:17px;line-height:1.45;
+       background:radial-gradient(circle at 65% 12%,#244b8f 0,#0c2856 38%,var(--bg) 100%) fixed;padding:28px 18px 60px}
+  main{max-width:880px;margin:0 auto}
+  h1{font-size:28px;font-weight:900;letter-spacing:.02em}
+  h1 span{font-weight:400;opacity:.8}
+  p.lead{color:var(--soft);margin:6px 0 22px}
+  section{background:var(--glass);border:1px solid var(--line);border-radius:20px;padding:20px 22px;margin-bottom:20px;box-shadow:0 14px 34px rgba(0,0,0,.28)}
+  h2{font-size:15px;font-weight:900;letter-spacing:.12em;color:var(--soft);margin-bottom:14px;text-transform:uppercase}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  button{font:inherit;font-weight:900;color:#fff;border:0;border-radius:40px;padding:13px 24px;cursor:pointer}
+  button:focus-visible{outline:3px solid #fff;outline-offset:3px}
+  button.mor{background:linear-gradient(135deg,var(--pink),#d91669)}
+  button.far{background:linear-gradient(135deg,var(--blue),#0872d1)}
+  button.rm{background:rgba(255,255,255,.1);border:1px solid var(--line);padding:7px 16px;font-size:15px}
+  button.rm.armed{background:var(--red);border-color:var(--red)}
+  #key{display:none;margin-top:20px;gap:22px;align-items:center;flex-wrap:wrap}
+  #key.show{display:flex}
+  #qr{background:#fff;border-radius:14px;padding:6px;width:210px;height:210px;flex:none}
+  #qr svg{display:block;width:100%;height:100%}
+  #code{font:800 25px/1.3 ui-monospace,Consolas,'Courier New',monospace;letter-spacing:.06em;word-break:break-all}
+  #for{font-weight:900;margin-bottom:4px}
+  .hint{color:var(--muted);font-size:15px;margin-top:8px}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:800}
+  td.empty{color:var(--muted);text-align:center;padding:26px 8px;border-bottom:0}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;background:var(--muted)}
+  .dot.ok{background:var(--green)} .dot.dead{background:var(--red)}
+  #msg{min-height:22px;margin-top:12px;color:#ffd166;font-weight:800}
+  @media (max-width:640px){th:nth-child(3),td:nth-child(3){display:none} #code{font-size:20px}}
+</style>
+</head>
+<body>
+<main>
+  <h1>MENKERUD <span>HOME</span> – telefoner</h1>
+  <p class="lead">Her kobler du en telefon til samtalene med skjermen hjemme. Siden finnes bare på hjemmenettet.</p>
+
+  <section>
+    <h2>Ny telefon</h2>
+    <div class="row">
+      <button type="button" class="mor" data-who="mor">Ny telefon for Mor</button>
+      <button type="button" class="far" data-who="far">Ny telefon for Far</button>
+    </div>
+    <div id="key">
+      <div id="qr"></div>
+      <div>
+        <div id="for"></div>
+        <div id="code"></div>
+        <div class="hint">Gyldig i 15 minutter – kan brukes én gang</div>
+        <div class="hint">Åpne appen på telefonen og skann koden, eller skriv inn nøkkelen.</div>
+      </div>
+    </div>
+    <div id="msg" role="status"></div>
+  </section>
+
+  <section>
+    <h2>Tilkoblede telefoner</h2>
+    <table>
+      <thead><tr><th>Hvem</th><th>Navn</th><th>App</th><th>Sist sett</th><th>Varsler</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </section>
+</main>
+<script>
+(function () {
+  'use strict';
+  var LABEL = { mor: 'Mor', far: 'Far' };
+  var PUSH = { ok: 'OK', none: 'Ikke registrert', dead: 'Virker ikke' };
+  var $ = function (id) { return document.getElementById(id); };
+  function say(text) { $('msg').textContent = text || ''; }
+  function when(ms) {
+    var d = new Date(ms);
+    return isNaN(d) ? '–' : d.toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+  function api(method, path, body) {
+    var opts = { method: method, headers: {} };
+    if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+    // location.origin, not a relative URL: a page opened as http://user:password@host/ could not fetch relative URLs.
+    return fetch(location.origin + path, opts).then(function (r) {
+      if (!r.ok) throw new Error('svarte ' + r.status);
+      return r.status === 204 ? null : r.json();
+    });
+  }
+  // Every value from the server goes in as text, never as markup (a phone chooses its own name).
+  function cell(text) { var td = document.createElement('td'); td.textContent = text; return td; }
+
+  function render(devices) {
+    var rows = $('rows');
+    rows.textContent = '';
+    if (!devices.length) {
+      var tr0 = document.createElement('tr'), td0 = cell('Ingen telefoner er koblet til ennå');
+      td0.colSpan = 6; td0.className = 'empty'; tr0.appendChild(td0); rows.appendChild(tr0);
+      return;
+    }
+    devices.forEach(function (d) {
+      var tr = document.createElement('tr');
+      tr.appendChild(cell(LABEL[d.who] || d.who));
+      tr.appendChild(cell(d.name || '–'));
+      tr.appendChild(cell(d.appVersion || '–'));
+      tr.appendChild(cell(when(d.lastSeenAt)));
+      var push = document.createElement('td'), dot = document.createElement('span');
+      dot.className = 'dot ' + (d.push === 'ok' ? 'ok' : d.push === 'dead' ? 'dead' : '');
+      push.appendChild(dot); push.appendChild(document.createTextNode(PUSH[d.push] || d.push));
+      tr.appendChild(push);
+      var act = document.createElement('td'), b = document.createElement('button');
+      b.type = 'button'; b.className = 'rm'; b.textContent = 'Fjern';
+      b.addEventListener('click', function () {
+        if (!b.classList.contains('armed')) {            // two taps, so a slip of the finger removes nothing
+          b.classList.add('armed'); b.textContent = 'Trykk igjen for å fjerne';
+          setTimeout(function () { b.classList.remove('armed'); b.textContent = 'Fjern'; }, 4000);
+          return;
+        }
+        api('DELETE', '/api/devices/' + encodeURIComponent(d.deviceId)).then(load, function (e) { say('Fikk ikke fjernet telefonen (' + e.message + ')'); });
+      });
+      act.appendChild(b); tr.appendChild(act);
+      rows.appendChild(tr);
+    });
+  }
+  function load() {
+    return api('GET', '/api/devices').then(function (j) { render(j.devices || []); }, function (e) { say('Fikk ikke hentet telefonene (' + e.message + ')'); });
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('button[data-who]'), function (btn) {
+    btn.addEventListener('click', function () {
+      say('');
+      api('POST', '/api/pair-code', { who: btn.dataset.who }).then(function (j) {
+        $('for').textContent = 'Nøkkel for ' + (LABEL[btn.dataset.who] || btn.dataset.who);
+        $('code').textContent = j.pretty;
+        $('qr').innerHTML = j.qrSvg;                     // an <svg> our own server drew from our own key
+        $('key').classList.add('show');
+      }, function (e) { say('Fikk ikke laget nøkkel (' + e.message + ')'); });
+    });
+  });
+
+  load();
+  setInterval(load, 5000);                               // a phone that just paired shows up by itself
+})();
+</script>
+</body>
+</html>

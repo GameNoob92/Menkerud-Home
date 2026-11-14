@@ -45,6 +45,11 @@ HA runs as `Home-Assistant-Container` on `br0` at `192.168.68.3`; the kiosk uses
 3. HA (UI, not YAML – since 2026.8 a `http:` block in `configuration.yaml` is ignored after the one-time import): Settings → System → Network → "HTTP server" → *Trust X-Forwarded-For* on, *Trusted proxies* = `192.168.68.4` (SWAG's br0 IP). Save, let HA restart, and confirm the new settings within 5 minutes or HA reverts.
 4. Verify: `curl -o /dev/null -w '%{http_code}' https://ha.noobventure.com/` → `200`, `…/api/` → `401`. Then set *External URL* = `https://ha.noobventure.com` in every Companion app.
 
+## D. Pairing page for the parent app (local only)
+The parent app pairs with a one-time key. The key is made on a small page that this container serves on a **second port**, published on the Unraid host as **`http://<unraid-ip>:3009`** (container port 3001). It exists only on the home network: there is no SWAG conf for it and there must never be one, so nothing of it is reachable through `call.noobventure.com`. It asks for the password in `ADMIN_PASSWORD` (any user name; an empty password switches the page off) – the password travels unencrypted, which is acceptable on the home network only. On the page: «Ny telefon for Mor / Far» shows a key as text and QR code (valid once, for 15 minutes), and the table lists the paired phones and removes one.
+
+The list of paired phones (`devices.json`) and the Firebase key live in the container's `/app/data`, mounted from **`/mnt/user/appdata/menkerud-callapi`**. That folder is deliberately *outside* this project folder: the project folder on Unraid is refreshed from the dev PC with `robocopy /MIR`, which deletes everything the dev PC does not have – a data folder inside it would lose every paired phone at the next sync. *Built, not yet deployed: rollout is a separate step.*
+
 ## Verify media before going live
 Temporarily set `DEV=1` in `.env`, `docker compose up -d`, and use the kiosk's "Ring far" (or `/dev/pair`) to prove a real call to a phone on mobile data. Set `DEV=0` again after.
 
