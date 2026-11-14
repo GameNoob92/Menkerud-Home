@@ -11,7 +11,7 @@ const express = require('express');
 const sha256 = s => crypto.createHash('sha256').update(s).digest('hex');
 const now = () => Date.now();
 
-function createApp({ config, livekit, discord, devices, log }) {
+function createApp({ config, livekit, discord, devices, hub, log }) {
   const PUBLIC_URL = config.publicUrl, RING = config.ringSec, TOKEN_TTL = config.tokenTtlSec, DEVICE_KEY = config.deviceKey;
   // Only these targets are allowed; Discord ids come from the environment, never the browser.
   const PARENTS = config.parents;
@@ -66,6 +66,9 @@ function createApp({ config, livekit, discord, devices, log }) {
   }
 
   app.get('/healthz', (req, res) => res.json({ ok: true, livekit: livekit.configured(), discord: discord.configured() }));
+
+  // The kiosk keeps this one request open; we write events down it (see kiosk-events.js).
+  app.get('/api/kiosk/events', deviceAuth, (req, res) => hub.attach(req, res));
 
   // --- Paired phones (the parent app). A phone proves who it is with the secret it got when it was paired;
   // which parent it belongs to comes from our record, never from the request.

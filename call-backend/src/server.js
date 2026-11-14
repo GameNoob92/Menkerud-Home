@@ -8,6 +8,7 @@ const path = require('path');
 const { createApp } = require('./app');
 const { createDevices } = require('./devices');
 const { createAdminApp } = require('./admin');
+const { createHub } = require('./kiosk-events');
 const livekit = require('./livekit');
 const discord = require('./discord');
 
@@ -18,7 +19,9 @@ const config = loadConfig();
 fs.mkdirSync(config.dataDir, { recursive: true });
 const devices = createDevices({ file: path.join(config.dataDir, 'devices.json'), log });
 
-const app = createApp({ config, livekit, discord, devices, log });
+const hub = createHub();
+
+const app = createApp({ config, livekit, discord, devices, hub, log });
 app.listen(config.port, () => log('call backend on :' + config.port, '| public', config.publicUrl, '| ring', config.ringSec + 's', '| livekit', livekit.configured(), '| discord', discord.configured()));
 
 // The local pairing page, on its own port. That port is published on the host only – SWAG must never proxy it.

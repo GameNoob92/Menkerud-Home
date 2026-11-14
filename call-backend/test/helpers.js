@@ -71,6 +71,58 @@ function fakeDiscord() {
   return d;
 }
 
+/** Stands in for the kiosk event hub: records what would have been sent. */
+function fakeHub() {
+  const hub = {
+    online: () => hub.state.online,
+    send: event => { hub.sent.push(event); return hub.state.online ? 1 : 0; },
+    attach() {},
+    sent: [],
+    state: { online: true }
+  };
+  return hub;
+}
+
+/** Open an event stream like the kiosk does. next() gives the next parsed data frame, raw(ms) the raw text of the next ms. */
+async function openEvents(url, headers) {
+  const ctl = new AbortController();
+  const r = await fetch(url, { headers: headers || {}, signal: ctl.signal });
+  const out = { status: r.status, contentType: r.headers.get('content-type') || '', close: () => ctl.abort() };
+  if (r.status !== 200 || !r.body) {
+    ctl.abort();
+    out.next = async () => { throw new Error('stream not open (' + r.status + ')'); };
+    out.raw = async () => '';
+    return out;
+  }
+  const reader = r.body.getReader(), dec = new TextDecoder();
+  let buf = '', seen = '';
+  const frames = [], waiters = [];
+  (async () => {
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const text = dec.decode(value, { stream: true });
+        seen += text; buf += text;
+        let i;
+        while ((i = buf.indexOf('\n\n')) >= 0) {
+          const frame = buf.slice(0, i); buf = buf.slice(i + 2);
+          const data = frame.split('\n').filter(l => l.startsWith('data:')).map(l => l.slice(5).trim()).join('\n');
+          if (!data) continue;
+          let obj; try { obj = JSON.parse(data); } catch (e) { continue; }
+          if (waiters.length) waiters.shift()(obj); else frames.push(obj);
+        }
+      }
+    } catch (e) { /* closed */ }
+  })();
+  out.next = (ms = 2000) => frames.length ? Promise.resolve(frames.shift()) : new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('no event within ' + ms + ' ms')), ms);
+    waiters.push(o => { clearTimeout(t); resolve(o); });
+  });
+  out.raw = async ms => { const from = seen.length; await wait(ms); return seen.slice(from); };
+  return out;
+}
+
 /** A hand-cranked clock. advance(ms) runs the timers that fall due, in time order, letting async work settle between them. */
 function fakeTimers(start) {
   let t = start || 1_800_000_000_000, seq = 0;
@@ -108,8 +160,9 @@ function wire(env, deps) {
   const discord = deps.discord || fakeDiscord();
   const now = deps.now || Date.now;
   const devices = deps.devices || createDevices({ file: tmpFile('devices.json'), now, log() {} });
-  const app = createApp({ config, livekit: lk, discord, devices, log() {} });
-  return { config, lk, discord, devices, app };
+  const hub = deps.hub || fakeHub();
+  const app = createApp({ config, livekit: lk, discord, devices, hub, log() {} });
+  return { config, lk, discord, devices, hub, app };
 }
 
-module.exports = { wait, startApp, http, basic, bearer, tmpFile, testConfig, fakeLivekit, fakeDiscord, fakeTimers, wire };
+module.exports = { wait, startApp, http, basic, bearer, tmpFile, testConfig, fakeLivekit, fakeDiscord, fakeHub, fakeTimers, openEvents, wire };
