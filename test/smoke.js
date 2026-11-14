@@ -37,6 +37,9 @@ function mkdom(beforeParse) {
         RoomEvent: { TrackSubscribed: 'TrackSubscribed', Disconnected: 'Disconnected', ParticipantConnected: 'ParticipantConnected' },
         Track: { Source: { Camera: 'camera' } }
       };
+      // The kiosk reads the call API's event stream with TextDecoder, which jsdom does not provide. With it in place every
+      // load tries to open the stream; the default fetch above answers without a body, i.e. "the API is not reachable".
+      window.TextDecoder = require('util').TextDecoder;
       if (beforeParse) beforeParse(window);
     }
   });
@@ -57,6 +60,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(q('#messages-panel').classList.contains('hidden') && q('#bottom-grid').classList.contains('no-messages'), 'BESKJEDER panel hidden when no Discord channel is configured');
   assert(q('#wx-temp').textContent === '14°' && q('#wx-icon').textContent === '🌧️', 'Open-Meteo weather shown: ' + q('#wx-temp').textContent + ' ' + q('#wx-icon').textContent);
   assert(q('#status').classList.contains('off'), 'HA dot grey (not in use)');
+  assert(fetchCalls.some(c => /\/api\/kiosk\/events$/.test(c.url)), 'the kiosk tries to open the call API event stream');
+  assert(q('#incoming').classList.contains('hidden') && q('#call').classList.contains('hidden') && q('#toast').classList.contains('hidden'), 'an event stream that cannot be opened shows nothing on screen');
 
   // Skjerm av: black overlay + the kiosk screen helper is asked to switch the display off; a touch brings both back
   const helperCalls = () => fetchCalls.filter(c => /^http:\/\/127\.0\.0\.1:7777\//.test(c.url)).map(c => c.url.replace(/^.*:7777/, ''));
@@ -450,6 +455,149 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(qa4('#settings-form .room-ed').length === 1 && qa4('#settings-form .room-ed .lightrow').length === 2, 'rooms editor shows the room with both lights');
   click4(qa4('#settings-form .chip-btn').find(b => b.textContent === '+ Nytt rom'));
   assert(qa4('#settings-form .room-ed').length === 2, 'new room added');
+
+  // Fifth load: the call API's event stream – a parent rings home from the app, «Ikke nå» both ways, the stream dropping.
+  // streamLoad() gives a page whose GET …/api/kiosk/events is a stream the test feeds, and records every request.
+  const enc = new (require('util').TextEncoder)();
+  function streamLoad(eventsAnswer, extra) {
+    const rec = [], streams = [], said = [];
+    const load = mkdom(win => {
+      win.speechSynthesis = { cancel() {}, speak(u) { said.push(u.text); } };
+      win.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
+      const settings = { call: { backend: 'https://api.test', deviceKey: 'k' }, notify: { provider: 'none' } };
+      if (extra) extra(win, settings);
+      win.localStorage.setItem('menkerud.settings', JSON.stringify(settings));
+      const f0 = win.fetch;
+      win.fetch = (url, opts) => {
+        rec.push({ url, opts: opts || {} });
+        if (/\/api\/kiosk\/events$/.test(url)) {
+          if (eventsAnswer) return Promise.resolve(eventsAnswer);
+          const queue = []; let waiting = null, over = false;
+          const give = item => { if (waiting) { const r = waiting; waiting = null; r(item); } else queue.push(item); };
+          streams.push({ feed: obj => give({ done: false, value: enc.encode('data: ' + JSON.stringify(obj) + '\n\n') }), end: () => { over = true; give({ done: true }); } });
+          const reader = { read: () => new Promise(r => { if (queue.length) r(queue.shift()); else if (over) r({ done: true }); else waiting = r; }), cancel() {} };
+          return Promise.resolve({ ok: true, status: 200, body: { getReader: () => reader } });
+        }
+        const m = /\/api\/calls\/([^/]+)\/answer$/.exec(url);
+        if (m && m[1] === 'c_gone') return Promise.resolve({ ok: false, status: 410, json: async () => ({ error: 'over' }) });   // the caller gave up a moment ago
+        if (m) return Promise.resolve({ ok: true, status: 200, json: async () => ({ callId: m[1], livekit: { url: 'wss://rtc.test', token: 'tok' } }) });
+        return f0(url, opts);
+      };
+    });
+    const doc = load.dom.window.document;
+    return {
+      win: load.dom.window, q: s => doc.querySelector(s), said,
+      click: el => el.dispatchEvent(new load.dom.window.MouseEvent('click', { bubbles: true })),
+      feed: obj => { const s = streams[streams.length - 1]; if (s) s.feed(obj); }, endStream: () => { const s = streams[streams.length - 1]; if (s) s.end(); },
+      evReqs: () => rec.filter(c => /\/api\/kiosk\/events$/.test(c.url)),
+      posts: re => rec.filter(c => c.opts.method === 'POST' && re.test(c.url))
+    };
+  }
+  const roomGone = k => { const r = k.win.LivekitClient.Room.last; if (r && r._h.Disconnected) r._h.Disconnected(); };   // LiveKit says: the room is closed
+  // The «Mor/far ringer hjem» row on the status page, as "text|dot"
+  const ringRow = k => { const r = [...k.win.document.querySelectorAll('#status-grid .srow')].find(x => x.querySelector('.sk').textContent === 'Mor/far ringer hjem'); return r ? r.querySelector('.sv').textContent + '|' + r.className.replace('srow ', '') : 'no row'; };
+  const k5 = streamLoad(), q5 = k5.q, click5 = k5.click, feed = k5.feed, posts = k5.posts, evReqs = k5.evReqs;
+  await wait(60);
+  assert(evReqs().length === 1 && evReqs()[0].url === 'https://api.test/api/kiosk/events' && evReqs()[0].opts.headers['X-Device-Key'] === 'k', 'kiosk opens the event stream with its key');
+  click5(q5('.nav-item[data-pane="settings"]')); await wait(20);
+  assert(ringRow(k5) === 'Av – legg inn bot-token og kanal-ID|off', 'until the API has said hello the status row reads as before: ' + ringRow(k5));
+  feed({ type: 'hello' }); await wait(30);
+  assert(ringRow(k5) === 'Appen ✓|on', 'the status page says the app can ring home: ' + ringRow(k5));
+  feed({ type: 'incoming', callId: 'c_h1', from: 'far' }); await wait(30);
+  assert(!q5('#incoming').classList.contains('hidden') && q5('#in-name').textContent === 'Far ringer!', 'a parent calling from the app rings the kiosk: ' + q5('#in-name').textContent);
+  feed({ type: 'incoming', callId: 'c_h0', from: 'mor' }); await wait(30);
+  assert(posts(/\/api\/calls\/c_h0\/decline$/).length === 1 && q5('#in-name').textContent === 'Far ringer!', 'a second caller is declined at once and the first keeps ringing');
+  click5(q5('#answer')); await wait(60);
+  assert(posts(/\/api\/calls\/c_h1\/answer$/).length === 1 && posts(/\/api\/calls\/c_h1\/answer$/)[0].opts.headers['X-Device-Key'] === 'k', 'Svar joins the waiting call with the kiosk key');
+  assert(posts(/\/api\/calls$/).length === 0, 'Svar does not place a new outgoing call');
+  assert(posts(/\/api\/calls\/c_h1\/decline$/).length === 0, 'answering does not also decline');
+  assert(!q5('#call').classList.contains('hidden') && q5('#call-status').textContent === 'Far er med – venter på bildet…', 'joining shows the existing «er med» text: ' + q5('#call-status').textContent);
+  roomGone(k5);
+  assert(q5('#call').classList.contains('hidden'), 'on a joined call the parent hanging up closes the call at once');
+  feed({ type: 'incoming', callId: 'c_h2', from: 'mor' }); await wait(30); click5(q5('#decline')); await wait(30);
+  assert(posts(/\/api\/calls\/c_h2\/decline$/).length === 1 && q5('#incoming').classList.contains('hidden'), 'Ikke nå tells the API');
+  feed({ type: 'incoming', callId: 'c_h3', from: 'mor' }); await wait(30); feed({ type: 'cancelled', callId: 'c_h3' }); await wait(30);
+  assert(q5('#incoming').classList.contains('hidden') && posts(/\/api\/calls\/c_h3\/decline$/).length === 0, 'the caller giving up closes the overlay quietly');
+  feed({ type: 'incoming', callId: 'c_h4', from: 'far' }); await wait(30); feed({ type: 'ended', callId: 'c_h4' }); await wait(30);
+  assert(q5('#incoming').classList.contains('hidden') && posts(/\/api\/calls\/c_h4\/decline$/).length === 0, 'the ring time running out on the server closes the overlay quietly');
+  feed({ type: 'something-new', callId: 'c_h4' }); await wait(20);
+  assert(q5('#incoming').classList.contains('hidden') && q5('#call').classList.contains('hidden'), 'an unknown event type is ignored');
+  click5(q5('#card-far')); await wait(60);                                   // the mocked POST /api/calls answers callId 'c_test'
+  assert(/^Ringer far/.test(q5('#call-status').textContent), 'outgoing call rings: ' + q5('#call-status').textContent);
+  feed({ type: 'declined', callId: 'c_test' }); await wait(30);
+  assert(q5('#call-status').textContent === 'Far kunne ikke svare nå 😢', 'the parent pressing Ikke nå ends the ringing with the existing text: ' + q5('#call-status').textContent);
+  feed({ type: 'ended', callId: 'c_test' }); roomGone(k5); await wait(30);
+  assert(!q5('#call').classList.contains('hidden') && q5('#call-status').textContent === 'Far kunne ikke svare nå 😢', 'the room closing right after does not cut the message short');
+  assert(k5.said.filter(t => t === 'Far kunne ikke svare nå. Prøv igjen litt senere.').length === 1, 'and it is said once, not once for every piece of news: ' + k5.said.filter(t => /kunne ikke svare/.test(t)).length);
+  k5.endStream(); await wait(30);
+  assert(ringRow(k5) === 'Av – legg inn bot-token og kanal-ID|off', 'a dropped stream takes «Appen ✓» off the status page: ' + ringRow(k5));
+  await wait(2300);
+  assert(evReqs().length === 2, 'the kiosk reconnects by itself when the stream ends: ' + evReqs().length);
+
+  // Sixth load: the API refuses the key – that is not a network problem, so the kiosk does not keep knocking
+  const k6 = streamLoad({ ok: false, status: 401, json: async () => ({ error: 'unauthorized' }) });
+  await wait(2500);
+  assert(k6.evReqs().length === 1, 'a refused key is not retried: ' + k6.evReqs().length);
+  assert(k6.q('#incoming').classList.contains('hidden') && k6.q('#toast').classList.contains('hidden'), 'and nothing is shown');
+
+  // Seventh load: an outgoing call nobody answers, where the server closes the room before the kiosk's own timer
+  const k7 = streamLoad();
+  await wait(60);
+  k7.click(k7.q('#card-mor')); await wait(60);
+  roomGone(k7); await wait(20);
+  assert(!k7.q('#call').classList.contains('hidden') && k7.q('#call-status').textContent === 'Mor kunne ikke svare nå 😢', 'the room closing while it still rings shows «kunne ikke svare nå» instead of vanishing: ' + k7.q('#call-status').textContent);
+  // «Svar» a moment after the caller gave up: the API refuses the answer
+  k7.click(k7.q('#hangup'));
+  k7.feed({ type: 'incoming', callId: 'c_gone', from: 'far' }); await wait(30);
+  k7.click(k7.q('#answer')); await wait(60);
+  assert(!k7.q('#call').classList.contains('hidden') && k7.q('#call-status').textContent === 'Klarte ikke å starte samtalen 😕', 'an answer the API refuses shows the existing text: ' + k7.q('#call-status').textContent);
+  k7.feed({ type: 'ended', callId: 'c_gone' }); await wait(30);
+  assert(!k7.q('#call').classList.contains('hidden') && k7.q('#call-status').textContent === 'Klarte ikke å starte samtalen 😕', 'and the call ending on the server does not cut that message short: ' + k7.q('#call-status').textContent);
+  // News from a room the kiosk has already left must not touch the next call
+  k7.click(k7.q('#hangup'));
+  k7.click(k7.q('#card-far')); await wait(60);
+  const stale = k7.win.LivekitClient.Room.last;
+  k7.click(k7.q('#hangup'));
+  k7.click(k7.q('#card-far')); await wait(60);
+  stale._h.ParticipantConnected({}); stale._h.TrackSubscribed({ kind: 'video', attach() {} }); stale._h.Disconnected();
+  assert(!k7.q('#call').classList.contains('hidden') && !k7.q('#calling').classList.contains('hidden') && /^Ringer far/.test(k7.q('#call-status').textContent), 'news from a room we already left does not touch the next call: ' + k7.q('#call-status').textContent);
+  k7.click(k7.q('#hangup'));
+  // The room cannot be reached. The real LiveKit client first reports «disconnected», then fails the connect.
+  k7.win.LivekitClient.Room.prototype.connect = async function () { if (this._h.Disconnected) this._h.Disconnected(); throw new Error('could not establish pc connection'); };
+  k7.click(k7.q('#card-mor')); await wait(60);
+  assert(!k7.q('#call').classList.contains('hidden') && k7.q('#call-status').textContent === 'Klarte ikke å starte samtalen 😕', 'a room that cannot be reached says so – it neither blames the parent nor just vanishes: ' + k7.q('#call-status').textContent);
+  k7.click(k7.q('#hangup'));
+  k7.feed({ type: 'incoming', callId: 'c_h9', from: 'far' }); await wait(30);
+  k7.click(k7.q('#answer')); await wait(60);
+  assert(!k7.q('#call').classList.contains('hidden') && k7.q('#call-status').textContent === 'Klarte ikke å starte samtalen 😕', 'the same when answering a call from the app: ' + k7.q('#call-status').textContent);
+  k7.click(k7.q('#hangup'));
+
+  // Eighth load: the app next to an older way of ringing home (ntfy here). A ring that carries no call id is called
+  // back, as before – and a parent who answers in the last second still gets through.
+  const k8 = streamLoad(null, (win, s) => {
+    s.call.timeoutSec = 0.05;                                                // the kiosk gives up ringing after 50 ms
+    s.notify.ntfy = { topicKiosk: 'hjem' };
+    win.WebSocket = class { constructor() { win.__ntfy = this; setTimeout(() => this.onopen && this.onopen(), 5); } close() {} };
+  });
+  await wait(60);
+  k8.feed({ type: 'hello' }); await wait(30);
+  k8.click(k8.q('.nav-item[data-pane="settings"]')); await wait(20);
+  assert(ringRow(k8) === 'Appen ✓ · ntfy: lytter på «hjem» ✓|on', 'the status row names the app and the other listener: ' + ringRow(k8));
+  k8.win.__ntfy.onmessage({ data: JSON.stringify({ event: 'message', message: 'far ringer' }) }); await wait(20);
+  assert(!k8.q('#incoming').classList.contains('hidden') && k8.q('#in-name').textContent === 'Far ringer!', 'a ring over ntfy still rings the kiosk: ' + k8.q('#in-name').textContent);
+  k8.click(k8.q('#answer')); await wait(40);
+  assert(k8.posts(/\/api\/calls$/).length === 1 && JSON.parse(k8.posts(/\/api\/calls$/)[0].opts.body).target === 'far' && k8.posts(/\/answer$/).length === 0 && k8.posts(/\/decline$/).length === 0, 'Svar on a ring without a call id calls the parent back, as before');
+  await wait(120);
+  assert(k8.q('#call-status').textContent === 'Far kunne ikke svare nå 😢', 'the kiosk gives up ringing after its own time: ' + k8.q('#call-status').textContent);
+  k8.win.LivekitClient.Room.last._h.TrackSubscribed({ kind: 'video', attach() {} });
+  assert(k8.q('#calling').classList.contains('hidden') && !k8.q('#call').classList.contains('hidden'), 'a parent answering in the last second still gets through');
+  roomGone(k8);
+  assert(k8.q('#call').classList.contains('hidden'), 'and that call closes when the parent hangs up');
+  k8.click(k8.q('#card-far')); await wait(160);                              // once more: the kiosk gives up after 50 ms …
+  k8.win.LivekitClient.Room.last._h.ParticipantConnected({});                // … the parent comes in after all, no picture yet …
+  assert(k8.q('#call-status').textContent === 'Far er med – venter på bildet…', 'a parent coming in while the closing message shows is let in: ' + k8.q('#call-status').textContent);
+  roomGone(k8);                                                              // … and is gone again
+  assert(!k8.q('#call').classList.contains('hidden') && k8.q('#call-status').textContent === 'Far kunne ikke svare nå 😢', 'and the kiosk notices when that parent is gone again: ' + k8.q('#call-status').textContent);
 
   console.log(errors.length ? 'ERRORS:\n' + errors.join('\n') : 'ALL GOOD');
   process.exit(errors.length ? 1 : 0);

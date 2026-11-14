@@ -1738,6 +1738,66 @@ function listenDiscord() {
   };
 }
 
+/* The call-backend's event stream (GET …/api/kiosk/events, held open): how the kiosk hears that a parent rings home
+   from the app, gave up again, or pressed «Ikke nå» on a call from here. Read with fetch – EventSource cannot send the
+   device key as a header. All of it happens behind the screen: a stream that will not open is tried again quietly
+   (after 2 s, growing to a minute) and shows nothing; only the «… ringer hjem» row under Innstillinger tells. */
+let beState = 'off', beRetry = 2000;                   // 'off' | 'connecting' | 'on' | 'denied' (the API refused the device key)
+async function listenBackend() {
+  const base = String((cfg.call && cfg.call.backend) || '').trim().replace(/\/+$/, '');
+  if (!base || !window.fetch || !window.TextDecoder || !window.AbortController) return;
+  const state = s => { if (beState !== s) { beState = s; renderStatus(); } };
+  const ac = new AbortController();
+  let quiet = null;                                    // the API writes a keep-alive line every 20 s: 45 s of nothing means the line is dead
+  const heard = () => { clearTimeout(quiet); quiet = setTimeout(() => ac.abort(), 45000); };
+  state('connecting');
+  try {
+    heard();
+    const headers = { Accept: 'text/event-stream' };
+    if (cfg.call.deviceKey) headers['X-Device-Key'] = cfg.call.deviceKey;
+    const r = await fetch(base + '/api/kiosk/events', { headers, cache: 'no-store', signal: ac.signal });
+    if (r.status === 401 || r.status === 403) { state('denied'); return; }   // a wrong device key is no network problem: knocking again will not help
+    if (!r.ok || !r.body || !r.body.getReader) throw new Error('no stream');
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let buf = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      heard();
+      buf += dec.decode(value, { stream: true });
+      if (buf.length > 65536) throw new Error('not an event stream');
+      let end;
+      while ((end = buf.indexOf('\n\n')) >= 0) {                              // one frame per blank line
+        const frame = buf.slice(0, end); buf = buf.slice(end + 2);
+        for (const line of frame.split('\n')) {
+          if (line.slice(0, 5) !== 'data:') continue;                          // «: ka» keep-alive lines, and anything we do not know
+          let ev = null; try { ev = JSON.parse(line.slice(5)); } catch (e) {}
+          if (!ev || typeof ev !== 'object') continue;
+          beRetry = 2000; state('on');
+          try { onBackendEvent(ev); } catch (e) { console.warn('call event', e); }
+        }
+      }
+    }
+  } catch (e) { /* unreachable, dropped, or silent for too long: tried again below */ }
+  finally { clearTimeout(quiet); try { ac.abort(); } catch (e) {} }
+  state('off');
+  setTimeout(listenBackend, beRetry);
+  beRetry = Math.min(beRetry * 1.5, 60000);
+}
+/* One event from that stream. Types we do not know are ignored, so the API can grow without breaking the kiosk. */
+function onBackendEvent(ev) {
+  const id = ev.callId;
+  if (ev.type === 'incoming') {                        // a parent pressed «Ring hjem» in the app and waits in the room
+    if (!currentCall && !incomingWho) incomingCall(ev.from, id);
+    if (id && incomingCallId !== id) callApi(id, 'decline').catch(() => {});   // busy here: say so at once rather than leave the parent waiting
+  } else if (ev.type === 'cancelled' || ev.type === 'ended') {
+    if (id && id === incomingCallId) dismissIncoming(false);                   // the caller gave up, or the ring time ran out on the server
+    else if (ev.type === 'ended' && id && id === currentCallId && !callOver && !couldNotAnswer(currentCall)) endCall();
+  } else if (ev.type === 'declined') {                 // the parent pressed «Ikke nå» in the app
+    if (id && id === currentCallId) couldNotAnswer(currentCall);
+  }
+}
+
 /* ---------------- Beskjeder (the parents' Discord channel, read aloud on the kiosk) ----------------
    The last MSG_KEEP messages live in localStorage as { id, who, name, text, ts, heard, read }. A new one while the
    kiosk is on: badge, chime, the sheet opens and (cfg.messages.autoSpeak) it is read aloud. At night / with the
@@ -1947,6 +2007,8 @@ async function imHome() {
 /* ---------------- Calls (video overlay) ---------------- */
 let currentCall = null;
 let lkRoom = null, currentCallId = null, lkTimer = null;
+let callJoined = false;                                // this call was answered here: a parent rang home from the app and waits in the room
+let callOver = false;                                  // a closing message is on screen and the hang-up is already scheduled
 
 function startCall(who) { return startCallLiveKit(who); }
 
@@ -1954,7 +2016,7 @@ function endCall() {
   ring.stop();
   clearTimeout(lkTimer); lkTimer = null;
   const cid = currentCallId; currentCallId = null;
-  currentCall = null;
+  currentCall = null; callJoined = false; callOver = false;
   if (lkRoom) { const r = lkRoom; lkRoom = null; try { r.disconnect(); } catch (e) {} }
   if (cid && cfg.call) {
     try { fetch((cfg.call.backend || '').replace(/\/+$/, '') + '/api/calls/' + cid + '/end', { method: 'POST' }); } catch (e) {}
@@ -1963,25 +2025,36 @@ function endCall() {
   hideOverlay('#call');
 }
 
-let incomingWho = null, incomingTimer = null;
-function incomingCall(who) {
+/* A parent rings home. callId is set when the call-backend announced it (the parent pressed «Ring hjem» in the app and
+   waits in a room): «Svar» then joins that call. Without one (a message in #ring-hjem, ntfy, a Home Assistant event)
+   «Svar» calls the parent back, as before. */
+let incomingWho = null, incomingTimer = null, incomingCallId = null;
+function incomingCall(who, callId) {
   if (currentCall || incomingWho) return;
   const p = cfg.people[who];
   if (!p) return;
-  incomingWho = who;
+  incomingWho = who; incomingCallId = callId || null;
   awakeUntil = Date.now() + 120000;
   setAvatar($('#in-avatar'), who);
   $('#in-name').textContent = p.name + ' ringer!';
   showOverlay('#incoming');
   ring.start();
   speak(p.name + ' ringer!');
-  incomingTimer = setTimeout(dismissIncoming, 45000);
+  incomingTimer = setTimeout(() => dismissIncoming(true), 45000);
 }
-function dismissIncoming() {
+/* tellBackend: «Ikke nå», or nobody tapped – the parent waiting in the app is told. Not on «Svar», and not when it
+   was the caller who gave up. */
+function dismissIncoming(tellBackend) {
   clearTimeout(incomingTimer);
   ring.stop();
-  incomingWho = null;
+  const cid = incomingCallId;
+  incomingWho = null; incomingCallId = null;
   hideOverlay('#incoming');
+  if (tellBackend === true && cid) callApi(cid, 'decline').catch(() => {});
+}
+/* POST …/api/calls/<id>/<answer|decline> with the kiosk's key. */
+function callApi(callId, what) {
+  return backendApi('/api/calls/' + encodeURIComponent(callId) + '/' + what, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
 }
 
 /* ---------------- Calls via LiveKit (opt-in; the call-backend does the Discord DM) ---------------- */
@@ -1997,16 +2070,89 @@ function loadLiveKit() {
   });
   return loadLiveKit._p;
 }
-async function startCallLiveKit(who) {
-  if (currentCall || lkRoom) return;
-  const p = cfg.people[who]; if (!p) return;
+/* The call overlay with its «ringer …» layer on top – the same for a call from here and one answered here. */
+function showCalling(who, status) {
+  const p = cfg.people[who];
   currentCall = who;
   awakeUntil = Date.now() + 120000;
   $('#call-name').textContent = p.name;
   setAvatar($('#call-avatar'), who);
-  $('#call-status').textContent = 'Ringer ' + p.name.toLowerCase() + '…';
+  $('#call-status').textContent = status;
   $('#calling').classList.remove('hidden');
   showOverlay('#call');
+}
+/* A closing message: show it, then hang up. While it is up, callOver keeps later news about the same call (the room
+   closing, the server's «ended») from replacing it or cutting it short. */
+function closeCall(text, ms) {
+  callOver = true;
+  ring.stop(); clearTimeout(lkTimer);
+  $('#call-status').textContent = text;
+  lkTimer = setTimeout(endCall, ms);
+}
+/* Nobody answered a call from here. Several things can say so – our own ring time, the parent pressing «Ikke nå» in
+   the app, the server giving up, the room closing under a call that still rings. The first one shows the message; the
+   others find it said. False when this is not such a call (it was answered here, or the picture is already showing). */
+function couldNotAnswer(who) {
+  const p = cfg.people[who];
+  if (!p || currentCall !== who || callJoined || callOver || $('#calling').classList.contains('hidden')) return false;
+  closeCall(p.name + ' kunne ikke svare nå 😢', 4500);
+  speak(p.name + ' kunne ikke svare nå. Prøv igjen litt senere.');
+  return true;
+}
+/* The parent is in the room: stop ringing and wait for the picture – but not for ever. */
+function awaitPicture(who) {
+  const p = cfg.people[who];
+  if (currentCall !== who || $('#calling').classList.contains('hidden')) return;
+  ring.stop(); clearTimeout(lkTimer); callOver = false;
+  $('#call-status').textContent = p.name + ' er med – venter på bildet…';
+  lkTimer = setTimeout(() => {                                     // joined but no video (camera refused on the phone, in-app browser …)
+    if (currentCall !== who || $('#calling').classList.contains('hidden')) return;
+    closeCall('Bildet fra ' + p.name.toLowerCase() + ' kom ikke fram 😕 Prøv igjen.', 6000);
+    speak('Bildet fra ' + p.name + ' kom ikke fram. Prøv å ringe igjen.');
+  }, 20000);
+}
+/* The LiveKit part of a call, the same in both directions: join the room, send camera and microphone. */
+async function connectCall(who, callId, lk) {
+  const live = () => currentCallId === callId && !callOver;       // still this call, and nothing has ended it meanwhile
+  try { await loadLiveKit(); }
+  catch (e) { if (live()) closeCall('Kunne ikke laste videosamtalen 😕', 5000); return; }
+  if (!live()) return;
+
+  const LK = window.LivekitClient;
+  try {
+    const room = lkRoom = new LK.Room({ adaptiveStream: true, dynacast: true });
+    room.on(LK.RoomEvent.TrackSubscribed, track => {
+      if (lkRoom !== room) return;
+      if (track.kind === 'video') {
+        const v = document.createElement('video');
+        v.autoplay = true; v.playsInline = true; v.muted = false;
+        v.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#04070f';
+        const j = $('#callvideo'); j.innerHTML = ''; j.appendChild(v);
+        track.attach(v);
+        ring.stop(); clearTimeout(lkTimer); callOver = false;       // the picture is here: whatever was about to end the call no longer does
+        $('#calling').classList.add('hidden');
+      } else if (track.kind === 'audio') { track.attach(); }
+    });
+    // The room is gone: the other side hung up, or the server closed it. A call from here that still rang says
+    // «kunne ikke svare nå» (once); any other call just closes. Before we are in, it only means the connect is
+    // failing – LiveKit reports that as a disconnect first – and the catch below says so.
+    let inRoom = false;
+    room.on(LK.RoomEvent.Disconnected, () => { if (inRoom && lkRoom === room && !callOver && !couldNotAnswer(who)) endCall(); });
+    room.on(LK.RoomEvent.ParticipantConnected, () => { if (lkRoom === room) awaitPicture(who); });
+    await room.connect(lk.url, lk.token);
+    inRoom = true;
+    if (!live()) return;
+    if (callJoined) awaitPicture(who);                              // the parent is in the room already – LiveKit only announces those who come later
+    else lkTimer = setTimeout(() => couldNotAnswer(who), (Number(cfg.call.timeoutSec) || 60) * 1000);   // our own ring time
+    await room.localParticipant.enableCameraAndMicrophone();
+  } catch (e) {
+    if (live()) closeCall('Klarte ikke å starte samtalen 😕', 4000);
+  }
+}
+async function startCallLiveKit(who) {
+  if (currentCall || lkRoom) return;
+  const p = cfg.people[who]; if (!p) return;
+  showCalling(who, 'Ringer ' + p.name.toLowerCase() + '…');
   ring.start();
   speak('Ringer ' + p.name);
 
@@ -2027,61 +2173,27 @@ async function startCallLiveKit(who) {
   }
   if (!currentCall) return;
   currentCallId = data.callId;
+  connectCall(who, data.callId, data.livekit);
+}
+/* «Svar» on a call a parent started in the app. The parent already waits in the room, so nothing rings: tell the
+   backend that we answer, get our own way into the room, and connect. */
+async function joinCall(who, callId) {
+  if (currentCall || lkRoom) return;
+  const p = cfg.people[who]; if (!p) return;
+  showCalling(who, p.name + ' er med – venter på bildet…');
+  currentCallId = callId; callJoined = true;
 
-  try { await loadLiveKit(); }
-  catch (e) {
-    if (!currentCall) return;
-    ring.stop();
-    $('#call-status').textContent = 'Kunne ikke laste videosamtalen 😕';
-    lkTimer = setTimeout(endCall, 5000);
-    return;
-  }
-  if (!currentCall) return;
-
-  const LK = window.LivekitClient;
+  let data;
   try {
-    lkRoom = new LK.Room({ adaptiveStream: true, dynacast: true });
-    lkRoom.on(LK.RoomEvent.TrackSubscribed, track => {
-      if (track.kind === 'video') {
-        const v = document.createElement('video');
-        v.autoplay = true; v.playsInline = true; v.muted = false;
-        v.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#04070f';
-        const j = $('#callvideo'); j.innerHTML = ''; j.appendChild(v);
-        track.attach(v);
-        ring.stop(); clearTimeout(lkTimer);
-        $('#calling').classList.add('hidden');
-      } else if (track.kind === 'audio') { track.attach(); }
-    });
-    lkRoom.on(LK.RoomEvent.Disconnected, () => { if (currentCall) endCall(); });
-    lkRoom.on(LK.RoomEvent.ParticipantConnected, () => {           // the parent is in the room: stop ringing, wait for the picture
-      if (currentCall !== who || $('#calling').classList.contains('hidden')) return;
-      ring.stop(); clearTimeout(lkTimer);
-      $('#call-status').textContent = p.name + ' er med – venter på bildet…';
-      lkTimer = setTimeout(() => {                                   // joined but no video (camera refused on the phone, in-app browser …)
-        if (currentCall !== who || $('#calling').classList.contains('hidden')) return;
-        $('#call-status').textContent = 'Bildet fra ' + p.name.toLowerCase() + ' kom ikke fram 😕 Prøv igjen.';
-        speak('Bildet fra ' + p.name + ' kom ikke fram. Prøv å ringe igjen.');
-        lkTimer = setTimeout(endCall, 6000);
-      }, 20000);
-    });
-    await lkRoom.connect(data.livekit.url, data.livekit.token);
-    await lkRoom.localParticipant.enableCameraAndMicrophone();
+    const r = await callApi(callId, 'answer');
+    data = await r.json().catch(() => ({}));
+    if (!r.ok || !data || !data.livekit) throw new Error('svarte ' + r.status);
   } catch (e) {
-    if (!currentCall) return;
-    ring.stop();
-    $('#call-status').textContent = 'Klarte ikke å starte samtalen 😕';
-    lkTimer = setTimeout(endCall, 4000);
+    if (currentCallId === callId) closeCall('Klarte ikke å starte samtalen 😕', 4000);   // e.g. the caller gave up at that very moment
     return;
   }
-
-  lkTimer = setTimeout(() => {
-    if (currentCall === who && !$('#calling').classList.contains('hidden')) {
-      ring.stop();
-      $('#call-status').textContent = p.name + ' kunne ikke svare nå 😢';
-      speak(p.name + ' kunne ikke svare nå. Prøv igjen litt senere.');
-      lkTimer = setTimeout(endCall, 4500);
-    }
-  }, (Number(cfg.call.timeoutSec) || 60) * 1000);
+  if (currentCallId !== callId) return;
+  connectCall(who, callId, data.livekit);
 }
 
 /* ---------------- Confetti ---------------- */
@@ -2325,9 +2437,10 @@ function renderStatus() {
     : p === 'ntfy' ? ((n.topicMor || n.topicFar) ? ['ntfy ✓', 'on'] : ['ntfy – emner mangler', 'off'])
     : p === 'ha' ? ['Home Assistant', ha.connected ? 'on' : 'off']
     : p === 'webhook' ? ['Webhook', cfg.notify.webhook.url ? 'on' : 'off'] : ['Av', 'idle'];
-  const ringHome = dcState === 'on' ? ['Discord-bot lytter ✓', 'on'] : dcState === 'connecting' ? ['Kobler til Discord…', 'busy']
+  let ringHome = dcState === 'on' ? ['Discord-bot lytter ✓', 'on'] : dcState === 'connecting' ? ['Kobler til Discord…', 'busy']
     : ntfyState === 'on' ? ['ntfy: lytter på «' + n.topicKiosk + '» ✓', 'on'] : ntfyState === 'connecting' ? ['Kobler til ntfy…', 'busy']
     : ha.connected ? ['Via Home Assistant-hendelse', 'on'] : ['Av – legg inn bot-token og kanal-ID', 'off'];
+  if (beState === 'on') ringHome = ['Appen ✓' + (ringHome[1] === 'on' ? ' · ' + ringHome[0] : ''), 'on'];   // the call-backend's event stream is open: the parent app can ring home
   const msgRow = !msgsOn() ? ['Av – legg inn kanal-ID for beskjeder', 'idle']
     : dcNoContent ? ['Boten mangler «Message Content Intent» – slå på under Bot i Discord Developer Portal', 'off']
     : dcState === 'on' ? ['Discord-bot lytter ✓ · ' + (unreadCount() ? unreadCount() + ' ulest' : 'alt lest') + (msgApi.history ? ' · historikk: ' + msgApi.history : '') + (msgApi.ack ? ' · siste ✅: ' + msgApi.ack : ''), msgApi.ack.startsWith('feilet') || msgApi.history.startsWith('feilet') ? 'busy' : 'on']
@@ -3233,8 +3346,8 @@ function init() {
   $('#card-far').addEventListener('click', () => startCall('far', true));
   $('#card-home').addEventListener('click', imHome);
   $('#hangup').addEventListener('click', endCall);
-  $('#answer').addEventListener('click', () => { const who = incomingWho; dismissIncoming(); startCall(who, false); });
-  $('#decline').addEventListener('click', dismissIncoming);
+  $('#answer').addEventListener('click', () => { const who = incomingWho, cid = incomingCallId; dismissIncoming(false); if (cid) joinCall(who, cid); else startCall(who, false); });
+  $('#decline').addEventListener('click', () => dismissIncoming(true));
   $('#menu-btn').addEventListener('click', openMenuGate);
   $('#footer-gear').addEventListener('click', openMenuGate);
   $('#home-btn').addEventListener('click', () => { if (!$('#menu').classList.contains('hidden')) closeMenu(); goPage(0); });
@@ -3281,6 +3394,7 @@ function init() {
   if (haOn) ha.connect();
   listenNtfy();
   listenDiscord();
+  listenBackend();
 }
 init();
 })();
