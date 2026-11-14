@@ -25,7 +25,7 @@ function callEndTtl(reason) {
 const b64url = x => Buffer.from(typeof x === 'string' ? x : JSON.stringify(x)).toString('base64url');
 const strings = data => { const out = {}; for (const k of Object.keys(data || {})) out[k] = String(data[k]); return out; };
 
-function createPush({ transport, serviceAccount, outboxFile, fetch = global.fetch, now = Date.now, log = () => {} } = {}) {
+function createPush({ transport, serviceAccount, outboxFile, fetch = global.fetch, now = Date.now, timeoutMs = 5000, log = () => {} } = {}) {
   if (transport === 'file') {
     return {
       name: 'file',
@@ -53,6 +53,7 @@ function createPush({ transport, serviceAccount, outboxFile, fetch = global.fetc
     const signature = crypto.createSign('RSA-SHA256').update(head + '.' + claims).sign(serviceAccount.private_key, 'base64url');
     const r = await fetch(serviceAccount.token_uri, {
       method: 'POST',
+      signal: AbortSignal.timeout(timeoutMs),   // the kiosk waits for the push before it rings: never hang on Google
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: 'grant_type=' + encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer') + '&assertion=' + head + '.' + claims + '.' + signature
     });
@@ -70,6 +71,7 @@ function createPush({ transport, serviceAccount, outboxFile, fetch = global.fetc
         const token = await accessToken();
         const r = await fetch('https://fcm.googleapis.com/v1/projects/' + serviceAccount.project_id + '/messages:send', {
           method: 'POST',
+          signal: AbortSignal.timeout(timeoutMs),
           headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: { token: device.pushToken, data: strings(data), android: { priority: 'HIGH', ttl: Math.max(0, Math.round((opts && opts.ttlSec) || 0)) + 's' } } })
         });

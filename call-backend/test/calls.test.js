@@ -1,0 +1,142 @@
+// Unit tests: the call manager (src/calls.js) – real device store, fake LiveKit / Discord / push / kiosk hub and a
+// hand-cranked clock. Each block starts from a fresh wire().
+'use strict';
+const assert = require('assert');
+const { wire } = require('./helpers');
+
+(async () => {
+  // ---------- kids call a parent ----------
+  { const x = wire(), far = x.phone('far');
+    const s = await x.calls.startFromHome('far');
+    assert.strictEqual(s.via, 'app');
+    assert.strictEqual(s.status, 'ringing');
+    assert.strictEqual(s.livekit.token, 'tok:family-' + s.callId + ':tablet-stue');
+    assert.strictEqual(x.discord.dms.length, 0);
+    assert.deepStrictEqual(x.push.sent[0].data, { type: 'call', v: '1', callId: s.callId, from: 'home', who: 'far', expiresAt: String(s.expiresAt) });
+    assert.strictEqual(x.push.sent[0].opts.ttlSec, 60);
+    const a = await x.calls.answerByParent(s.callId, far);
+    assert.strictEqual(a.livekit.token, 'tok:family-' + s.callId + ':parent-far');
+    assert.strictEqual(x.calls.get(s.callId).status, 'connected');
+    console.log('ok - a parent with a paired phone is rung through the app and answers there'); }
+
+  { const x = wire();
+    const s = await x.calls.startFromHome('mor');
+    assert.strictEqual(s.via, 'discord');
+    assert.strictEqual(x.discord.dms.length, 1);
+    assert.strictEqual(x.push.sent.length, 0);
+    const link = x.discord.dms[0].content.match(/\/answer\/([0-9a-f]{64})/)[1];
+    assert.strictEqual((await x.calls.answerByLink(link)).status, 'connected');
+    console.log('ok - a parent without a phone gets the Discord link exactly as before'); }
+
+  { const x = wire(); x.phone('far');
+    x.push.results.push({ ok: false, dead: true, error: 'UNREGISTERED' });
+    const s = await x.calls.startFromHome('far');
+    assert.strictEqual(s.via, 'discord');
+    assert.strictEqual(x.discord.dms.length, 1);
+    assert.strictEqual(x.devices.reachableFor('far').length, 0);
+    console.log('ok - a phone whose push address is dead falls back to the Discord link and stops counting as paired'); }
+
+  { const x = wire(); x.phone('far');
+    x.push.results.push({ ok: false, dead: false, error: 'UNAVAILABLE' });
+    const s = await x.calls.startFromHome('far');
+    assert.strictEqual(s.via, 'discord');
+    assert.strictEqual(x.devices.reachableFor('far').length, 1);
+    console.log('ok - when the push service is down the call still goes out by Discord, and the phone stays paired'); }
+
+  { const x = wire(), far = x.phone('far');
+    const s = await x.calls.startFromHome('far');
+    assert.deepStrictEqual(x.calls.decline(s.callId, 'parent', far), { status: 'declined' });
+    assert.ok(x.hub.sent.some(e => e.type === 'declined' && e.callId === s.callId));
+    assert.strictEqual(x.calls.get(s.callId).status, 'declined');
+    assert.strictEqual(x.calls.hasActive(), false);
+    assert.deepStrictEqual(x.lk.deleted, ['family-' + s.callId]);
+    console.log('ok - «Ikke nå» ends the call at once and tells the kiosk'); }
+
+  { const x = wire(), a = x.phone('far'), b = x.phone('far');
+    const s = await x.calls.startFromHome('far');
+    assert.strictEqual(x.push.sent.filter(p => p.data.type === 'call').length, 2);
+    await x.calls.answerByParent(s.callId, a);
+    await assert.rejects(x.calls.answerByParent(s.callId, b), e => e.status === 409 && e.message === 'answered');
+    assert.ok(x.push.sent.some(p => p.device.deviceId === b.deviceId && p.data.type === 'call_end' && p.data.reason === 'answered_elsewhere'));
+    assert.ok(!x.push.sent.some(p => p.device.deviceId === a.deviceId && p.data.type === 'call_end'));
+    console.log('ok - every phone of the parent rings; the first to answer wins and the other is told to stop'); }
+
+  { const x = wire(), far = x.phone('far'), mor = x.phone('mor');
+    const s = await x.calls.startFromHome('far');
+    await assert.rejects(x.calls.answerByParent(s.callId, mor), e => e.status === 403 && e.message === 'wrong_parent');
+    await assert.rejects(x.calls.answerByParent('c_nope', far), e => e.status === 404 && e.message === 'unknown');
+    assert.throws(() => x.calls.decline(s.callId, 'parent', mor), e => e.status === 403);
+    assert.strictEqual(x.calls.get(s.callId).status, 'ringing');
+    console.log('ok - only the parent who is being called can answer or decline; an unknown call is a clean 404'); }
+
+  { const x = wire(), far = x.phone('far');
+    const s = await x.calls.startFromHome('far');
+    await x.timers.advance(60000);
+    assert.strictEqual(x.calls.get(s.callId).status, 'missed');
+    const end = x.push.sent.find(p => p.data.type === 'call_end');
+    assert.strictEqual(end.data.reason, 'missed');
+    assert.strictEqual(end.opts.ttlSec, 21600);
+    await assert.rejects(x.calls.answerByParent(s.callId, far), e => e.status === 410 && e.message === 'over');
+    console.log('ok - nobody answers: the call is missed, the phone gets a lasting notice, a late answer is a clean 410'); }
+
+  { const x = wire(); x.phone('far');
+    const s = await x.calls.startFromHome('far');
+    assert.deepStrictEqual(x.calls.end(s.callId), { status: 'cancelled' });
+    assert.strictEqual(x.calls.get(s.callId).status, 'cancelled');
+    const end = x.push.sent.find(p => p.data.type === 'call_end');
+    assert.strictEqual(end.data.reason, 'cancelled');
+    assert.strictEqual(end.opts.ttlSec, 21600);
+    console.log('ok - the child hanging up while it rings stops the phone and leaves a missed-call notice'); }
+
+  // ---------- clean-up of calls nobody reported as ended ----------
+  { const x = wire(), far = x.phone('far');
+    const s = await x.calls.startFromHome('far');
+    await x.calls.answerByParent(s.callId, far);
+    x.lk.state.count = null;
+    await x.timers.advance(120000);
+    assert.strictEqual(x.calls.hasActive(), true);
+    console.log('ok - a LiveKit admin API that does not answer never ends a call');
+    x.lk.state.count = 1;
+    await x.timers.advance(15000);
+    assert.strictEqual(x.calls.hasActive(), true);
+    await x.timers.advance(15000);
+    assert.strictEqual(x.calls.hasActive(), false);
+    assert.strictEqual(x.calls.get(s.callId).status, 'ended');
+    assert.strictEqual((await x.calls.startFromHome('far')).status, 'ringing');
+    console.log('ok - an answered call whose room has emptied is ended by the watchdog, and the line is free again'); }
+
+  { const x = wire(), far = x.phone('far');
+    const s = await x.calls.startFromHome('far');
+    await x.calls.answerByParent(s.callId, far);
+    x.lk.state.count = 1;                       // the parent's app is still joining
+    await x.timers.advance(30000);
+    assert.strictEqual(x.calls.hasActive(), true);
+    x.lk.state.count = 2;
+    await x.timers.advance(60000);
+    assert.strictEqual(x.calls.hasActive(), true);
+    console.log('ok - a slow joiner is not cut off: the watchdog waits out the first 45 seconds'); }
+
+  { const x = wire({ CALL_MAX_SECONDS: '120' }), far = x.phone('far');
+    const s = await x.calls.startFromHome('far');
+    await x.calls.answerByParent(s.callId, far);
+    await x.timers.advance(135000);
+    assert.strictEqual(x.calls.hasActive(), false);
+    console.log('ok - a call is ended at the maximum length whatever happens'); }
+
+  // ---------- starting ----------
+  { const x = wire();
+    await assert.rejects(x.calls.startFromHome('bestemor'), e => e.status === 400);
+    await x.calls.startFromHome('far');
+    await assert.rejects(x.calls.startFromHome('mor'), e => e.status === 409);
+    console.log('ok - an unknown target is refused; one call at a time'); }
+
+  { const x = wire();
+    for (let i = 0; i < 10; i++) { const s = await x.calls.startFromHome('far'); x.calls.end(s.callId); }
+    await assert.rejects(x.calls.startFromHome('far'), e => e.status === 429);
+    await x.timers.advance(61000);
+    assert.strictEqual((await x.calls.startFromHome('far')).status, 'ringing');
+    console.log('ok - more than ten starts a minute are refused, then allowed again'); }
+
+  console.log('ALL GOOD');
+  process.exit(0);
+})().catch(e => { console.error('FAIL', e); process.exit(1); });

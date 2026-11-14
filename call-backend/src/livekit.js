@@ -25,4 +25,11 @@ async function deleteRoom(room) {
   try { await rooms().deleteRoom(room); } catch (e) { /* room may already be gone */ }
 }
 
-module.exports = { joinToken, deleteRoom, WS_URL, configured: () => !!(API_KEY && API_SECRET) };
+// How many participants are in a room right now. A room that is empty or gone is 0. When LiveKit refuses or
+// cannot be reached the answer is null – "don't know" – and callers must never treat that as "empty".
+async function participantCount(room) {
+  try { return (await rooms().listParticipants(room)).length; }
+  catch (e) { return e && (e.code === 'not_found' || e.status === 404) ? 0 : null; }
+}
+
+module.exports = { joinToken, deleteRoom, participantCount, WS_URL, configured: () => !!(API_KEY && API_SECRET) };

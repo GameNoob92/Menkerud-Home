@@ -1,37 +1,15 @@
-// The public Express app of the Menkerud Home call backend (what SWAG proxies as call.noobventure.com).
-// Owns LiveKit tokens, call state, one-time answer tokens and the Discord answer-link DM.
-// Flow: kiosk POST /api/calls -> ringing + tablet token + DM to parent; parent opens
-// /answer/<token> -> POST /api/calls/answer -> parent token -> both join the same LiveKit room.
-// Everything it needs comes in through createApp(), so tests can hand it fakes.
+// The public Express app of the Menkerud Home call backend (what SWAG proxies as call.noobventure.com): routes only.
+// Call state lives in calls.js, paired phones in devices.js, the kiosk's event stream in kiosk-events.js.
+// Everything comes in through createApp(), so tests can hand it fakes.
 'use strict';
 const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
 
-const sha256 = s => crypto.createHash('sha256').update(s).digest('hex');
-const now = () => Date.now();
-
-function createApp({ config, livekit, discord, devices, hub, log }) {
-  const PUBLIC_URL = config.publicUrl, RING = config.ringSec, TOKEN_TTL = config.tokenTtlSec, DEVICE_KEY = config.deviceKey;
+function createApp({ config, livekit, discord, devices, hub, calls, health, log }) {
+  const DEVICE_KEY = config.deviceKey;
   // Only these targets are allowed; Discord ids come from the environment, never the browser.
   const PARENTS = config.parents;
-
-  // In-memory call store. Restarting the backend drops active calls (acceptable for MVP).
-  const calls = new Map();
-
-  function finish(id, status, dmText) {
-    const c = calls.get(id);
-    if (!c || c.final) return;
-    c.final = true;
-    c.status = status;
-    c.endedAt = now();
-    clearTimeout(c.timer);
-    livekit.deleteRoom(c.room);
-    if (dmText) discord.edit(c.discord, dmText);
-    log('call', id, '->', status);
-    setTimeout(() => calls.delete(id), 60000); // keep briefly so stale answer links get a clean message
-  }
-  function missed(id) { const c = calls.get(id); if (c && c.status === 'ringing') finish(id, 'missed', '🔴 Ubesvart anrop hjemmefra.'); }
 
   const app = express();
   app.disable('x-powered-by');
@@ -53,19 +31,30 @@ function createApp({ config, livekit, discord, devices, hub, log }) {
     return res.status(401).json({ error: 'unauthorized' });
   }
 
-  // Rate limit + single active outbound call from the living-room tablet.
-  let starts = [];
-  function rateLimit(req, res, next) {
-    const t = now();
-    starts = starts.filter(x => t - x < 60000);
-    if (starts.length >= 10) return res.status(429).json({ error: 'for mange forsøk' });
-    const active = [...calls.values()].some(c => !c.final);
-    if (active) return res.status(409).json({ error: 'en samtale pågår allerede' });
-    starts.push(t);
-    next();
+  // The call manager refuses with a status and a text of its own; anything else is a bug and becomes a 500.
+  function refuse(res, e) {
+    if (e && e.status) return res.status(e.status).json({ error: e.message });
+    log('unexpected error', e && e.message);
+    res.status(500).json({ error: 'internal error' });
   }
 
-  app.get('/healthz', (req, res) => res.json({ ok: true, livekit: livekit.configured(), discord: discord.configured() }));
+  app.get('/healthz', (req, res) => res.json({ ok: true, livekit: livekit.configured(), discord: discord.configured(), livekitAdmin: !!(health && health.livekitAdmin) }));
+
+  // Beskjeder: Discord refuses bot tokens sent from a browser (403, code 40333), so the kiosk reads its messages
+  // channel and acknowledges with a ✅ through here. The kiosk only names the channel; the token stays on the server.
+  const SNOWFLAKE = /^\d{5,25}$/;
+  app.get('/api/messages', deviceAuth, async (req, res) => {
+    const channel = String(req.query.channel || '');
+    if (!SNOWFLAKE.test(channel)) return res.status(400).json({ error: 'ugyldig kanal' });
+    try { res.json(await discord.channelMessages(channel, req.query.limit)); }
+    catch (e) { log('messages error', e.message); res.status(e.status === 403 || e.status === 404 ? 404 : 502).json({ error: e.message }); }
+  });
+  app.post('/api/messages/:channel/:id/ack', deviceAuth, async (req, res) => {
+    const { channel, id } = req.params;
+    if (!SNOWFLAKE.test(channel) || !SNOWFLAKE.test(id)) return res.status(400).json({ error: 'ugyldig id' });
+    try { await discord.react(channel, id, '✅'); res.json({ ok: true }); }
+    catch (e) { log('ack error', e.message); res.status(502).json({ error: e.message }); }
+  });
 
   // The kiosk keeps this one request open; we write events down it (see kiosk-events.js).
   app.get('/api/kiosk/events', deviceAuth, (req, res) => hub.attach(req, res));
@@ -108,97 +97,38 @@ function createApp({ config, livekit, discord, devices, hub, log }) {
     res.sendStatus(204);
   });
 
-  // Beskjeder: Discord refuses bot tokens sent from a browser (403, code 40333), so the kiosk reads its messages
-  // channel and acknowledges with a ✅ through here. The kiosk only names the channel; the token stays on the server.
-  const SNOWFLAKE = /^\d{5,25}$/;
-  app.get('/api/messages', deviceAuth, async (req, res) => {
-    const channel = String(req.query.channel || '');
-    if (!SNOWFLAKE.test(channel)) return res.status(400).json({ error: 'ugyldig kanal' });
-    try { res.json(await discord.channelMessages(channel, req.query.limit)); }
-    catch (e) { log('messages error', e.message); res.status(e.status === 403 || e.status === 404 ? 404 : 502).json({ error: e.message }); }
-  });
-  app.post('/api/messages/:channel/:id/ack', deviceAuth, async (req, res) => {
-    const { channel, id } = req.params;
-    if (!SNOWFLAKE.test(channel) || !SNOWFLAKE.test(id)) return res.status(400).json({ error: 'ugyldig id' });
-    try { await discord.react(channel, id, '✅'); res.json({ ok: true }); }
-    catch (e) { log('ack error', e.message); res.status(502).json({ error: e.message }); }
+  // --- Calls. The rules are in calls.js; these routes only say who is asking.
+
+  // The kiosk: a child pressed «Ring mor / far».
+  app.post('/api/calls', deviceAuth, async (req, res) => {
+    try { res.json(await calls.startFromHome(String((req.body && req.body.target) || ''))); } catch (e) { refuse(res, e); }
   });
 
-  // Start a call: create room + tablet token, DM the parent an answer link, arm the ring timeout.
-  app.post('/api/calls', deviceAuth, rateLimit, async (req, res) => {
-    const target = String((req.body && req.body.target) || '');
-    const p = PARENTS[target];
-    if (!p) return res.status(400).json({ error: 'ukjent mottaker' });
-    if (!p.discordUserId) return res.status(500).json({ error: 'mottaker ikke konfigurert' });
-    if (!livekit.configured()) return res.status(500).json({ error: 'LiveKit ikke konfigurert' });
-
-    const id = 'c_' + crypto.randomBytes(9).toString('hex');
-    const room = 'family-' + id;
-    const answerToken = crypto.randomBytes(32).toString('hex');
-    const call = { id, room, target, status: 'ringing', final: false, createdAt: now(), expiresAt: now() + RING * 1000, answerHash: sha256(answerToken) };
-    calls.set(id, call);
-
-    let tabletToken;
-    try { tabletToken = await livekit.joinToken({ room, identity: 'tablet-stue', name: 'Hjemme', ttl: TOKEN_TTL }); }
-    catch (e) { calls.delete(id); log('token error', e.message); return res.status(500).json({ error: 'kunne ikke starte samtalen' }); }
-
-    const link = PUBLIC_URL + '/answer/' + answerToken;
-    try {
-      call.discord = await discord.dm(p.discordUserId, '🏠 **Det ringer hjemmefra**\n\nBarna vil snakke med deg.\n\n📞 Trykk for å svare:\n' + link + '\n\n💡 Åpne lenken i **Chrome** – nettleseren inni Discord får ikke bruke kamera og mikrofon.\nAnropet utløper om ' + RING + ' sekunder.');
-    } catch (e) {
-      calls.delete(id);
-      log('discord error', e.message);
-      return res.status(502).json({ error: 'kunne ikke varsle ' + p.label });
-    }
-
-    call.timer = setTimeout(() => missed(id), RING * 1000);
-    log('call', id, 'ringing', target);
-    res.json({ callId: id, status: 'ringing', livekit: { url: livekit.WS_URL, token: tabletToken }, expiresAt: call.expiresAt });
-  });
-
-  // Parent redeems the answer token and gets their own room token.
+  // The link in the Discord message (until both parents use the app): the answer page redeems its token here.
   app.post('/api/calls/answer', async (req, res) => {
-    const token = String((req.body && req.body.answerToken) || '');
-    if (!token) return res.status(400).json({ error: 'mangler token' });
-    const hash = sha256(token);
-    const call = [...calls.values()].find(c => c.answerHash === hash);
-    if (!call) return res.status(404).json({ error: 'Dette anropet finnes ikke.' });
-    if (call.final) return res.status(410).json({ error: 'Dette anropet er avsluttet.' });
-    if (now() > call.expiresAt) { missed(call.id); return res.status(410).json({ error: 'Dette anropet er utløpt.' }); }
-
-    const p = PARENTS[call.target];
-    let token2;
-    try { token2 = await livekit.joinToken({ room: call.room, identity: p.identity, name: p.label, ttl: TOKEN_TTL }); }
-    catch (e) { return res.status(500).json({ error: 'kunne ikke koble til' }); }
-
-    if (call.status === 'ringing') {
-      call.status = 'connected';
-      call.connectedAt = now();
-      clearTimeout(call.timer);
-      discord.edit(call.discord, '🟢 Samtale besvart.');
-      log('call', call.id, 'connected');
-    }
-    res.json({ callId: call.id, status: call.status, target: call.target, livekit: { url: livekit.WS_URL, token: token2 } });
+    try { res.json(await calls.answerByLink(req.body && req.body.answerToken)); } catch (e) { refuse(res, e); }
   });
 
+  // The app: «Svar» and «Ikke nå».
+  app.post('/api/calls/:id/answer', phoneAuth, async (req, res) => {
+    try { res.json(await calls.answerByParent(req.params.id, req.device)); } catch (e) { refuse(res, e); }
+  });
+  app.post('/api/calls/:id/decline', phoneAuth, (req, res) => {
+    try { res.json(calls.decline(req.params.id, 'parent', req.device)); } catch (e) { refuse(res, e); }
+  });
+
+  // Either side hangs up. A call id is long and random; knowing it is the permission, as before.
   app.post('/api/calls/:id/cancel', (req, res) => {
-    const c = calls.get(req.params.id);
-    if (!c) return res.status(404).json({ error: 'ukjent' });
-    if (!c.final) finish(c.id, 'cancelled', '⚪ Anropet ble avbrutt hjemmefra.');
-    res.json({ status: 'cancelled' });
+    try { res.json(calls.cancel(req.params.id)); } catch (e) { refuse(res, e); }
   });
-
   app.post('/api/calls/:id/end', (req, res) => {
-    const c = calls.get(req.params.id);
-    if (!c) return res.status(404).json({ error: 'ukjent' });
-    if (!c.final) finish(c.id, 'ended', '✅ Samtalen er avsluttet.');
-    res.json({ status: 'ended' });
+    try { res.json(calls.end(req.params.id)); } catch (e) { refuse(res, e); }
   });
 
   app.get('/api/calls/:id', (req, res) => {
     const c = calls.get(req.params.id);
     if (!c) return res.status(404).json({ error: 'ukjent' });
-    res.json({ callId: c.id, status: c.status, target: c.target });
+    res.json(c);
   });
 
   // The parent answer page. The token stays in the path; the page redeems it via POST.

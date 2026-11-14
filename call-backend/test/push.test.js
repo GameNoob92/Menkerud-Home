@@ -77,6 +77,17 @@ function fakeFetch() {
   assert.strictEqual(fake.calls[n + 2].opts.headers.Authorization, 'Bearer AT2');
   console.log('ok - a rejected access token is replaced on the next push');
 
+  // The kiosk waits for the push before it starts ringing, so a push service that never answers must not hold it up.
+  const hang = (url, opts) => new Promise((resolve, reject) => {
+    if (opts && opts.signal) opts.signal.addEventListener('abort', () => reject(opts.signal.reason || new Error('aborted')));
+  });
+  const slow = createPush({ transport: 'fcm', serviceAccount: sa, fetch: hang, timeoutMs: 60, log() {} });
+  const outcome = await Promise.race([slow.send(phone, { type: 'call' }, { ttlSec: 60 }), new Promise(r => setTimeout(() => r('still waiting'), 1500))]);
+  assert.notStrictEqual(outcome, 'still waiting');
+  assert.strictEqual(outcome.ok, false);
+  assert.strictEqual(outcome.dead, false);
+  console.log('ok - a push service that never answers is given up on after the timeout, and the phone is not marked dead');
+
   assert.deepStrictEqual(callData({ callId: 'c_1', target: 'far', expiresAt: 5 }), { type: 'call', v: '1', callId: 'c_1', from: 'home', who: 'far', expiresAt: '5' });
   assert.deepStrictEqual(callEndData({ callId: 'c_1', reason: 'missed', at: 7 }), { type: 'call_end', v: '1', callId: 'c_1', reason: 'missed', at: '7' });
   assert.strictEqual(callEndTtl('missed'), 21600);

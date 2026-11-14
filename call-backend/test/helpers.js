@@ -7,6 +7,7 @@ const path = require('path');
 const { loadConfig } = require('../src/config');
 const { createApp } = require('../src/app');
 const { createDevices } = require('../src/devices');
+const { createCalls } = require('../src/calls');
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
@@ -152,17 +153,40 @@ function fakeTimers(start) {
   };
 }
 
-/** Build the app the way server.js does, with fakes for everything outside the process. */
+/** Stands in for the push sender: records every push; `results` can script what the next sends answer. */
+function fakePush() {
+  const p = {
+    name: 'fake',
+    send: async (device, data, opts) => { p.sent.push({ device, data, opts }); return p.results.shift() || { ok: true }; },
+    sent: [],
+    results: []
+  };
+  return p;
+}
+
+/**
+ * Build the app the way server.js does, with fakes for everything outside the process and a hand-cranked clock
+ * (timers.advance). phone(who) pairs a phone for mor or far, gives it a push address, and returns its record
+ * plus the secret (so bearer() works on it).
+ */
 function wire(env, deps) {
   deps = deps || {};
   const config = testConfig(env);
   const lk = deps.livekit || fakeLivekit();
   const discord = deps.discord || fakeDiscord();
-  const now = deps.now || Date.now;
+  const timers = deps.timers || fakeTimers();
+  const now = deps.now || timers.now;
   const devices = deps.devices || createDevices({ file: tmpFile('devices.json'), now, log() {} });
   const hub = deps.hub || fakeHub();
-  const app = createApp({ config, livekit: lk, discord, devices, hub, log() {} });
-  return { config, lk, discord, devices, hub, app };
+  const push = deps.push || fakePush();
+  const calls = createCalls({ config, livekit: lk, devices, push, discord, hub, timers, now, log() {} });
+  const app = createApp({ config, livekit: lk, discord, devices, hub, calls, health: { livekitAdmin: true }, log() {} });
+  function phone(who) {
+    const paired = devices.redeem(devices.createPairingCode(who).code, { name: who + '-telefon', appVersion: '1.0.0' });
+    devices.setPushToken(paired.deviceId, 'push-' + paired.deviceId);
+    return Object.assign({}, devices.authenticate(paired.deviceId + '.' + paired.secret), { secret: paired.secret });
+  }
+  return { config, lk, discord, devices, hub, push, timers, calls, app, phone };
 }
 
-module.exports = { wait, startApp, http, basic, bearer, tmpFile, testConfig, fakeLivekit, fakeDiscord, fakeHub, fakeTimers, openEvents, wire };
+module.exports = { wait, startApp, http, basic, bearer, tmpFile, testConfig, fakeLivekit, fakeDiscord, fakeHub, fakePush, fakeTimers, openEvents, wire };
