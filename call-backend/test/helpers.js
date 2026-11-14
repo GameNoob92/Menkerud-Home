@@ -6,6 +6,7 @@ const os = require('os');
 const path = require('path');
 const { loadConfig } = require('../src/config');
 const { createApp } = require('../src/app');
+const { createDevices } = require('../src/devices');
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
@@ -105,8 +106,10 @@ function wire(env, deps) {
   const config = testConfig(env);
   const lk = deps.livekit || fakeLivekit();
   const discord = deps.discord || fakeDiscord();
-  const app = createApp({ config, livekit: lk, discord, log() {} });
-  return { config, lk, discord, app };
+  const now = deps.now || Date.now;
+  const devices = deps.devices || createDevices({ file: tmpFile('devices.json'), now, log() {} });
+  const app = createApp({ config, livekit: lk, discord, devices, log() {} });
+  return { config, lk, discord, devices, app };
 }
 
 module.exports = { wait, startApp, http, basic, bearer, tmpFile, testConfig, fakeLivekit, fakeDiscord, fakeTimers, wire };

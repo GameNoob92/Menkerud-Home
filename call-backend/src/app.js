@@ -11,7 +11,7 @@ const express = require('express');
 const sha256 = s => crypto.createHash('sha256').update(s).digest('hex');
 const now = () => Date.now();
 
-function createApp({ config, livekit, discord, log }) {
+function createApp({ config, livekit, discord, devices, log }) {
   const PUBLIC_URL = config.publicUrl, RING = config.ringSec, TOKEN_TTL = config.tokenTtlSec, DEVICE_KEY = config.deviceKey;
   // Only these targets are allowed; Discord ids come from the environment, never the browser.
   const PARENTS = config.parents;
@@ -66,6 +66,44 @@ function createApp({ config, livekit, discord, log }) {
   }
 
   app.get('/healthz', (req, res) => res.json({ ok: true, livekit: livekit.configured(), discord: discord.configured() }));
+
+  // --- Paired phones (the parent app). A phone proves who it is with the secret it got when it was paired;
+  // which parent it belongs to comes from our record, never from the request.
+  function phoneAuth(req, res, next) {
+    const m = /^Bearer\s+(\S+)$/i.exec(req.get('Authorization') || '');
+    const device = m ? devices.authenticate(m[1]) : null;
+    if (!device) return res.status(401).json({ error: 'unauthorized' });
+    devices.touch(device.deviceId, { appVersion: req.get('X-App-Version') });
+    req.device = device;
+    next();
+  }
+  const PAIR_STATUS = { invalid: 400, expired: 410, locked: 429 };
+
+  // The app redeems a one-time key from the local pairing page and gets its long-lived secret – once.
+  app.post('/api/pair', (req, res) => {
+    const body = req.body || {};
+    try {
+      const d = devices.redeem(body.code, { name: body.name, appVersion: body.appVersion });
+      log('paired a phone for', d.who, d.deviceId);
+      res.json({ deviceId: d.deviceId, secret: d.secret, who: d.who, label: PARENTS[d.who].label });
+    } catch (e) {
+      if (!PAIR_STATUS[e.code]) { log('pair error', e.message); return res.status(500).json({ error: 'pairing failed' }); }
+      res.status(PAIR_STATUS[e.code]).json({ error: e.code });
+    }
+  });
+
+  app.get('/api/devices/me', phoneAuth, (req, res) => {
+    const d = req.device;
+    res.json({ deviceId: d.deviceId, who: d.who, label: PARENTS[d.who].label, name: d.name });
+  });
+
+  // The app tells us where pushes for this phone go (its FCM token); it does so again whenever the token changes.
+  app.put('/api/devices/me/push-token', phoneAuth, (req, res) => {
+    const token = req.body && req.body.token;
+    if (typeof token !== 'string' || !token || token.length > 4096) return res.status(400).json({ error: 'invalid_token' });
+    devices.setPushToken(req.device.deviceId, token);
+    res.sendStatus(204);
+  });
 
   // Beskjeder: Discord refuses bot tokens sent from a browser (403, code 40333), so the kiosk reads its messages
   // channel and acknowledges with a ✅ through here. The kiosk only names the channel; the token stays on the server.
