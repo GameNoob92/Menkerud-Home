@@ -57,10 +57,15 @@ assert.ok(!('secretHash' in d.list()[0]) && !('pushToken' in d.list()[0]));
 console.log('ok - the list for the pairing page leaves out the hash and the push address');
 
 for (let i = 0; i < 10; i++) assert.throws(() => d.redeem('0'.repeat(20), {}), e => e.code === 'invalid');
-assert.throws(() => d.redeem(d.createPairingCode('far').code, {}), e => e.code === 'locked');
-t += 600001;
+assert.throws(() => d.redeem('0'.repeat(20), {}), e => e.code === 'locked');
+console.log('ok - after ten wrong keys in ten minutes, further wrong keys are turned away as locked');
+
 assert.strictEqual(d.redeem(d.createPairingCode('far').code, {}).who, 'far');
-console.log('ok - ten wrong keys lock pairing for ten minutes, then it works again');
+console.log('ok - a real key still pairs while wrong keys are locked out (nobody outside can block pairing)');
+
+t += 600001;
+assert.throws(() => d.redeem('0'.repeat(20), {}), e => e.code === 'invalid');
+console.log('ok - the cap on wrong keys lifts after ten minutes');
 
 assert.strictEqual(d.remove(dev.deviceId), true);
 assert.strictEqual(d.authenticate(dev.deviceId + '.' + dev.secret), null);

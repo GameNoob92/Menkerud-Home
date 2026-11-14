@@ -8,8 +8,8 @@ const fs = require('fs');
 const path = require('path');
 
 const PAIR_TTL_MS = 15 * 60 * 1000;        // a key is valid for 15 minutes
-const MAX_FAILED_REDEEMS = 10;             // wrong keys allowed ...
-const FAILED_WINDOW_MS = 10 * 60 * 1000;   // ... per ten minutes, for the whole store (every caller arrives via the proxy)
+const MAX_FAILED_REDEEMS = 10;             // wrong keys answered ...
+const FAILED_WINDOW_MS = 10 * 60 * 1000;   // ... per ten minutes, for the whole store (every caller arrives via the proxy); real keys are never blocked
 const SEEN_WRITE_MS = 60 * 1000;           // "last seen" is written to disk at most this often
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';   // no I, L, O, U: nothing that can be misread when typed
 const CODE_LENGTH = 20;                    // 20 x 5 bits = 100 bits
@@ -69,11 +69,17 @@ function createDevices({ file, now = Date.now, randomBytes = crypto.randomBytes,
 
   function redeem(input, info) {
     const t = now();
-    failed = failed.filter(x => t - x < FAILED_WINDOW_MS);
-    if (failed.length >= MAX_FAILED_REDEEMS) throw new PairError('locked');
     const code = normalizeCode(input);
     const entry = codes.get(code);
-    if (!entry) { failed.push(t); throw new PairError('invalid'); }
+    if (!entry) {
+      // Only wrong keys are capped. A real key always goes through, so nobody on the outside can keep the family
+      // from pairing a phone by spraying wrong keys at this public endpoint. (Guessing a 100-bit key is hopeless
+      // either way; the cap just keeps a guesser from getting more than a handful of answers.)
+      failed = failed.filter(x => t - x < FAILED_WINDOW_MS);
+      if (failed.length >= MAX_FAILED_REDEEMS) throw new PairError('locked');
+      failed.push(t);
+      throw new PairError('invalid');
+    }
     codes.delete(code);                    // one use, whether it is still valid or not
     if (t > entry.expiresAt) throw new PairError('expired');   // a real key that ran out is not a guess: it does not count as a wrong one
     const secret = randomBytes(32).toString('hex');
