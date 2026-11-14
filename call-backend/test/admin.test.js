@@ -18,6 +18,12 @@ const { createAdminApp } = require('../src/admin');
   assert.ok(page.text.includes('Ny telefon for Mor') && page.text.includes('Ny telefon for Far'));
   console.log('ok - every route needs the password; the page offers a key for Mor and for Far');
 
+  for (const r of [page, await http('GET', admin + '/'), await http('GET', admin + '/api/devices', null, A)]) {
+    assert.strictEqual(r.headers.get('x-frame-options'), 'DENY');
+    assert.match(r.headers.get('content-security-policy') || '', /frame-ancestors 'none'/);
+  }
+  console.log('ok - no other site can show the page inside a frame (clickjacking)');
+
   const pc = await http('POST', admin + '/api/pair-code', { who: 'far' }, A);
   assert.match(pc.body.code, /^[0-9A-HJKMNP-TV-Z]{20}$/);
   assert.match(pc.body.pretty, /^(\w{5}-){3}\w{5}$/);

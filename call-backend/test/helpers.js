@@ -22,7 +22,7 @@ function startApp(app) {
   });
 }
 
-/** One HTTP request; `body` is sent as JSON unless null/undefined. Resolves to { status, body, text }. */
+/** One HTTP request; `body` is sent as JSON unless null/undefined. Resolves to { status, body, text, headers }. */
 async function http(method, url, body, headers) {
   const opts = { method, headers: Object.assign({}, headers) };
   if (body !== undefined && body !== null) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
@@ -30,7 +30,7 @@ async function http(method, url, body, headers) {
   const text = await r.text();
   let parsed = null;
   try { parsed = text ? JSON.parse(text) : null; } catch (e) { parsed = null; }
-  return { status: r.status, body: parsed, text };
+  return { status: r.status, body: parsed, text, headers: r.headers };
 }
 
 const basic = (user, pass) => ({ Authorization: 'Basic ' + Buffer.from(user + ':' + pass).toString('base64') });

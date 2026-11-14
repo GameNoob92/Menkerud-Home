@@ -28,6 +28,16 @@ function createAdminApp({ config, devices, log }) {
   const page = fs.readFileSync(path.join(__dirname, 'admin-page.html'));
   const app = express();
   app.disable('x-powered-by');
+  // The browser keeps this page's password, so the page must never be shown inside another site's frame
+  // (where a click could be steered onto «Fjern» or «Ny telefon»). Sent on every answer, the 401 included.
+  app.use((req, res, next) => {
+    res.set('X-Frame-Options', 'DENY');
+    res.set('Content-Security-Policy', "frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Referrer-Policy', 'no-referrer');
+    next();
+  });
+
   app.use(express.json({ limit: '4kb' }));
 
   // Password on everything. With no password configured, nothing is served (server.js does not even listen then).
