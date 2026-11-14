@@ -2,4 +2,5 @@ node_modules/
 photos/*
 !photos/README.txt
 config.js
+!call-backend/src/config.js
 __pycache__/
