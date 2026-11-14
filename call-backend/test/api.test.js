@@ -52,6 +52,33 @@ const { wire, startApp, http, bearer } = require('./helpers');
   assert.strictEqual(unknown.body.error, 'unknown');
   console.log('ok - the phone declines over HTTP; a call that does not exist is a clean 404');
 
+  // --- a parent calls home over HTTP (contract C6) ---
+  assert.strictEqual((await http('POST', base + '/api/calls/home', {})).status, 401);
+  assert.strictEqual((await http('POST', base + '/api/calls/home', {}, K)).status, 401);          // the kiosk key is not a phone
+  const h1 = await http('POST', base + '/api/calls/home', {}, bearer(far));
+  assert.strictEqual(h1.status, 200);
+  assert.strictEqual(h1.body.status, 'ringing');
+  assert.strictEqual(h1.body.livekit.token, 'tok:family-' + h1.body.callId + ':parent-far');
+  assert.deepStrictEqual(v.hub.sent.filter(e => e.type === 'incoming').map(e => e.from), ['far']);
+  console.log('ok - a paired phone rings home; nobody else can');
+
+  assert.strictEqual((await http('POST', base + '/api/calls/' + h1.body.callId + '/answer', {})).status, 401);
+  const picked = await http('POST', base + '/api/calls/' + h1.body.callId + '/answer', {}, K);
+  assert.strictEqual(picked.status, 200);
+  assert.strictEqual(picked.body.livekit.token, 'tok:family-' + h1.body.callId + ':tablet-stue');
+  assert.deepStrictEqual((await http('GET', base + '/api/calls/' + h1.body.callId)).body, { callId: h1.body.callId, status: 'connected', target: 'far', direction: 'parent_to_home' });
+  await http('POST', base + '/api/calls/' + h1.body.callId + '/end', {});
+  console.log('ok - the kiosk answers the waiting call with its device key');
+
+  const h2 = (await http('POST', base + '/api/calls/home', {}, bearer(far))).body;
+  assert.deepStrictEqual((await http('POST', base + '/api/calls/' + h2.callId + '/decline', {}, K)).body, { status: 'declined' });
+  assert.strictEqual((await http('GET', base + '/api/calls/' + h2.callId)).body.status, 'declined');
+  v.hub.state.online = false;
+  const off = await http('POST', base + '/api/calls/home', {}, bearer(far));
+  assert.strictEqual(off.status, 503);
+  assert.strictEqual(off.body.error, 'kiosk_offline');
+  console.log('ok - the kiosk declines with its device key; with no kiosk connected the phone gets 503 kiosk_offline');
+
   console.log('ALL GOOD');
   process.exit(0);
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

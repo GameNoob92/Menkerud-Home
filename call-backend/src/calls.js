@@ -32,11 +32,11 @@ function createCalls({ config, livekit, devices, push, discord, hub, timers, now
   const lkInfo = token => ({ url: livekit.WS_URL, token });
 
   /** One call at a time, and not more than ten starts a minute – for both directions. */
-  function claimStart() {
+  function claimStart(busyText) {
     const t = now();
     starts = starts.filter(x => t - x < 60000);
     if (starts.length >= STARTS_PER_MINUTE) throw new CallError(429, 'for mange forsøk');
-    if (hasActive()) throw new CallError(409, 'en samtale pågår allerede');
+    if (hasActive()) throw new CallError(409, busyText);
     starts.push(t);
   }
 
@@ -109,7 +109,7 @@ function createCalls({ config, livekit, devices, push, discord, hub, timers, now
     const p = config.parents[target];
     if (!p) throw new CallError(400, 'ukjent mottaker');
     if (!livekit.configured()) throw new CallError(500, 'LiveKit ikke konfigurert');
-    claimStart();
+    claimStart('en samtale pågår allerede');
     const call = newCall(target, 'home_to_parent');
 
     let kioskToken;
@@ -197,7 +197,56 @@ function createCalls({ config, livekit, devices, push, discord, hub, timers, now
     return { callId: call.id, livekit: lkInfo(parentToken) };
   }
 
+  // ---------- a parent calls home ----------
+
+  /** «Ring hjem» in the app. The parent waits in the room; the kiosk is told over its event stream. */
+  async function startFromParent(device) {
+    const p = device && config.parents[device.who];
+    if (!p) throw new CallError(401, 'unauthorized');
+    if (!livekit.configured()) throw new CallError(500, 'LiveKit ikke konfigurert');
+    if (!hub.online()) throw new CallError(503, 'kiosk_offline');   // say so now, rather than ring into nothing
+    claimStart('busy');
+    const call = newCall(device.who, 'parent_to_home');
+
+    let parentToken;
+    try { parentToken = await livekit.joinToken({ room: call.room, identity: p.identity, name: p.label, ttl: config.tokenTtlSec }); }
+    catch (e) { calls.delete(call.id); log('token error', e.message); throw new CallError(500, 'kunne ikke starte samtalen'); }
+
+    // The kiosk shows its «… ringer!» overlay. If it dropped off while the token was being made, nobody was told.
+    if (!hub.send({ type: 'incoming', callId: call.id, from: device.who, expiresAt: call.expiresAt })) {
+      calls.delete(call.id);
+      throw new CallError(503, 'kiosk_offline');
+    }
+    call.timer = T.setTimeout(() => missed(call), config.ringSec * 1000);
+    log('call', call.id, 'ringing home from', device.who);
+    return { callId: call.id, status: 'ringing', livekit: lkInfo(parentToken), expiresAt: call.expiresAt };
+  }
+
+  /** The call the kiosk may answer or decline – or throw the right refusal. */
+  function ringingForKiosk(callId) {
+    const call = calls.get(callId);
+    if (!call || call.direction !== 'parent_to_home') throw new CallError(404, 'unknown');
+    if (call.final) throw new CallError(410, 'over');
+    if (call.status !== 'ringing') throw new CallError(409, 'answered');
+    return call;
+  }
+
+  async function answerByKiosk(callId) {
+    const call = ringingForKiosk(callId);
+    let kioskToken;
+    try { kioskToken = await livekit.joinToken({ room: call.room, identity: KIOSK_IDENTITY, name: 'Hjemme', ttl: config.tokenTtlSec }); }
+    catch (e) { throw new CallError(500, 'kunne ikke koble til'); }
+    ringingForKiosk(callId);             // again: it may have been cancelled while the token was being made
+    markConnected(call);
+    return { callId: call.id, livekit: lkInfo(kioskToken) };
+  }
+
+  /** «Ikke nå»: by 'parent' (a phone, for a call from home) or by 'kiosk' (for a call from a parent). */
   function decline(callId, by, device) {
+    if (by === 'kiosk') {
+      finish(ringingForKiosk(callId), 'declined');     // the waiting parent's room closes; the app reads the outcome
+      return { status: 'declined' };
+    }
     const call = ringingForParent(callId, device);
     hub.send({ type: 'declined', callId: call.id });   // the kiosk shows «… kunne ikke svare nå»
     finish(call, 'declined', device.deviceId);         // the other phones stop ringing
@@ -209,7 +258,11 @@ function createCalls({ config, livekit, devices, push, discord, hub, timers, now
   function close(callId) {
     const call = calls.get(callId);
     if (!call) throw new CallError(404, 'ukjent');
-    if (!call.final) finish(call, call.status === 'ringing' ? 'cancelled' : 'ended');
+    if (!call.final) {
+      const ringing = call.status === 'ringing';
+      if (ringing && call.direction === 'parent_to_home') hub.send({ type: 'cancelled', callId: call.id });   // the kiosk stops ringing
+      finish(call, ringing ? 'cancelled' : 'ended');
+    }
     return { status: call.status };
   }
 
@@ -218,7 +271,7 @@ function createCalls({ config, livekit, devices, push, discord, hub, timers, now
     return c ? { callId: c.id, status: c.status, target: c.target, direction: c.direction } : null;
   }
 
-  return { startFromHome, answerByLink, answerByParent, decline, cancel: close, end: close, get, hasActive };
+  return { startFromHome, startFromParent, answerByLink, answerByParent, answerByKiosk, decline, cancel: close, end: close, get, hasActive };
 }
 
 module.exports = { createCalls, CallError };

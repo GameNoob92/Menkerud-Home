@@ -137,6 +137,63 @@ const { wire } = require('./helpers');
     assert.strictEqual((await x.calls.startFromHome('far')).status, 'ringing');
     console.log('ok - more than ten starts a minute are refused, then allowed again'); }
 
+  // ---------- a parent calls home ----------
+  { const x = wire(), far = x.phone('far');
+    x.hub.state.online = false;
+    await assert.rejects(x.calls.startFromParent(far), e => e.status === 503 && e.message === 'kiosk_offline');
+    assert.strictEqual(x.calls.hasActive(), false);
+    x.hub.state.online = true;
+    assert.strictEqual((await x.calls.startFromParent(far)).status, 'ringing');
+    console.log('ok - with no kiosk connected the parent is told so at once instead of ringing into nothing'); }
+
+  { const x = wire(), far = x.phone('far');
+    const s = await x.calls.startFromParent(far);
+    assert.strictEqual(s.livekit.token, 'tok:family-' + s.callId + ':parent-far');
+    assert.deepStrictEqual(x.hub.sent[0], { type: 'incoming', callId: s.callId, from: 'far', expiresAt: s.expiresAt });
+    assert.strictEqual(x.push.sent.length, 0);
+    assert.strictEqual(x.discord.dms.length, 0);
+    await assert.rejects(x.calls.startFromHome('mor'), e => e.status === 409);
+    const k = await x.calls.answerByKiosk(s.callId);
+    assert.strictEqual(k.livekit.token, 'tok:family-' + s.callId + ':tablet-stue');
+    assert.deepStrictEqual(x.calls.get(s.callId), { callId: s.callId, status: 'connected', target: 'far', direction: 'parent_to_home' });
+    await assert.rejects(x.calls.answerByKiosk(s.callId), e => e.status === 409);
+    console.log('ok - a parent rings home: the kiosk is told who calls, answers, and both get tokens for the same room'); }
+
+  { const x = wire(), far = x.phone('far'), mor = x.phone('mor');
+    await x.calls.startFromParent(far);
+    await assert.rejects(x.calls.startFromParent(mor), e => e.status === 409 && e.message === 'busy');
+    console.log('ok - a second parent calling while it rings is told the kiosk is busy'); }
+
+  { const x = wire(), far = x.phone('far');
+    const s = await x.calls.startFromParent(far);
+    assert.deepStrictEqual(x.calls.decline(s.callId, 'kiosk'), { status: 'declined' });
+    assert.strictEqual(x.calls.get(s.callId).status, 'declined');
+    assert.deepStrictEqual(x.lk.deleted, ['family-' + s.callId]);
+    assert.strictEqual(x.push.sent.length, 0);
+    console.log('ok - «Ikke nå» on the kiosk ends the parent\'s call as declined'); }
+
+  { const x = wire(), far = x.phone('far');
+    const s = await x.calls.startFromParent(far);
+    assert.deepStrictEqual(x.calls.cancel(s.callId), { status: 'cancelled' });
+    assert.ok(x.hub.sent.some(e => e.type === 'cancelled' && e.callId === s.callId));
+    console.log('ok - the parent giving up tells the kiosk to stop ringing'); }
+
+  { const x = wire(), far = x.phone('far');
+    const s = await x.calls.startFromParent(far);
+    await x.timers.advance(60000);
+    assert.strictEqual(x.calls.get(s.callId).status, 'missed');
+    await assert.rejects(x.calls.answerByKiosk(s.callId), e => e.status === 410);
+    console.log('ok - nobody at home answers: the call is missed after the ring time'); }
+
+  { const x = wire(), far = x.phone('far');
+    const home = await x.calls.startFromHome('far');
+    await assert.rejects(x.calls.answerByKiosk(home.callId), e => e.status === 404);            // the kiosk cannot answer its own call
+    assert.throws(() => x.calls.decline(home.callId, 'kiosk'), e => e.status === 404);
+    x.calls.end(home.callId);
+    const out = await x.calls.startFromParent(far);
+    await assert.rejects(x.calls.answerByParent(out.callId, far), e => e.status === 404);     // nor a parent theirs
+    console.log('ok - each side can only answer or decline a call that was made to it'); }
+
   console.log('ALL GOOD');
   process.exit(0);
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

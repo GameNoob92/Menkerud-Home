@@ -109,12 +109,24 @@ function createApp({ config, livekit, discord, devices, hub, calls, health, log 
     try { res.json(await calls.answerByLink(req.body && req.body.answerToken)); } catch (e) { refuse(res, e); }
   });
 
-  // The app: «Svar» and «Ikke nå».
-  app.post('/api/calls/:id/answer', phoneAuth, async (req, res) => {
-    try { res.json(await calls.answerByParent(req.params.id, req.device)); } catch (e) { refuse(res, e); }
+  // The app: a parent pressed «Ring hjem». The kiosk is told over its event stream.
+  app.post('/api/calls/home', phoneAuth, async (req, res) => {
+    try { res.json(await calls.startFromParent(req.device)); } catch (e) { refuse(res, e); }
   });
-  app.post('/api/calls/:id/decline', phoneAuth, (req, res) => {
-    try { res.json(calls.decline(req.params.id, 'parent', req.device)); } catch (e) { refuse(res, e); }
+
+  // «Svar» and «Ikke nå» – by whichever side is being called: a phone (its secret as bearer) for a call from home,
+  // the kiosk (its device key) for a call from a parent. A bearer, once presented, has to be valid.
+  function phoneOrKiosk(req, res, next) {
+    if (/^Bearer\s/i.test(req.get('Authorization') || '')) return phoneAuth(req, res, next);
+    return deviceAuth(req, res, next);
+  }
+  app.post('/api/calls/:id/answer', phoneOrKiosk, async (req, res) => {
+    try { res.json(req.device ? await calls.answerByParent(req.params.id, req.device) : await calls.answerByKiosk(req.params.id)); }
+    catch (e) { refuse(res, e); }
+  });
+  app.post('/api/calls/:id/decline', phoneOrKiosk, (req, res) => {
+    try { res.json(req.device ? calls.decline(req.params.id, 'parent', req.device) : calls.decline(req.params.id, 'kiosk')); }
+    catch (e) { refuse(res, e); }
   });
 
   // Either side hangs up. A call id is long and random; knowing it is the permission, as before.
