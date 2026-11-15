@@ -98,6 +98,14 @@ android {
         buildConfig = true
         resValues = true
     }
+
+    lint {
+        // Decided, not overlooked: the versions are pinned together (gradle/libs.versions.toml), the app targets
+        // Android 16 on purpose (README), and the release build is for the two arm64 phones only.
+        disable += setOf(
+            "OldTargetApi", "GradleDependency", "NewerVersionAvailable", "AndroidGradlePluginVersion", "ChromeOsAbiSupport"
+        )
+    }
 }
 
 androidComponents {
@@ -120,6 +128,10 @@ kotlin {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
+    // Not used by the app itself. Google Play services bring Fragment 1.1.0 along, and with a Fragment older than
+    // 1.3.0 Android's way of asking for permissions (which the app does use) is known to misbehave – lint refuses
+    // to build a release with it. Naming a current version here replaces the old one.
+    implementation(libs.androidx.fragment)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.service)

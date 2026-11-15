@@ -3,8 +3,14 @@ package com.noobventure.menkerud
 import android.content.Context
 import com.noobventure.menkerud.api.CallApi
 import com.noobventure.menkerud.api.HttpCallApi
+import com.noobventure.menkerud.call.AndroidRingNotifier
+import com.noobventure.menkerud.call.CallController
+import com.noobventure.menkerud.call.LiveKitCallSession
+import com.noobventure.menkerud.call.RingNotifier
+import com.noobventure.menkerud.call.SessionFactory
 import com.noobventure.menkerud.push.FirebasePushAddress
 import com.noobventure.menkerud.push.PushAddressSync
+import com.noobventure.menkerud.store.AppPrefs
 import com.noobventure.menkerud.store.CredentialStore
 import com.noobventure.menkerud.store.KeystoreSecretBox
 import java.io.File
@@ -12,6 +18,7 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 
 /** The one place the app's objects are made and handed to each other. One per process, made by [App]. */
@@ -33,6 +40,21 @@ class AppContainer(context: Context) {
     val api: CallApi = HttpCallApi(http, { store.current.value }, BuildConfig.VERSION_NAME)
 
     val pushSync = PushAddressSync(api, store) { FirebasePushAddress(appContext).get() }
+
+    val prefs = AppPrefs(appContext)
+
+    val notifier: RingNotifier = AndroidRingNotifier(appContext)
+
+    val sessions = SessionFactory { LiveKitCallSession(appContext) }
+
+    /** The one call there can be. */
+    val calls = CallController(
+        api, sessions, notifier,
+        unpair = store::clear,
+        remember = { call -> scope.launch { prefs.setLastCall(call) } },
+        now = System::currentTimeMillis,
+        scope = scope
+    )
 }
 
 /** The container, from anywhere that has a Context. */

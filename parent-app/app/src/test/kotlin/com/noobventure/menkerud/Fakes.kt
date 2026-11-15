@@ -33,13 +33,13 @@ class FakeCallApi : CallApi {
     var answerResult: AnswerResult = AnswerResult.Over
     var ringHomeResult: RingHomeResult = RingHomeResult.Busy
     val statuses = ArrayDeque<StatusResult>()           // answers to status(), in order; the last one repeats
-    var hold: CompletableDeferred<Unit>? = null         // answer() and ringHome() wait for this before they answer
+    var hold: CompletableDeferred<Unit>? = null         // answer(), decline() and ringHome() wait for this before they answer
 
     override suspend fun pair(link: PairLink, phoneName: String): PairResult { calls += "pair ${link.code}"; return pairResult }
     override suspend fun whoAmI(): Sent { calls += "whoAmI"; return sent }
     override suspend fun sendPushAddress(address: String): Sent { calls += "sendPushAddress $address"; return sent }
     override suspend fun answer(callId: String): AnswerResult { calls += "answer $callId"; hold?.await(); return answerResult }
-    override suspend fun decline(callId: String): Sent { calls += "decline $callId"; return sent }
+    override suspend fun decline(callId: String): Sent { calls += "decline $callId"; hold?.await(); return sent }
     override suspend fun ringHome(): RingHomeResult { calls += "ringHome"; hold?.await(); return ringHomeResult }
     override suspend fun status(callId: String): StatusResult {
         calls += "status $callId"

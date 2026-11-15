@@ -20,6 +20,10 @@ object MenkerudColors {
     val BlueDeep = Color(0xFF0872D1)
     val Green = Color(0xFF25E08F)
     val GreenDeep = Color(0xFF05885D)
+    val CallGreen = Color(0xFF22C55E)       // the kiosk's «Svar»
+    val CallRed = Color(0xFFFF3B3B)         // the kiosk's «Ikke nå» and «Legg på»
+    val Amber = Color(0xFFFFD54A)           // the kiosk's «something waits for you» yellow
+    val Veil = Color(0xB8040A1A)            // over the night picture, so that text can be read on it
 }
 
 private val Scheme = darkColorScheme(

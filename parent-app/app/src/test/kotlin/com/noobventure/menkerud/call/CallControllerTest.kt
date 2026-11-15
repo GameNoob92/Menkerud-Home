@@ -129,15 +129,33 @@ class CallControllerTest {
     @Test fun `a missed call the phone never rang for still leaves its notice`() = runTest {
         val c = make()
         c.onPush(PushMessage.CallEnd("c_9", "missed", T0 - 3_600_000)); pass()
-        assertEquals(listOf("missed c_9 ${T0 - 3_600_000}"), notifier.log)
+        assertEquals(listOf("stop c_9", "missed c_9 ${T0 - 3_600_000}"), notifier.log)
         assertEquals(CallState.Idle, c.state.value)
         assertEquals(listOf(LastCall(T0 - 3_600_000, CallKind.FROM_HOME_MISSED)), remembered)
+    }
+
+    // Android may have ended the app while the notification rang on. The push that ends the call then starts a new
+    // process that knows nothing of it – and the notification is still there.
+    @Test fun `a call that ends after the app was restarted takes its notification away`() = runTest {
+        val c = make()
+        c.onPush(PushMessage.CallEnd("c_1", "answered_elsewhere", null)); pass()
+        assertEquals(listOf("stop c_1"), notifier.log)
+        assertEquals(CallState.Idle, c.state.value)
+        assertTrue(remembered.isEmpty())
+    }
+
+    @Test fun `the end of some other call does not disturb a call that is on`() = runTest {
+        val c = inCall()
+        val before = notifier.log.toList()
+        c.onPush(PushMessage.CallEnd("c_1", "ended", null)); c.onPush(PushMessage.CallEnd("c_0", "answered_elsewhere", null)); pass()
+        assertEquals(before, notifier.log)
+        assertEquals(CallState.InCall("c_1"), c.state.value)
     }
 
     @Test fun `the same missed call told twice is remembered once`() = runTest {
         val c = make()
         repeat(2) { c.onPush(PushMessage.CallEnd("c_9", "missed", T0 - 3_600_000)); pass() }
-        assertEquals(1, notifier.log.size)
+        assertEquals(1, notifier.log.count { it.startsWith("missed c_9") })
         assertEquals(1, remembered.size)
         // and a ring that ran out here, followed by the server saying so as well
         c.onPush(call()); pass(60_000)
@@ -287,6 +305,27 @@ class CallControllerTest {
         assertEquals(listOf("decline c_1"), api.calls)
         assertEquals(listOf("stop c_1"), notifier.log)
         assertEquals(CallState.Idle, c.state.value)
+    }
+
+    // The push service and the notification's «decline» button run in a process that Android may put to sleep the
+    // moment they return. They wait for these two jobs first.
+    @Test fun `the one who hands over a push can wait until the phone rings`() = runTest {
+        val c = make()
+        val handled = c.onPush(call()); pass()
+        assertTrue(handled.isCompleted)                 // although the call itself rings on for a minute
+        assertEquals(listOf("ring c_1 60000"), notifier.log)
+        assertEquals(CallState.Incoming("c_1"), c.state.value)
+    }
+
+    @Test fun `the one who declines can wait until the server has been told`() = runTest {
+        val c = ringing()
+        api.hold = CompletableDeferred()
+        val told = c.decline("c_1"); pass()
+        assertEquals(CallState.Idle, c.state.value)     // the ringing stops at once
+        assertFalse(told.isCompleted)                   // but the server has not answered yet
+        api.hold!!.complete(Unit); pass()
+        assertTrue(told.isCompleted)
+        assertEquals(1, asked("decline c_1"))
     }
 
     @Test fun `the last word goes away when it is dismissed`() = runTest {

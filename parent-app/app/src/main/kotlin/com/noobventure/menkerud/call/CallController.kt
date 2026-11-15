@@ -72,19 +72,22 @@ class CallController(
     private var lastWord: Job? = null                   // turns Ended into Idle
     private val noticed = ArrayDeque<String>()          // the calls that have left their «missed» notice
 
-    fun onPush(message: PushMessage) {
-        scope.launch {
-            when (message) {
-                is PushMessage.Call -> incoming(message)
-                is PushMessage.CallEnd -> over(message)
-                PushMessage.Unknown -> Unit
-            }
+    /**
+     * The returned job is done when the push has had its effect on the phone – the notification is up, or gone.
+     * The push service waits for it: Android may put the process to sleep the moment that service returns.
+     */
+    fun onPush(message: PushMessage): Job = scope.launch {
+        when (message) {
+            is PushMessage.Call -> incoming(message)
+            is PushMessage.CallEnd -> over(message)
+            PushMessage.Unknown -> Unit
         }
     }
 
     fun answer(callId: String) { scope.launch { doAnswer(callId) } }
 
-    fun decline(callId: String) { scope.launch { doDecline(callId) } }
+    /** The returned job is done when the server has been told (its answer does not matter). */
+    fun decline(callId: String): Job = scope.launch { if (doDecline(callId)) api.decline(callId) }
 
     fun ringHome() { scope.launch { doRingHome() } }
 
@@ -127,6 +130,10 @@ class CallController(
         if (call != null && s is CallState.Incoming && s.callId == push.callId) {
             notifier.stop(push.callId)
             leave(call, CallState.Idle)
+        } else if (s == CallState.Idle || s is CallState.Ended || s is CallState.Incoming) {
+            // Nothing rings here for that call – but Android may have ended the app while its notification rang on,
+            // and then this is a new process that knows nothing of it. Taking away what is not there costs nothing.
+            notifier.stop(push.callId)
         }
         // Also for a call this phone never rang for: it was off, or without a network.
         if (push.reason == "cancelled" || push.reason == "missed") notice(push.callId, push.at ?: now())
@@ -173,7 +180,8 @@ class CallController(
         }
     }
 
-    private fun doDecline(callId: String) {
+    /** Stops the ringing. False when there is nothing to decline: a call is being answered, or is on. */
+    private fun doDecline(callId: String): Boolean {
         when (val s = _state.value) {
             CallState.Idle -> notifier.stop(callId)
             is CallState.Ended -> { notifier.stop(callId); lastWord?.cancel(); lastWord = null; _state.value = CallState.Idle }
@@ -182,9 +190,9 @@ class CallController(
                 val call = live
                 if (s.callId == callId && call != null) leave(call, CallState.Idle)
             }
-            else -> return
+            else -> return false
         }
-        tell { api.decline(callId) }                    // its answer does not matter
+        return true
     }
 
     // --- «Ring hjem» ---

@@ -29,8 +29,9 @@ until then.
 
 ## Two files the build wants that are never committed
 
-- **`local.properties`** – one line saying where the Android SDK is, for example
-  `sdk.dir=C:/Users/Kjetil/AppData/Local/Android/Sdk`. Android Studio writes it when it opens the project.
+- **`local.properties`** – one line saying where the Android SDK is. Android Studio writes it when it opens the
+  project; by hand it is `sdk.dir=C\:/Users/Kjetil/AppData/Local/Android/Sdk` (the colon after the drive letter
+  needs the backslash).
 - **`app/google-services.json`** – from the Firebase project, which holds two Android apps:
   `com.noobventure.menkerud` and `com.noobventure.menkerud.debug`. The build reads the four values Firebase needs
   out of this file itself (the google-services Gradle plugin is not used). Without the file the app still builds

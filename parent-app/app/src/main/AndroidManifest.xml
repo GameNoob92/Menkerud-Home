@@ -47,6 +47,42 @@
             </intent-filter>
         </activity>
 
+        <!-- The one screen for a call. Android opens it over the lock screen for the ringing notification. It lives
+             in a task of its own, so that after a call the phone is back where it was. It turns with the phone only
+             while a call is on (set in code); a turn does not restart it. -->
+        <activity
+            android:name=".ui.CallActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:showWhenLocked="true"
+            android:taskAffinity="com.noobventure.menkerud.call"
+            android:turnScreenOn="true"
+            tools:ignore="DiscouragedApi,LockedOrientationActivity"
+            tools:targetApi="o_mr1" />
+
+        <!-- The notification buttons that need no screen. -->
+        <receiver
+            android:name=".call.CallActionReceiver"
+            android:exported="false" />
+
+        <!-- Keeps a call alive when the parent leaves the call screen. -->
+        <service
+            android:name=".call.CallForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="camera|microphone" />
+
+        <!-- Where pushes arrive. -->
+        <service
+            android:name=".push.MenkerudMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <service
             android:name="io.livekit.android.room.track.screencapture.ScreenCaptureService"
             tools:node="remove" />
