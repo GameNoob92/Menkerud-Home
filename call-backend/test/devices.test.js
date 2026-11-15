@@ -23,6 +23,14 @@ assert.match(dev.deviceId, /^d_[0-9a-f]{12}$/);
 assert.match(dev.secret, /^[0-9a-f]{64}$/);
 console.log('ok - a sloppily typed key still pairs the phone as the right parent');
 
+// the same on a key that is known to hold a 0 and a 1 (a random key has neither about half the time)
+const fixed = createDevices({ file: tmpFile('devices.json'), now: () => t, randomBytes: n => Buffer.from(Array.from({ length: n }, (_, i) => i)) });
+for (const sloppy of [' o123-4567 89ab-cdef ghjk ', 'O1234-56789-ABCDE-FGHJK', '0i23456789abcdefghjk', '0I23456789ABCDEFGHJK', '0l23456789abcdefghjk', '0L23456789ABCDEFGHJK']) {
+  assert.strictEqual(fixed.createPairingCode('mor').code, '0123456789ABCDEFGHJK');
+  assert.strictEqual(fixed.redeem(sloppy, {}).who, 'mor', sloppy);
+}
+console.log('ok - o for 0 and i or l for 1, in either case, with dashes and spaces: the key still works');
+
 assert.throws(() => d.redeem(code, {}), e => e.code === 'invalid');
 console.log('ok - a key works once');
 
@@ -79,5 +87,16 @@ assert.deepStrictEqual(fresh.list(), []);
 assert.ok(fs.readdirSync(require('path').dirname(broken)).some(f => f.startsWith('devices.json.damaged-')));
 assert.strictEqual(fresh.redeem(fresh.createPairingCode('mor').code, {}).who, 'mor');
 console.log('ok - a damaged device file is set aside and the store starts empty instead of refusing to start');
+
+// the data folder can no longer be written (a full disk): a phone that looks in must not be turned away for it
+const stuck = tmpFile('devices.json');
+const s = createDevices({ file: stuck, now: () => t, log() {} });
+const phone = s.redeem(s.createPairingCode('far').code, { appVersion: '1.0.0' });
+fs.rmSync(require('path').dirname(stuck), { recursive: true, force: true });
+fs.writeFileSync(require('path').dirname(stuck), 'a file where the folder was: nothing can be written into it');
+assert.doesNotThrow(() => s.touch(phone.deviceId, { appVersion: '1.0.1' }));
+assert.strictEqual(s.authenticate(phone.deviceId + '.' + phone.secret).appVersion, '1.0.1');
+assert.throws(() => s.setPushToken(phone.deviceId, 'tok'));     // what must not be lost still fails loudly
+console.log('ok - when the phone list cannot be written, looking in still works; storing a push address says it failed');
 
 console.log('ALL GOOD');

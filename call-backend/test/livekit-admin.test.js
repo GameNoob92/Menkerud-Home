@@ -29,5 +29,10 @@ const { participantCount } = require('../src/livekit');
   assert.strictEqual(await participantCount('family-c_1'), null);
   console.log('ok - when LiveKit refuses or cannot be reached the answer is null, never a number');
 
+  // a 404 that is not LiveKit's own – a proxy's error page, a wrong address – says nothing about the room
+  answer = { ok: false, status: 404, statusText: 'Not Found', headers: { get: () => 'text/html' }, text: async () => '<html><h1>404 Not Found</h1></html>', json: async () => { throw new SyntaxError('Unexpected token <'); } };
+  assert.strictEqual(await participantCount('family-c_1'), null);
+  console.log('ok - a 404 from something that is not LiveKit is "don\'t know", not "the room is empty"');
+
   console.log('ALL GOOD');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

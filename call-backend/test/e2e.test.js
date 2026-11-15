@@ -40,6 +40,11 @@ const { createAdminApp } = require('../src/admin');
   const h = (await http('POST', pub + '/api/calls/home', {}, bearer(dev))).body;
   const inc = await kiosk.next();
   assert.deepStrictEqual(inc, { type: 'incoming', callId: h.callId, from: 'far', expiresAt: h.expiresAt });
+  assert.deepStrictEqual((await http('POST', pub + '/api/calls/' + h.callId + '/ringing', {}, K)).body, { status: 'ringing' });
+  // a kiosk that connects in the middle of the ring (a reload, a network blip) is told about the call again
+  const late = await openEvents(pub + '/api/kiosk/events', K);
+  assert.deepStrictEqual([await late.next(), await late.next()], [{ type: 'hello' }, inc]);
+  late.close(); await wait(30);
   assert.strictEqual((await http('POST', pub + '/api/calls/' + h.callId + '/decline', {}, K)).status, 200);
   assert.strictEqual((await http('GET', pub + '/api/calls/' + h.callId)).body.status, 'declined');
   assert.deepStrictEqual(await kiosk.next(), { type: 'ended', callId: h.callId });

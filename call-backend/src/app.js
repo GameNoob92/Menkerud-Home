@@ -56,8 +56,16 @@ function createApp({ config, livekit, discord, devices, hub, calls, health, log 
     catch (e) { log('ack error', e.message); res.status(502).json({ error: e.message }); }
   });
 
-  // The kiosk keeps this one request open; we write events down it (see kiosk-events.js).
-  app.get('/api/kiosk/events', deviceAuth, (req, res) => hub.attach(req, res));
+  // What the parent app added for the kiosk – its event stream, and confirming, answering or declining a parent's
+  // call – is closed unless the server has a device key: without one anybody could sit in for the screen at home.
+  function kioskAuth(req, res, next) {
+    if (!DEVICE_KEY) return res.status(403).json({ error: 'device_key_required' });
+    return deviceAuth(req, res, next);
+  }
+
+  // The kiosk keeps this one request open; we write events down it (see kiosk-events.js). A kiosk that connects
+  // while a parent's call is ringing is told about that call at once.
+  app.get('/api/kiosk/events', kioskAuth, (req, res) => hub.attach(req, res, calls.ringingHome()));
 
   // --- Paired phones (the parent app). A phone proves who it is with the secret it got when it was paired;
   // which parent it belongs to comes from our record, never from the request.
@@ -118,8 +126,12 @@ function createApp({ config, livekit, discord, devices, hub, calls, health, log 
   // the kiosk (its device key) for a call from a parent. A bearer, once presented, has to be valid.
   function phoneOrKiosk(req, res, next) {
     if (/^Bearer\s/i.test(req.get('Authorization') || '')) return phoneAuth(req, res, next);
-    return deviceAuth(req, res, next);
+    return kioskAuth(req, res, next);
   }
+  // The kiosk: «this call is ringing here». Without it the call counts as not having reached the screen (calls.js).
+  app.post('/api/calls/:id/ringing', kioskAuth, (req, res) => {
+    try { res.json(calls.seen(req.params.id)); } catch (e) { refuse(res, e); }
+  });
   app.post('/api/calls/:id/answer', phoneOrKiosk, async (req, res) => {
     try { res.json(req.device ? await calls.answerByParent(req.params.id, req.device) : await calls.answerByKiosk(req.params.id)); }
     catch (e) { refuse(res, e); }

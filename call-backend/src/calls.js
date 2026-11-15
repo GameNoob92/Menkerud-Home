@@ -5,7 +5,8 @@
 //                   a paired phone with a live push address, otherwise through the Discord link as before.
 //   parent_to_home  a parent pressed «Ring hjem» in the app; the kiosk is told over its event stream.
 //
-// States: ringing -> connected -> ended, or ringing -> declined | missed | cancelled. A finished call is kept for a
+// States: ringing -> connected -> ended, or ringing -> declined | missed | cancelled | unreachable (a call home that
+// the kiosk never confirmed). A finished call is kept for a
 // minute so that late requests get a clean answer, then forgotten. Calls live in memory: a restart drops them.
 'use strict';
 const crypto = require('crypto');
@@ -14,6 +15,7 @@ const { callData, callEndData, callEndTtl } = require('./push');
 const FORGET_MS = 60 * 1000;         // how long a finished call is remembered
 const WATCH_MS = 15 * 1000;          // how often answered calls are checked
 const JOIN_GRACE_MS = 45 * 1000;     // after an answer, give both sides this long to actually arrive in the room
+const SEEN_MS = 8 * 1000;            // a call to the kiosk that the kiosk has not confirmed by then did not reach it
 const STARTS_PER_MINUTE = 10;
 const KIOSK_IDENTITY = 'tablet-stue';
 
@@ -44,7 +46,17 @@ function createCalls({ config, livekit, devices, push, discord, hub, timers, now
     const id = 'c_' + crypto.randomBytes(9).toString('hex');
     const call = { id, room: 'family-' + id, target, direction, status: 'ringing', final: false, via: null, createdAt: now(), expiresAt: now() + config.ringSec * 1000, lowChecks: 0 };
     calls.set(id, call);
+    // The ring time runs from the first moment: whatever happens next, a ringing call cannot outlive it.
+    call.timer = T.setTimeout(() => missed(call), config.ringSec * 1000);
     return call;
+  }
+
+  /** A call that never got going: forget it, so that it cannot block the next one. */
+  function drop(call) {
+    call.final = true;
+    T.clearTimeout(call.timer);
+    T.clearTimeout(call.seenTimer);
+    calls.delete(call.id);
   }
 
   /** Tell the parent's phones (or the Discord message) how a kids-call-a-parent call ended. */
@@ -68,6 +80,7 @@ function createCalls({ config, livekit, devices, push, discord, hub, timers, now
     call.status = status;
     call.endedAt = now();
     T.clearTimeout(call.timer);
+    T.clearTimeout(call.seenTimer);
     livekit.deleteRoom(call.room);       // puts everyone still in the room out of it
     tellParentItIsOver(call, status, exceptDeviceId);
     hub.send({ type: 'ended', callId: call.id });
@@ -111,41 +124,47 @@ function createCalls({ config, livekit, devices, push, discord, hub, timers, now
     if (!livekit.configured()) throw new CallError(500, 'LiveKit ikke konfigurert');
     claimStart('en samtale pågår allerede');
     const call = newCall(target, 'home_to_parent');
+    // Whatever goes wrong from here – a refusal of ours or something nobody foresaw – the line must be free again.
+    try { return await notifyParent(call, p); }
+    catch (e) { drop(call); throw e; }
+  }
 
+  async function notifyParent(call, p) {
     let kioskToken;
     try { kioskToken = await livekit.joinToken({ room: call.room, identity: KIOSK_IDENTITY, name: 'Hjemme', ttl: config.tokenTtlSec }); }
-    catch (e) { calls.delete(call.id); log('token error', e.message); throw new CallError(500, 'kunne ikke starte samtalen'); }
+    catch (e) { log('token error', e.message); throw new CallError(500, 'kunne ikke starte samtalen'); }
 
     // The app, if this parent has a phone we can reach …
-    const phones = devices.reachableFor(target);
+    const phones = devices.reachableFor(call.target);
     let delivered = 0;
     if (phones.length) {
-      const data = callData({ callId: call.id, target, expiresAt: call.expiresAt });
+      const data = callData({ callId: call.id, target: call.target, expiresAt: call.expiresAt });
       const results = await Promise.all(phones.map(d => push.send(d, data, { ttlSec: config.ringSec })));
       results.forEach((r, i) => {
         if (r && r.ok) delivered++;
-        else if (r && r.dead) devices.markPushDead(phones[i].deviceId);   // that phone no longer counts as paired
+        else if (r && r.dead) {
+          // That phone no longer counts as paired. If that cannot be written down (a full disk), the call goes on.
+          try { devices.markPushDead(phones[i].deviceId); } catch (e) { log('could not record a dead push address:', e.message); }
+        }
       });
     }
     if (delivered) call.via = 'app';
     else {
       // … otherwise the Discord message with a link, exactly as before the app existed.
-      if (!p.discordUserId) { calls.delete(call.id); throw new CallError(500, 'mottaker ikke konfigurert'); }
+      if (!p.discordUserId) throw new CallError(500, 'mottaker ikke konfigurert');
       const answerToken = crypto.randomBytes(32).toString('hex');
       call.answerHash = sha256(answerToken);
       const link = config.publicUrl + '/answer/' + answerToken;
       try {
         call.discord = await discord.dm(p.discordUserId, '🏠 **Det ringer hjemmefra**\n\nBarna vil snakke med deg.\n\n📞 Trykk for å svare:\n' + link + '\n\n💡 Åpne lenken i **Chrome** – nettleseren inni Discord får ikke bruke kamera og mikrofon.\nAnropet utløper om ' + config.ringSec + ' sekunder.');
       } catch (e) {
-        calls.delete(call.id);
         log('discord error', e.message);
         throw new CallError(502, 'kunne ikke varsle ' + p.label);
       }
       call.via = 'discord';
     }
 
-    call.timer = T.setTimeout(() => missed(call), config.ringSec * 1000);
-    log('call', call.id, 'ringing', target, 'via', call.via);
+    log('call', call.id, 'ringing', call.target, 'via', call.via);
     return { callId: call.id, status: 'ringing', livekit: lkInfo(kioskToken), expiresAt: call.expiresAt, via: call.via };
   }
 
@@ -207,19 +226,39 @@ function createCalls({ config, livekit, devices, push, discord, hub, timers, now
     if (!hub.online()) throw new CallError(503, 'kiosk_offline');   // say so now, rather than ring into nothing
     claimStart('busy');
     const call = newCall(device.who, 'parent_to_home');
+    try { return await notifyKiosk(call, p); }
+    catch (e) { drop(call); throw e; }
+  }
 
+  async function notifyKiosk(call, p) {
     let parentToken;
     try { parentToken = await livekit.joinToken({ room: call.room, identity: p.identity, name: p.label, ttl: config.tokenTtlSec }); }
-    catch (e) { calls.delete(call.id); log('token error', e.message); throw new CallError(500, 'kunne ikke starte samtalen'); }
+    catch (e) { log('token error', e.message); throw new CallError(500, 'kunne ikke starte samtalen'); }
 
     // The kiosk shows its «… ringer!» overlay. If it dropped off while the token was being made, nobody was told.
-    if (!hub.send({ type: 'incoming', callId: call.id, from: device.who, expiresAt: call.expiresAt })) {
-      calls.delete(call.id);
-      throw new CallError(503, 'kiosk_offline');
-    }
-    call.timer = T.setTimeout(() => missed(call), config.ringSec * 1000);
-    log('call', call.id, 'ringing home from', device.who);
+    if (!hub.send(incomingEvent(call))) throw new CallError(503, 'kiosk_offline');
+    // … and it has to say that it does. A stream can look open long after the kiosk is gone (a network that died
+    // without a word), so a call that is not confirmed within a few seconds counts as not having reached the screen.
+    call.seenTimer = T.setTimeout(() => { if (!call.final && call.status === 'ringing' && !call.seen) finish(call, 'unreachable'); }, SEEN_MS);
+    log('call', call.id, 'ringing home from', call.target);
     return { callId: call.id, status: 'ringing', livekit: lkInfo(parentToken), expiresAt: call.expiresAt };
+  }
+
+  const incomingEvent = call => ({ type: 'incoming', callId: call.id, from: call.target, expiresAt: call.expiresAt });
+
+  /** The call that is ringing on the kiosk right now, as the event to send – or null. A kiosk that connects in the
+      middle of a ring (a reload, a network blip) is told again through this. */
+  function ringingHome() {
+    const call = [...calls.values()].find(c => !c.final && c.direction === 'parent_to_home' && c.status === 'ringing');
+    return call ? incomingEvent(call) : null;
+  }
+
+  /** The kiosk says: this call is ringing here. */
+  function seen(callId) {
+    const call = calls.get(callId);
+    if (!call || call.direction !== 'parent_to_home') throw new CallError(404, 'unknown');
+    if (!call.final) { call.seen = true; T.clearTimeout(call.seenTimer); }
+    return { status: call.status };
   }
 
   /** The call the kiosk may answer or decline – or throw the right refusal. */
@@ -271,7 +310,7 @@ function createCalls({ config, livekit, devices, push, discord, hub, timers, now
     return c ? { callId: c.id, status: c.status, target: c.target, direction: c.direction } : null;
   }
 
-  return { startFromHome, startFromParent, answerByLink, answerByParent, answerByKiosk, decline, cancel: close, end: close, get, hasActive };
+  return { startFromHome, startFromParent, answerByLink, answerByParent, answerByKiosk, seen, ringingHome, decline, cancel: close, end: close, get, hasActive };
 }
 
 module.exports = { createCalls, CallError };

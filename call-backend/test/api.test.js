@@ -79,6 +79,30 @@ const { wire, startApp, http, bearer } = require('./helpers');
   assert.strictEqual(off.body.error, 'kiosk_offline');
   console.log('ok - the kiosk declines with its device key; with no kiosk connected the phone gets 503 kiosk_offline');
 
+  // --- the kiosk confirms that a call is ringing there; only the kiosk can (contract C6) ---
+  v.hub.state.online = true;
+  const h3 = (await http('POST', base + '/api/calls/home', {}, bearer(far))).body;
+  assert.strictEqual((await http('POST', base + '/api/calls/' + h3.callId + '/ringing', {})).status, 401);
+  assert.strictEqual((await http('POST', base + '/api/calls/' + h3.callId + '/ringing', {}, bearer(far))).status, 401);
+  assert.deepStrictEqual((await http('POST', base + '/api/calls/' + h3.callId + '/ringing', {}, K)).body, { status: 'ringing' });
+  assert.strictEqual((await http('POST', base + '/api/calls/c_unknown/ringing', {}, K)).status, 404);
+  console.log('ok - the kiosk confirms a ringing call with its device key; nobody else can');
+
+  // a bearer, once presented, has to be valid – even next to a correct kiosk key
+  const bad = await http('POST', base + '/api/calls/' + h3.callId + '/answer', {}, Object.assign({ Authorization: 'Bearer ' + far.deviceId + '.' + 'f'.repeat(64) }, K));
+  assert.strictEqual(bad.status, 401);
+  assert.strictEqual((await http('GET', base + '/api/calls/' + h3.callId)).body.status, 'ringing');
+  console.log('ok - a wrong phone secret is refused even when the kiosk key comes with it');
+
+  // --- a server without a device key: what was added for the kiosk is closed, the older routes are as before ---
+  const o = wire({ DEVICE_KEY: '' }), open = (await startApp(o.app)).url;
+  const ev = await http('GET', open + '/api/kiosk/events');
+  assert.strictEqual(ev.status, 403);
+  assert.strictEqual(ev.body.error, 'device_key_required');
+  for (const what of ['ringing', 'answer', 'decline']) assert.strictEqual((await http('POST', open + '/api/calls/c_x/' + what, {})).status, 403, what);
+  assert.strictEqual((await http('POST', open + '/api/calls', { target: 'far' })).status, 200);
+  console.log('ok - without a device key nobody can sit in for the kiosk; starting a call from it is open as before');
+
   console.log('ALL GOOD');
   process.exit(0);
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

@@ -16,6 +16,7 @@ const discord = require('./discord');
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const config = loadConfig();
+if (!config.deviceKey) log('WARNING: no DEVICE_KEY – the kiosk\'s event stream and its answer route stay closed, so the parent app cannot ring home. Set the same key here and on the kiosk (call.deviceKey).');
 
 // Everything that must survive a rebuild lives in the data folder (mounted from outside the synced project folder).
 fs.mkdirSync(config.dataDir, { recursive: true });

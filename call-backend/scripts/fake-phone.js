@@ -114,6 +114,7 @@ async function ringHome() {
     said = s;
     if (s === 'connected') console.log('Svarte hjemme – samtalen er i gang');
     else if (s === 'declined' || s === 'missed') return console.log('Ingen svarte hjemme');
+    else if (s === 'unreachable') return console.log('Skjermen hjemme er ikke tilkoblet');   // the kiosk never confirmed the call
     else if (s !== 'ringing') return console.log('Samtalen er avsluttet');
   }
 }

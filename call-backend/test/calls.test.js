@@ -180,6 +180,7 @@ const { wire } = require('./helpers');
 
   { const x = wire(), far = x.phone('far');
     const s = await x.calls.startFromParent(far);
+    x.calls.seen(s.callId);                                                // the kiosk says it is ringing there
     await x.timers.advance(60000);
     assert.strictEqual(x.calls.get(s.callId).status, 'missed');
     await assert.rejects(x.calls.answerByKiosk(s.callId), e => e.status === 410);
@@ -193,6 +194,95 @@ const { wire } = require('./helpers');
     const out = await x.calls.startFromParent(far);
     await assert.rejects(x.calls.answerByParent(out.callId, far), e => e.status === 404);     // nor a parent theirs
     console.log('ok - each side can only answer or decline a call that was made to it'); }
+
+  // ---------- a start that goes wrong must never hold the line ----------
+  { const x = wire(); x.phone('far');
+    x.devices.markPushDead = () => { throw new Error('ENOSPC: no space left on device'); };   // the data folder cannot be written
+    x.push.results.push({ ok: false, dead: true, error: 'UNREGISTERED' });
+    const s = await x.calls.startFromHome('far');
+    assert.strictEqual(s.via, 'discord');
+    x.calls.end(s.callId);
+    assert.strictEqual(x.calls.hasActive(), false);
+    console.log('ok - a phone list that cannot be written does not keep a call from going out'); }
+
+  { const x = wire(), far = x.phone('far');
+    const send = x.push.send; let once = true;
+    x.push.send = async (...a) => { if (once) { once = false; throw new Error('boom'); } return send(...a); };
+    await assert.rejects(x.calls.startFromHome('far'), /boom/);
+    assert.strictEqual(x.calls.hasActive(), false);
+    const ok = await x.calls.startFromHome('far');
+    assert.strictEqual(ok.status, 'ringing');
+    x.calls.end(ok.callId);
+    const hubSend = x.hub.send; let hubOnce = true;
+    x.hub.send = e => { if (hubOnce && e.type === 'incoming') { hubOnce = false; throw new Error('boom'); } return hubSend(e); };
+    await assert.rejects(x.calls.startFromParent(far), /boom/);
+    assert.strictEqual(x.calls.hasActive(), false);
+    assert.strictEqual((await x.calls.startFromParent(far)).status, 'ringing');
+    console.log('ok - an error nobody foresaw while a call starts leaves the line free for the next one'); }
+
+  { const x = wire(), far = x.phone('far');
+    x.hub.send = e => { x.hub.sent.push(e); return 0; };                     // the kiosk dropped off while the ticket was being made
+    await assert.rejects(x.calls.startFromParent(far), e => e.status === 503 && e.message === 'kiosk_offline');
+    assert.strictEqual(x.calls.hasActive(), false);
+    console.log('ok - an «incoming» that reaches no kiosk is answered as not connected, and holds nothing'); }
+
+  // ---------- two phones ----------
+  { const x = wire(), a = x.phone('far'), b = x.phone('far');
+    const s = await x.calls.startFromHome('far');
+    x.calls.decline(s.callId, 'parent', a);
+    assert.ok(x.push.sent.some(p => p.device.deviceId === b.deviceId && p.data.type === 'call_end' && p.data.reason === 'declined'));
+    assert.ok(!x.push.sent.some(p => p.device.deviceId === a.deviceId && p.data.type === 'call_end'));
+    console.log('ok - «Ikke nå» on one phone stops the parent\'s other phone ringing'); }
+
+  { const x = wire(), a = x.phone('far'), b = x.phone('far');
+    const s = await x.calls.startFromHome('far');
+    let open; const gate = new Promise(r => { open = r; });
+    const tok = x.lk.joinToken;
+    x.lk.joinToken = async o => { await gate; return tok(o); };              // both phones are past the first check while the tickets are made
+    const both = [a, b].map(p => x.calls.answerByParent(s.callId, p).then(() => 'in', e => e.status));
+    open();
+    assert.deepStrictEqual((await Promise.all(both)).sort(), [409, 'in']);
+    console.log('ok - two phones answering in the same instant: one gets in, the other is told it was answered'); }
+
+  // ---------- the kiosk has to say that a call reached it ----------
+  { const x = wire(), far = x.phone('far');
+    const s = await x.calls.startFromParent(far);
+    await x.timers.advance(7900);
+    assert.strictEqual(x.calls.get(s.callId).status, 'ringing');
+    await x.timers.advance(200);
+    assert.strictEqual(x.calls.get(s.callId).status, 'unreachable');
+    assert.deepStrictEqual(x.lk.deleted, ['family-' + s.callId]);
+    assert.strictEqual(x.calls.hasActive(), false);
+    console.log('ok - a call the kiosk never confirms ends as «unreachable» after 8 seconds instead of ringing into nothing'); }
+
+  { const x = wire(), far = x.phone('far');
+    const s = await x.calls.startFromParent(far);
+    assert.deepStrictEqual(x.calls.seen(s.callId), { status: 'ringing' });
+    await x.timers.advance(30000);
+    assert.strictEqual(x.calls.get(s.callId).status, 'ringing');
+    await x.timers.advance(30000);
+    assert.strictEqual(x.calls.get(s.callId).status, 'missed');
+    assert.deepStrictEqual(x.calls.seen(s.callId), { status: 'missed' });
+    assert.throws(() => x.calls.seen('c_nope'), e => e.status === 404);
+    console.log('ok - a confirmed call rings its full time; confirming a finished call just says how it ended'); }
+
+  { const x = wire(), far = x.phone('far');
+    const s = await x.calls.startFromParent(far);
+    await x.calls.answerByKiosk(s.callId);                                 // «Svar» before any confirmation got through
+    await x.timers.advance(20000);
+    assert.strictEqual(x.calls.get(s.callId).status, 'connected');
+    x.calls.end(s.callId);
+    const home = await x.calls.startFromHome('far');
+    assert.throws(() => x.calls.seen(home.callId), e => e.status === 404);   // the kiosk confirms calls made to it, not its own
+    console.log('ok - answering counts as confirming'); }
+
+  { const x = wire(), far = x.phone('far');
+    assert.strictEqual(x.calls.ringingHome(), null);
+    const s = await x.calls.startFromParent(far);
+    assert.deepStrictEqual(x.calls.ringingHome(), { type: 'incoming', callId: s.callId, from: 'far', expiresAt: s.expiresAt });
+    await x.calls.answerByKiosk(s.callId);
+    assert.strictEqual(x.calls.ringingHome(), null);
+    console.log('ok - the call manager can say which call is ringing at home right now'); }
 
   console.log('ALL GOOD');
   process.exit(0);

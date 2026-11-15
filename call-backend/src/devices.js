@@ -134,7 +134,11 @@ function createDevices({ file, now = Date.now, randomBytes = crypto.randomBytes,
     const versionChanged = !!version && version !== d.appVersion;
     if (versionChanged) d.appVersion = version;
     d.lastSeenAt = t;
-    if (versionChanged || t - (seenWritten.get(deviceId) || 0) > SEEN_WRITE_MS) { seenWritten.set(deviceId, t); save(); }
+    if (versionChanged || t - (seenWritten.get(deviceId) || 0) > SEEN_WRITE_MS) {
+      seenWritten.set(deviceId, t);
+      // "Last seen" only serves the pairing page. A phone must never be turned away because it could not be written.
+      try { save(); } catch (e) { log('could not write the phone list (' + e.message + ') – carrying on'); }
+    }
   }
 
   function list() {

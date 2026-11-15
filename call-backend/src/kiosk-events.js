@@ -7,7 +7,9 @@
 function createHub({ keepAliveMs = 20000 } = {}) {
   const clients = new Set();
 
-  function attach(req, res) {
+  /** Hold this response open as a kiosk's stream. `first`, when given, is an event written right after the hello:
+      the call that is ringing at this very moment, for a kiosk that connects in the middle of it. */
+  function attach(req, res, first) {
     res.status(200);
     res.set({
       'Content-Type': 'text/event-stream',
@@ -16,6 +18,7 @@ function createHub({ keepAliveMs = 20000 } = {}) {
     });
     res.flushHeaders();
     res.write('data: {"type":"hello"}\n\n');
+    if (first) res.write('data: ' + JSON.stringify(first) + '\n\n');
     // A comment line now and then keeps proxies from closing an idle stream, and lets the kiosk notice a dead one.
     const keepAlive = setInterval(() => { try { res.write(': ka\n\n'); } catch (e) {} }, keepAliveMs);
     if (keepAlive.unref) keepAlive.unref();

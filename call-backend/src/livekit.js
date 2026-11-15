@@ -29,7 +29,7 @@ async function deleteRoom(room) {
 // cannot be reached the answer is null – "don't know" – and callers must never treat that as "empty".
 async function participantCount(room) {
   try { return (await rooms().listParticipants(room)).length; }
-  catch (e) { return e && (e.code === 'not_found' || e.status === 404) ? 0 : null; }
+  catch (e) { return e && e.code === 'not_found' ? 0 : null; }   // LiveKit's own «no such room» – not any 404 (a proxy's error page says nothing about the room)
 }
 
 module.exports = { joinToken, deleteRoom, participantCount, WS_URL, configured: () => !!(API_KEY && API_SECRET) };
