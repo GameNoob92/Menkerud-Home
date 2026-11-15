@@ -145,6 +145,12 @@ kotlin {
     compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
 }
 
+// DevCopyTest runs only when a dev copy of the backend is named (parent-app/README.md, «Tests»). Naming one is an
+// input of the test tasks, so that Gradle does not answer with the result of an earlier run without it.
+tasks.withType<Test>().configureEach {
+    inputs.property("devCopy", providers.environmentVariable("MENKERUD_DEV_COPY").orElse(""))
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

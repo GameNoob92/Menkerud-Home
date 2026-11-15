@@ -143,11 +143,17 @@ Development and testing use a separate copy of the backend on the dev PC, never 
 that is paired in production moves that parent off the Discord link at once. `call-backend/README.md`, «Developing
 on a separate copy», says how to start it; its pairing page is `http://127.0.0.1:3101`.
 
-The dev copy must be reachable from the phone, and the QR code must name an address the phone can reach: start it
-with `CALL_PUBLIC_URL=http://<the PC's address on the home network>:3100` in `.dev/callapi.env`, and let Windows'
-firewall admit the phone to port 3100 (it asks the first time Node listens there). Then install the
-**debug** or the **minified** build (they accept any server, and plain http), make a key on the dev copy's pairing
-page, and scan it. Test builds have a button «Test forbindelsen ut» on the home screen: it asks
+The phone has to reach the dev copy at the address its QR code names. With the phone on a cable that is one command –
+
+```powershell
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" reverse tcp:3100 tcp:3100
+```
+
+– after which `http://127.0.0.1:3100` on the phone is the dev copy on the PC, and that is what the dev copy's QR code
+says as it comes. Without a cable: start the dev copy with
+`CALL_PUBLIC_URL=http://<the PC's address on the home network>:3100` in `.dev/callapi.env`, and let Windows' firewall
+admit the phone to port 3100. Then install the **debug** or the **minified** build (they accept any server, and plain
+http), make a key on the dev copy's pairing page, and scan it. Test builds have a button «Test forbindelsen ut» on the home screen: it asks
 `call.noobventure.com` and `rtc.noobventure.com` for a sign of life and shows the two answers – `call 200 · rtc 401`
 is what a phone that gets through sees, on Wi-Fi and on mobile data.
 
@@ -161,6 +167,11 @@ What the app writes to the phone's log is under one tag, and never a secret, a t
 
 - `:app:testDebugUnitTest` – everything that decides something, on the PC: reading a key, the API, reading a push,
   the life of a call (`CallControllerTest`), pairing, the texts, «is the phone ready».
+- `DevCopyTest` – the app's own pairing, API client and call controller against a **running dev copy**: a key from
+  its pairing page, its «pushes» read from the outbox file, a stand-in for the screen at home on the event stream.
+  It answers «do the app and the server mean the same by the contract?» without a phone. Skipped unless the dev
+  copy is named: `MENKERUD_DEV_COPY=http://127.0.0.1:3100 ./gradlew :app:testDebugUnitTest --tests '*DevCopyTest*'`
+  (the dev copy as it comes: `PUSH_TRANSPORT=file`). Run it after any change to `call-backend/` or to `api/`.
 - `:app:connectedDebugAndroidTest` – two small tests that need a phone on the cable: the Android Keystore
   (`KeystoreSecretBoxTest`) and the notification that rings (`AndroidRingNotifierTest`; the phone rings for a moment).
 - The rest – ringing over the lock screen, a call with picture and sound, the background – is a written run on a
