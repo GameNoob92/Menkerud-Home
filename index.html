@@ -1741,13 +1741,15 @@ function listenDiscord() {
 /* The call-backend's event stream (GET …/api/kiosk/events, held open): how the kiosk hears that a parent rings home
    from the app, gave up again, or pressed «Ikke nå» on a call from here. Read with fetch – EventSource cannot send the
    device key as a header. All of it happens behind the screen: a stream that will not open is tried again quietly
-   (after 2 s, growing to a minute) and shows nothing; only the «… ringer hjem» row under Innstillinger tells. */
+   (after 2 s, growing to a minute; every five minutes when the API refuses the device key) and shows nothing; only
+   the «… ringer hjem» row under Innstillinger tells. */
 let beState = 'off', beRetry = 2000;                   // 'off' | 'connecting' | 'on' | 'denied' (the API refused the device key)
 async function listenBackend() {
   const base = String((cfg.call && cfg.call.backend) || '').trim().replace(/\/+$/, '');
   if (!base || !window.fetch || !window.TextDecoder || !window.AbortController) return;
   const state = s => { if (beState !== s) { beState = s; renderStatus(); } };
   const ac = new AbortController();
+  let denied = false;
   let quiet = null;                                    // the API writes a keep-alive line every 20 s: 45 s of nothing means the line is dead
   const heard = () => { clearTimeout(quiet); quiet = setTimeout(() => ac.abort(), 45000); };
   state('connecting');
@@ -1756,7 +1758,7 @@ async function listenBackend() {
     const headers = { Accept: 'text/event-stream' };
     if (cfg.call.deviceKey) headers['X-Device-Key'] = cfg.call.deviceKey;
     const r = await fetch(base + '/api/kiosk/events', { headers, cache: 'no-store', signal: ac.signal });
-    if (r.status === 401 || r.status === 403) { state('denied'); return; }   // a wrong device key is no network problem: knocking again will not help
+    if (r.status === 401 || r.status === 403) { denied = true; throw new Error('refused'); }
     if (!r.ok || !r.body || !r.body.getReader) throw new Error('no stream');
     const reader = r.body.getReader(), dec = new TextDecoder();
     let buf = '';
@@ -1780,6 +1782,13 @@ async function listenBackend() {
     }
   } catch (e) { /* unreachable, dropped, or silent for too long: tried again below */ }
   finally { clearTimeout(quiet); try { ac.abort(); } catch (e) {} }
+  if (denied) {
+    // The API refuses the device key. That is no network problem, so do not keep knocking – but look again every five
+    // minutes: the key may have been put right on the server, and this page stays loaded for weeks.
+    state('denied');
+    setTimeout(listenBackend, 300000);
+    return;
+  }
   state('off');
   setTimeout(listenBackend, beRetry);
   beRetry = Math.min(beRetry * 1.5, 60000);
@@ -1788,8 +1797,11 @@ async function listenBackend() {
 function onBackendEvent(ev) {
   const id = ev.callId;
   if (ev.type === 'incoming') {                        // a parent pressed «Ring hjem» in the app and waits in the room
+    if (!id || id === currentCallId) return;           // the call being answered right now, told again because the stream came back
     if (!currentCall && !incomingWho) incomingCall(ev.from, id);
-    if (id && incomingCallId !== id) callApi(id, 'decline').catch(() => {});   // busy here: say so at once rather than leave the parent waiting
+    // Ringing here: say so – a call the backend hears nothing about counts as not having reached the screen.
+    // Busy here (in a call, or ringing for somebody else): say that at once rather than leave the parent waiting.
+    callApi(id, incomingCallId === id ? 'ringing' : 'decline').catch(() => {});
   } else if (ev.type === 'cancelled' || ev.type === 'ended') {
     if (id && id === incomingCallId) dismissIncoming(false);                   // the caller gave up, or the ring time ran out on the server
     else if (ev.type === 'ended' && id && id === currentCallId && !callOver && !couldNotAnswer(currentCall)) endCall();
@@ -2009,10 +2021,12 @@ let currentCall = null;
 let lkRoom = null, currentCallId = null, lkTimer = null;
 let callJoined = false;                                // this call was answered here: a parent rang home from the app and waits in the room
 let callOver = false;                                  // a closing message is on screen and the hang-up is already scheduled
+let callSeq = 0;                                       // one number per call attempt: an answer from the API that comes late can tell that its call is no longer the one on screen
 
 function startCall(who) { return startCallLiveKit(who); }
 
 function endCall() {
+  callSeq++;
   ring.stop();
   clearTimeout(lkTimer); lkTimer = null;
   const cid = currentCallId; currentCallId = null;
@@ -2155,6 +2169,7 @@ async function startCallLiveKit(who) {
   showCalling(who, 'Ringer ' + p.name.toLowerCase() + '…');
   ring.start();
   speak('Ringer ' + p.name);
+  const mine = ++callSeq;
 
   const base = String((cfg.call && cfg.call.backend) || '').replace(/\/+$/, '');  // the call-backend on Unraid (https://call.noobventure.com); '' would fall back to same-origin
   let data;
@@ -2165,13 +2180,18 @@ async function startCallLiveKit(who) {
     data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error((data && data.error) || ('svarte ' + r.status));
   } catch (e) {
-    if (!currentCall) return;
+    if (mine !== callSeq) return;                       // hung up meanwhile: that call's failure is no news for what is on screen now
     ring.stop();
     $('#call-status').textContent = 'Fikk ikke ringt ' + p.name.toLowerCase() + ' 😕';
     lkTimer = setTimeout(endCall, 5000);
     return;
   }
-  if (!currentCall) return;
+  if (mine !== callSeq) {
+    // Hung up before the API had answered – perhaps with another call on screen by now. The call exists over there
+    // all the same: end it, or the phone rings on for a call nobody is in and the next call is refused as busy.
+    if (data && data.callId) fetch(base + '/api/calls/' + encodeURIComponent(data.callId) + '/end', { method: 'POST' }).catch(() => {});
+    return;
+  }
   currentCallId = data.callId;
   connectCall(who, data.callId, data.livekit);
 }

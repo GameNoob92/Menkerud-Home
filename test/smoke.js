@@ -459,36 +459,52 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   // Fifth load: the call API's event stream – a parent rings home from the app, «Ikke nå» both ways, the stream dropping.
   // streamLoad() gives a page whose GET …/api/kiosk/events is a stream the test feeds, and records every request.
   const enc = new (require('util').TextEncoder)();
-  function streamLoad(eventsAnswer, extra) {
-    const rec = [], streams = [], said = [];
+  // Timers of `captureFrom` ms or more (45 s unless said otherwise) never fire by themselves in these loads: they wait
+  // in `long` and the test runs them by hand. That is how the 45 s silence limit, the retry after a refused key and the
+  // growing retry delay are tested without waiting for them.
+  function streamLoad(eventsAnswer, extra, captureFrom) {
+    const rec = [], streams = [], said = [], long = [], ctl = { hold: false, held: [], n: 0 };
     const load = mkdom(win => {
       win.speechSynthesis = { cancel() {}, speak(u) { said.push(u.text); } };
       win.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
+      const st = win.setTimeout, ct = win.clearTimeout;
+      win.setTimeout = (fn, ms, ...a) => { if (!(ms >= (captureFrom || 45000))) return st.call(win, fn, ms, ...a); const t = { fn, ms, off: false }; long.push(t); return t; };
+      win.clearTimeout = h => { if (h && typeof h === 'object') h.off = true; else ct.call(win, h); };
       const settings = { call: { backend: 'https://api.test', deviceKey: 'k' }, notify: { provider: 'none' } };
       if (extra) extra(win, settings);
       win.localStorage.setItem('menkerud.settings', JSON.stringify(settings));
       const f0 = win.fetch;
       win.fetch = (url, opts) => {
-        rec.push({ url, opts: opts || {} });
+        opts = opts || {};
+        rec.push({ url, opts });
         if (/\/api\/kiosk\/events$/.test(url)) {
           if (eventsAnswer) return Promise.resolve(eventsAnswer);
           const queue = []; let waiting = null, over = false;
-          const give = item => { if (waiting) { const r = waiting; waiting = null; r(item); } else queue.push(item); };
-          streams.push({ feed: obj => give({ done: false, value: enc.encode('data: ' + JSON.stringify(obj) + '\n\n') }), end: () => { over = true; give({ done: true }); } });
-          const reader = { read: () => new Promise(r => { if (queue.length) r(queue.shift()); else if (over) r({ done: true }); else waiting = r; }), cancel() {} };
+          const give = item => { if (waiting) { const w = waiting; waiting = null; w.res(item); } else queue.push(item); };
+          // like the real thing: a read that is waiting fails when the request is aborted
+          if (opts.signal) opts.signal.addEventListener('abort', () => { over = true; if (waiting) { const w = waiting; waiting = null; w.rej(new Error('aborted')); } });
+          streams.push({ raw: text => give({ done: false, value: enc.encode(text) }), end: () => { over = true; give({ done: true }); } });
+          const reader = { read: () => new Promise((res, rej) => { if (queue.length) res(queue.shift()); else if (over) res({ done: true }); else waiting = { res, rej }; }), cancel() {} };
           return Promise.resolve({ ok: true, status: 200, body: { getReader: () => reader } });
         }
         const m = /\/api\/calls\/([^/]+)\/answer$/.exec(url);
         if (m && m[1] === 'c_gone') return Promise.resolve({ ok: false, status: 410, json: async () => ({ error: 'over' }) });   // the caller gave up a moment ago
         if (m) return Promise.resolve({ ok: true, status: 200, json: async () => ({ callId: m[1], livekit: { url: 'wss://rtc.test', token: 'tok' } }) });
+        // ctl.hold: the API takes its time over «start a call». Each answer waits in ctl.held until the test lets it go
+        // (called with false: the API says it could not).
+        if (ctl.hold && opts.method === 'POST' && /\/api\/calls$/.test(url)) {
+          const callId = 'c_late' + (++ctl.n);
+          return new Promise(r => ctl.held.push(ok => r(ok === false ? { ok: false, status: 502, json: async () => ({ error: 'kunne ikke varsle' }) }
+            : { ok: true, status: 200, json: async () => ({ callId, status: 'ringing', livekit: { url: 'wss://rtc.test', token: 'tok' } }) })));
+        }
         return f0(url, opts);
       };
     });
-    const doc = load.dom.window.document;
+    const doc = load.dom.window.document, last = () => streams[streams.length - 1];
     return {
-      win: load.dom.window, q: s => doc.querySelector(s), said,
+      win: load.dom.window, q: s => doc.querySelector(s), said, long, ctl,
       click: el => el.dispatchEvent(new load.dom.window.MouseEvent('click', { bubbles: true })),
-      feed: obj => { const s = streams[streams.length - 1]; if (s) s.feed(obj); }, endStream: () => { const s = streams[streams.length - 1]; if (s) s.end(); },
+      feed: obj => { if (last()) last().raw('data: ' + JSON.stringify(obj) + '\n\n'); }, feedRaw: text => { if (last()) last().raw(text); }, endStream: () => { if (last()) last().end(); },
       evReqs: () => rec.filter(c => /\/api\/kiosk\/events$/.test(c.url)),
       posts: re => rec.filter(c => c.opts.method === 'POST' && re.test(c.url))
     };
@@ -505,13 +521,19 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(ringRow(k5) === 'Appen ✓|on', 'the status page says the app can ring home: ' + ringRow(k5));
   feed({ type: 'incoming', callId: 'c_h1', from: 'far' }); await wait(30);
   assert(!q5('#incoming').classList.contains('hidden') && q5('#in-name').textContent === 'Far ringer!', 'a parent calling from the app rings the kiosk: ' + q5('#in-name').textContent);
+  assert(posts(/\/api\/calls\/c_h1\/ringing$/).length === 1 && posts(/\/api\/calls\/c_h1\/ringing$/)[0].opts.headers['X-Device-Key'] === 'k', 'the kiosk tells the API that the call is ringing here');
   feed({ type: 'incoming', callId: 'c_h0', from: 'mor' }); await wait(30);
   assert(posts(/\/api\/calls\/c_h0\/decline$/).length === 1 && q5('#in-name').textContent === 'Far ringer!', 'a second caller is declined at once and the first keeps ringing');
+  assert(posts(/\/api\/calls\/c_h0\/ringing$/).length === 0, 'a caller who is declined is not told that it rings');
+  feed({ type: 'incoming', callId: 'c_h1', from: 'far' }); await wait(30);     // the stream came back in the middle of the ring: the API says it again
+  assert(posts(/\/api\/calls\/c_h1\/decline$/).length === 0 && !q5('#incoming').classList.contains('hidden') && q5('#in-name').textContent === 'Far ringer!', 'hearing about the ringing call a second time changes nothing');
   click5(q5('#answer')); await wait(60);
   assert(posts(/\/api\/calls\/c_h1\/answer$/).length === 1 && posts(/\/api\/calls\/c_h1\/answer$/)[0].opts.headers['X-Device-Key'] === 'k', 'Svar joins the waiting call with the kiosk key');
   assert(posts(/\/api\/calls$/).length === 0, 'Svar does not place a new outgoing call');
   assert(posts(/\/api\/calls\/c_h1\/decline$/).length === 0, 'answering does not also decline');
   assert(!q5('#call').classList.contains('hidden') && q5('#call-status').textContent === 'Far er med – venter på bildet…', 'joining shows the existing «er med» text: ' + q5('#call-status').textContent);
+  feed({ type: 'incoming', callId: 'c_h1', from: 'far' }); await wait(30);     // … and once more while «Svar» is under way
+  assert(posts(/\/api\/calls\/c_h1\/decline$/).length === 0 && !q5('#call').classList.contains('hidden'), 'hearing again about the call being answered does not decline it');
   roomGone(k5);
   assert(q5('#call').classList.contains('hidden'), 'on a joined call the parent hanging up closes the call at once');
   feed({ type: 'incoming', callId: 'c_h2', from: 'mor' }); await wait(30); click5(q5('#decline')); await wait(30);
@@ -533,12 +555,22 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(ringRow(k5) === 'Av – legg inn bot-token og kanal-ID|off', 'a dropped stream takes «Appen ✓» off the status page: ' + ringRow(k5));
   await wait(2300);
   assert(evReqs().length === 2, 'the kiosk reconnects by itself when the stream ends: ' + evReqs().length);
+  feed({ type: 'hello' }); await wait(30);                                    // the new stream is up – and then goes silent, without ending
+  const watch = k5.long.filter(t => t.ms === 45000 && !t.off).pop();
+  assert(!!watch, 'the kiosk keeps a 45 second watch on an open stream');
+  if (watch) watch.fn();                                                      // … 45 seconds later
+  await wait(2300);
+  assert(evReqs().length === 3, 'a stream that goes silent is given up and opened again: ' + evReqs().length);   // Review Focus 2
 
   // Sixth load: the API refuses the key – that is not a network problem, so the kiosk does not keep knocking
   const k6 = streamLoad({ ok: false, status: 401, json: async () => ({ error: 'unauthorized' }) });
   await wait(2500);
   assert(k6.evReqs().length === 1, 'a refused key is not retried: ' + k6.evReqs().length);
   assert(k6.q('#incoming').classList.contains('hidden') && k6.q('#toast').classList.contains('hidden'), 'and nothing is shown');
+  const later = k6.long.find(t => t.ms === 300000 && !t.off);                 // … but not for ever: the key may have been put right on the server
+  assert(!!later, 'a refused key is tried again five minutes later');
+  if (later) { later.fn(); await wait(40); }
+  assert(k6.evReqs().length === 2, 'and that try really asks again: ' + k6.evReqs().length);
 
   // Seventh load: an outgoing call nobody answers, where the server closes the room before the kiosk's own timer
   const k7 = streamLoad();
@@ -598,6 +630,48 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(k8.q('#call-status').textContent === 'Far er med – venter på bildet…', 'a parent coming in while the closing message shows is let in: ' + k8.q('#call-status').textContent);
   roomGone(k8);                                                              // … and is gone again
   assert(!k8.q('#call').classList.contains('hidden') && k8.q('#call-status').textContent === 'Far kunne ikke svare nå 😢', 'and the kiosk notices when that parent is gone again: ' + k8.q('#call-status').textContent);
+
+  // Ninth load: a small hand pressing, un-pressing and pressing again while the API is still answering «start a call»
+  const k9 = streamLoad();
+  await wait(60);
+  k9.ctl.hold = true;
+  k9.click(k9.q('#card-far')); await wait(20);
+  k9.click(k9.q('#hangup')); await wait(20);
+  k9.ctl.held.shift()(); await wait(40);                                      // only now does the API answer «Ring far»
+  assert(k9.posts(/\/api\/calls\/c_late1\/end$/).length === 1 && k9.q('#call').classList.contains('hidden'), 'a call hung up before the API had answered is ended there too, so the phone does not ring on');
+  k9.click(k9.q('#card-far')); await wait(20);
+  k9.click(k9.q('#hangup'));
+  k9.click(k9.q('#card-mor')); await wait(20);
+  const roomBefore = k9.win.LivekitClient.Room.last;
+  k9.ctl.held.shift()(); await wait(40);                                      // far's late answer arrives while «Ringer mor…» is showing
+  assert(k9.posts(/\/api\/calls\/c_late2\/end$/).length === 1 && k9.win.LivekitClient.Room.last === roomBefore && /^Ringer mor/.test(k9.q('#call-status').textContent), 'the late answer to the call before does not take over the new call: ' + k9.q('#call-status').textContent);
+  k9.ctl.held.shift()(); await wait(60);                                      // mor's own answer
+  assert(k9.win.LivekitClient.Room.last !== roomBefore && /^Ringer mor/.test(k9.q('#call-status').textContent), 'the new call goes on as its own: ' + k9.q('#call-status').textContent);
+  k9.click(k9.q('#hangup')); await wait(20);
+  assert(k9.posts(/\/api\/calls\/c_late3\/end$/).length === 1, 'and is the one that is ended when the child hangs up');
+  k9.click(k9.q('#card-far')); await wait(20);
+  k9.click(k9.q('#hangup'));
+  k9.click(k9.q('#card-mor')); await wait(20);
+  k9.ctl.held.shift()(false); await wait(40);                                 // this time the API could not ring far – but that call is long gone
+  assert(/^Ringer mor/.test(k9.q('#call-status').textContent), 'a late failure of the call before is not shown on the new call: ' + k9.q('#call-status').textContent);
+  k9.ctl.held.shift()(); await wait(40);
+  k9.click(k9.q('#hangup'));
+
+  // Tenth load: how long the kiosk waits before it tries the stream again. Timers of 2 s or more are run by hand here.
+  const k10 = streamLoad(null, null, 2000);
+  await wait(60);
+  const retry = async ms => {                                                 // run the waiting timer of that length that opens the stream again
+    const n = k10.evReqs().length;
+    for (const t of k10.long.filter(x => x.ms === ms && !x.off && !x.ran)) { t.ran = true; t.fn(); await wait(30); if (k10.evReqs().length > n) return true; }
+    return false;
+  };
+  k10.feedRaw('x'.repeat(70000)); await wait(30);                             // 70 KB without one blank line: whatever answers there, it is no event stream
+  assert(await retry(2000) && k10.evReqs().length === 2, 'something that is not an event stream is dropped and the stream opened again');
+  const grew = [];
+  for (const ms of [3000, 4500, 6750, 10125]) { k10.endStream(); await wait(30); grew.push(await retry(ms)); }
+  assert(grew.every(Boolean) && k10.evReqs().length === 6, 'each failure in a row waits half as long again: ' + grew + ' / ' + k10.evReqs().length);
+  k10.feed({ type: 'hello' }); await wait(30); k10.endStream(); await wait(30);
+  assert(await retry(2000), 'after a stream that worked the wait starts from two seconds again');
 
   console.log(errors.length ? 'ERRORS:\n' + errors.join('\n') : 'ALL GOOD');
   process.exit(errors.length ? 1 : 0);
