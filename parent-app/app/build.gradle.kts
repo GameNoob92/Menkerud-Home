@@ -86,6 +86,26 @@ android {
             ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
             buildConfigField("boolean", "ALLOW_ANY_API", "true")
         }
+        // The release build in everything the shrinker (R8) cares about – and R8 is what breaks apps like this one –
+        // but pointed at the dev copy like the debug build: the same second app («Menkerud Home (test)»), any server
+        // from a QR code, plain http, the debug signing key. It is what a release build is tried out as, since a
+        // real release build can only be paired with production.
+        create("minified") {
+            initWith(getByName("release"))
+            matchingFallbacks += "release"
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-minified"
+            signingConfig = signingConfigs.getByName("debug")
+            buildConfigField("boolean", "ALLOW_ANY_API", "true")
+        }
+    }
+
+    sourceSets {
+        // The debug build's overlay: its name, and plain http for the dev copy.
+        getByName("minified") {
+            manifest.srcFile("src/debug/AndroidManifest.xml")
+            res.directories += "src/debug/res"
+        }
     }
 
     compileOptions {
