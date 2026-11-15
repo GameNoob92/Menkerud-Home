@@ -75,6 +75,7 @@ until curl -s http://127.0.0.1/ >/dev/null; do sleep 1; done
 exec google-chrome-stable \
   --kiosk http://localhost \
   --ozone-platform=wayland \
+  --autoplay-policy=no-user-gesture-required \
   --user-data-dir="$HOME/.config/menkerud-chrome" \
   --password-store=basic \
   --no-first-run --no-default-browser-check \
@@ -92,7 +93,17 @@ X-GNOME-Autostart-enabled=true
 EOF
 ```
 
-Why the flags: `--kiosk` = full-screen with no way out by touch; `--ozone-platform=wayland` = native Wayland (touch and scaling behave); `--user-data-dir` = a dedicated profile that keeps the page's localStorage (on-screen settings, notes, calendar); `--password-store=basic` = no GNOME-keyring unlock prompt after autologin; the rest silences first-run and «restore pages?» bubbles. The live kiosk's script also carries `--enable-features=VaapiVideoDecoder,VaapiVideoEncoder --disable-features=UseChromeOSDirectVideoDecoder` from an attempt at hardware video decode; on this Celeron/UHD 600 it never took effect for WebRTC, so it is harmless and not needed – don't spend time on it again.
+Why the flags: `--kiosk` = full-screen with no way out by touch; `--ozone-platform=wayland` = native Wayland (touch and scaling behave); `--user-data-dir` = a dedicated profile that keeps the page's localStorage (on-screen settings, notes, calendar); `--password-store=basic` = no GNOME-keyring unlock prompt after autologin; `--autoplay-policy=no-user-gesture-required` = the page may make sound – the ring tone, the voice, the Beskjed chime – although nobody has touched the screen since it loaded (Chrome otherwise keeps an untouched page silent: after a restart or a reload a call would show without ringing until the first touch); the rest silences first-run and «restore pages?» bubbles. The live kiosk's script also carries `--enable-features=VaapiVideoDecoder,VaapiVideoEncoder --disable-features=UseChromeOSDirectVideoDecoder` from an attempt at hardware video decode; on this Celeron/UHD 600 it never took effect for WebRTC, so it is harmless and not needed – don't spend time on it again.
+
+To restart Chrome without logging out – after a change to the launcher, say – as `menkerud-hjem`, at the machine or over SSH. It ends a call that is running, so look first:
+
+```bash
+export XDG_RUNTIME_DIR=/run/user/$(id -u)
+kill -TERM "$(pgrep -u "$(id -u)" -o -x chrome)"                  # Chrome closes cleanly, usually within a second
+while pgrep -u "$(id -u)" -x chrome >/dev/null; do sleep 1; done
+systemctl --user start 'app-menkerud\x2dhome@autostart.service'   # the unit systemd generates from the autostart entry
+sleep 10; ps -o args= -p "$(pgrep -u "$(id -u)" -o -x chrome)" | cut -c1-220   # the new Chrome and its flags
+```
 
 Pre-grant camera/mic so Chrome never prompts (SETUP.md §3 has the policy file, `/etc/opt/chrome/policies/managed/menkerud.json`). Leave GNOME's blanking and lock off – the screen helper does all the switching:
 
