@@ -1,5 +1,6 @@
 package com.noobventure.menkerud.store
 
+import com.noobventure.menkerud.FakeBox
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -9,14 +10,6 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 class CredentialStoreTest {
-    /** Stands in for the Android Keystore: every byte XOR 0x5A; refuses to open when told to. */
-    private class FakeBox : SecretBox {
-        var refuse = false
-        override fun seal(plain: ByteArray) = flip(plain)
-        override fun open(sealed: ByteArray) = if (refuse) null else flip(sealed)
-        private fun flip(bytes: ByteArray) = ByteArray(bytes.size) { (bytes[it].toInt() xor 0x5A).toByte() }
-    }
-
     @get:Rule val tmp = TemporaryFolder()
     private val file by lazy { File(tmp.root, "device.bin") }
     private val box = FakeBox()

@@ -139,6 +139,7 @@ dependencies {
     implementation(libs.livekit.android)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+    implementation(libs.firebase.installations)
     implementation(libs.play.services.code.scanner)
 
     testImplementation(libs.junit)

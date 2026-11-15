@@ -31,6 +31,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MenkerudHome">
 
+        <!-- Push registration through Firebase's installation id, not the deprecated token (push/FirebasePushAddress.kt). -->
+        <meta-data
+            android:name="firebase_messaging_installation_id_enabled"
+            android:value="true" />
+
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"

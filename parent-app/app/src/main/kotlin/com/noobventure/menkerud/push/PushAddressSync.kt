@@ -1,0 +1,25 @@
+package com.noobventure.menkerud.push
+
+import com.noobventure.menkerud.api.CallApi
+import com.noobventure.menkerud.api.Sent
+import com.noobventure.menkerud.store.CredentialStore
+
+/**
+ * Tells the server where pushes for this phone go. It runs at every start of the app, right after a pairing, and
+ * whenever the push service hands over an address – changed or not: a phone whose address the push service once
+ * reported dead only counts as reachable again when it has sent one (contract C3).
+ */
+class PushAddressSync(
+    private val api: CallApi,
+    private val store: CredentialStore,
+    private val address: suspend () -> String?
+) {
+    /** `known`: an address just handed over by the push service. Returns null when there was nothing to do. */
+    suspend fun run(known: String? = null): Sent? {
+        if (store.current.value == null) return null
+        val to = known ?: address() ?: return null
+        val sent = api.sendPushAddress(to)
+        if (sent == Sent.UNPAIRED) store.clear()        // the phone was removed on the pairing page
+        return sent
+    }
+}
