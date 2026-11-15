@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="night">#07162F</color>
+
+    <!-- What shows before Compose has drawn its first frame: the kiosk's dark blue, no action bar. -->
+    <style name="Theme.MenkerudHome" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/night</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

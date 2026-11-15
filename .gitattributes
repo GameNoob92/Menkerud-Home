@@ -4,3 +4,5 @@
 *.jpeg binary
 *.webp binary
 *.gif binary
+*.bat text eol=crlf
+*.jar binary

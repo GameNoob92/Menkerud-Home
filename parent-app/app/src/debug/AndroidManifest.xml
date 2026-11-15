@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Test builds only: plain http is allowed, because the dev copy of the backend runs on http://<the dev PC>:3100.
+     The release build has no such file and refuses plain http. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:networkSecurityConfig="@xml/network_security_config" />
+</manifest>

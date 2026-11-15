@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The only text kept as a resource (Android needs it for the launcher). Every other text is in ui/Texts.kt. -->
+    <string name="app_name">Menkerud Home</string>
+</resources>
