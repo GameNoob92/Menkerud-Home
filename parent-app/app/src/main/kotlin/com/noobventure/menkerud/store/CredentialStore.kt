@@ -16,6 +16,11 @@ import kotlinx.serialization.json.Json
  */
 class CredentialStore(private val file: File, private val box: SecretBox) {
     private val json = Json { ignoreUnknownKeys = true }
+
+    /** A pairing was found when the app started, and could not be read: the phone was paired and no longer is. */
+    var unreadable = false
+        private set
+
     private val state = MutableStateFlow(read())
 
     val current: StateFlow<Credentials?> = state.asStateFlow()
@@ -46,7 +51,10 @@ class CredentialStore(private val file: File, private val box: SecretBox) {
         } catch (e: Exception) {
             null
         }
-        if (credentials == null) file.delete()
+        if (credentials == null) {
+            unreadable = true
+            file.delete()
+        }
         return credentials
     }
 }

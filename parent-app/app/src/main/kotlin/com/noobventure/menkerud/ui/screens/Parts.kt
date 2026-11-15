@@ -8,10 +8,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -67,4 +69,17 @@ fun QuietButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
     ) {
         Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     }
+}
+
+/** The kiosk's glass panel: a dark, see-through sheet with a thin light rim. */
+@Composable
+fun GlassPanel(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(24.dp),
+        color = MenkerudColors.GlassStrong,
+        contentColor = MenkerudColors.Text,
+        border = BorderStroke(1.dp, MenkerudColors.GlassLine),
+        content = content
+    )
 }

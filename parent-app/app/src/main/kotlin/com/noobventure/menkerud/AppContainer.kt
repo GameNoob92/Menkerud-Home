@@ -1,6 +1,7 @@
 package com.noobventure.menkerud
 
 import android.content.Context
+import android.os.Build
 import com.noobventure.menkerud.api.CallApi
 import com.noobventure.menkerud.api.HttpCallApi
 import com.noobventure.menkerud.call.AndroidRingNotifier
@@ -8,8 +9,11 @@ import com.noobventure.menkerud.call.CallController
 import com.noobventure.menkerud.call.LiveKitCallSession
 import com.noobventure.menkerud.call.RingNotifier
 import com.noobventure.menkerud.call.SessionFactory
+import com.noobventure.menkerud.pairing.PairPolicy
+import com.noobventure.menkerud.pairing.Pairing
 import com.noobventure.menkerud.push.FirebasePushAddress
 import com.noobventure.menkerud.push.PushAddressSync
+import com.noobventure.menkerud.setup.AndroidPhoneSetup
 import com.noobventure.menkerud.store.AppPrefs
 import com.noobventure.menkerud.store.CredentialStore
 import com.noobventure.menkerud.store.KeystoreSecretBox
@@ -31,7 +35,7 @@ class AppContainer(context: Context) {
     /** The pairing, in a file Android never backs up. */
     val store = CredentialStore(File(appContext.noBackupFilesDir, "device.bin"), KeystoreSecretBox())
 
-    private val http = OkHttpClient.Builder()
+    internal val http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(5, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.SECONDS)
         .callTimeout(15, TimeUnit.SECONDS)
@@ -55,6 +59,28 @@ class AppContainer(context: Context) {
         now = System::currentTimeMillis,
         scope = scope
     )
+
+    val pairing = Pairing(
+        api, store, pushSync,
+        PairPolicy(BuildConfig.DEFAULT_API, setOf(BuildConfig.ALLOWED_API_HOSTS), BuildConfig.ALLOW_ANY_API),
+        phoneName = Build.MODEL
+    )
+
+    val phoneSetup = AndroidPhoneSetup(appContext)
+
+    init {
+        // The app has no «unpair» of its own: a pairing only ever goes away because the server no longer knows the
+        // phone, or because the stored secret can no longer be read. The pairing screen then says why it asks again.
+        scope.launch {
+            if (store.unreadable) prefs.setUnpairedNotice(true)
+            var paired = store.current.value != null
+            store.current.collect { now ->
+                if (paired && now == null) prefs.setUnpairedNotice(true)
+                if (now != null) prefs.setUnpairedNotice(false)
+                paired = now != null
+            }
+        }
+    }
 }
 
 /** The container, from anywhere that has a Context. */

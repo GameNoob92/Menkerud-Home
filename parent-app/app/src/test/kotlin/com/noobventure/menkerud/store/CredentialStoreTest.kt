@@ -5,6 +5,7 @@ import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -31,12 +32,18 @@ class CredentialStoreTest {
         assertFalse(file.readText(Charsets.ISO_8859_1).contains("hemmelig"))
     }
 
-    @Test fun `a phone that was never paired has nothing`() = assertNull(CredentialStore(file, box).current.value)
+    @Test fun `a phone that was never paired has nothing`() {
+        val store = CredentialStore(file, box)
+        assertNull(store.current.value)
+        assertFalse(store.unreadable)
+    }
 
     @Test fun `a file that cannot be opened means not paired, and the file goes`() {
         CredentialStore(file, box).save(far)
         box.refuse = true
-        assertNull(CredentialStore(file, box).current.value)
+        val again = CredentialStore(file, box)
+        assertNull(again.current.value)
+        assertTrue(again.unreadable)                    // so that the app can say why it asks for a key again
         assertFalse(file.exists())
     }
 

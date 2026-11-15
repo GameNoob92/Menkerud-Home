@@ -1,9 +1,14 @@
 package com.noobventure.menkerud.ui.theme
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import com.noobventure.menkerud.R
 
 /** The kiosk's colours (the `:root` block of index.html), so the app and the screen at home look like one thing. */
 object MenkerudColors {
@@ -20,6 +25,7 @@ object MenkerudColors {
     val BlueDeep = Color(0xFF0872D1)
     val Green = Color(0xFF25E08F)
     val GreenDeep = Color(0xFF05885D)
+    val GreenMid = Color(0xFF0FBA75)        // the middle of the kiosk's green: light enough to glow, dark enough for white letters
     val CallGreen = Color(0xFF22C55E)       // the kiosk's «Svar»
     val CallRed = Color(0xFFFF3B3B)         // the kiosk's «Ikke nå» and «Legg på»
     val Amber = Color(0xFFFFD54A)           // the kiosk's «something waits for you» yellow
@@ -42,8 +48,38 @@ private val Scheme = darkColorScheme(
     outline = MenkerudColors.GlassLine,
 )
 
+/** The kiosk's typeface (Nunito, SIL Open Font License). One file holds every weight. */
+private val Nunito = FontFamily(
+    Font(R.font.nunito, FontWeight.Normal),
+    Font(R.font.nunito, FontWeight.Medium),
+    Font(R.font.nunito, FontWeight.SemiBold),
+    Font(R.font.nunito, FontWeight.Bold),
+    Font(R.font.nunito, FontWeight.ExtraBold),
+    Font(R.font.nunito, FontWeight.Black),
+)
+
+private val Type = Typography().let { base ->
+    Typography(
+        displayLarge = base.displayLarge.copy(fontFamily = Nunito),
+        displayMedium = base.displayMedium.copy(fontFamily = Nunito),
+        displaySmall = base.displaySmall.copy(fontFamily = Nunito),
+        headlineLarge = base.headlineLarge.copy(fontFamily = Nunito),
+        headlineMedium = base.headlineMedium.copy(fontFamily = Nunito),
+        headlineSmall = base.headlineSmall.copy(fontFamily = Nunito),
+        titleLarge = base.titleLarge.copy(fontFamily = Nunito),
+        titleMedium = base.titleMedium.copy(fontFamily = Nunito),
+        titleSmall = base.titleSmall.copy(fontFamily = Nunito),
+        bodyLarge = base.bodyLarge.copy(fontFamily = Nunito),
+        bodyMedium = base.bodyMedium.copy(fontFamily = Nunito),
+        bodySmall = base.bodySmall.copy(fontFamily = Nunito),
+        labelLarge = base.labelLarge.copy(fontFamily = Nunito),
+        labelMedium = base.labelMedium.copy(fontFamily = Nunito),
+        labelSmall = base.labelSmall.copy(fontFamily = Nunito),
+    )
+}
+
 /** Dark only, like the kiosk. */
 @Composable
 fun MenkerudTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = Scheme, content = content)
+    MaterialTheme(colorScheme = Scheme, typography = Type, content = content)
 }

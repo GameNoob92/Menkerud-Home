@@ -1,6 +1,9 @@
 package com.noobventure.menkerud.ui
 
+import com.noobventure.menkerud.call.CallKind
 import com.noobventure.menkerud.call.EndReason
+import com.noobventure.menkerud.call.LastCall
+import com.noobventure.menkerud.setup.SetupItem
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -32,6 +35,8 @@ object Texts {
     const val pairForeign = "Denne koden hører ikke til Menkerud Home."
     const val pairNotKey = "Dette ser ikke ut som en nøkkel."
     const val scanFailed = "Fikk ikke skannet – skriv inn nøkkelen"
+    const val pairNotSaved = "Fikk ikke lagret koblingen på telefonen. Lag en ny nøkkel og prøv igjen."
+    const val pairKeyLabel = "Nøkkel"
     const val unpaired = "Telefonen er koblet fra. Koble til på nytt med en ny nøkkel."
 
     // The home screen
@@ -39,6 +44,8 @@ object Texts {
     const val homeReady = "Klar – telefonen ringer når de ringer hjemmefra"
     const val homeNotReady = "Telefonen er ikke klar til å ringe ennå"
     const val homeLast = "Siste anrop: %s"
+    const val backToCall = "Tilbake til samtalen"
+    const val testConnection = "Test forbindelsen ut"
 
     // A call
     const val home = "Hjemme"
@@ -71,6 +78,25 @@ object Texts {
     const val setupBattery = "Ikke la batterisparing stoppe appen"
     const val setupUnusedPause = "Ikke sett appen på pause når den ikke brukes"
     const val setupPushMissing = "Push er ikke satt opp i denne versjonen"
+    const val samsungHelp = "På Samsung: Innstillinger → Batteri → Grenser for bakgrunnsbruk → Aldri sovende apper → legg til Menkerud Home"
+
+    // The last call, on the home screen
+    const val today = "i dag"
+    const val yesterday = "i går"
+    const val lastAnswered = "de ringte, du svarte"
+    const val lastMissed = "tapt anrop"
+    const val lastRangHome = "du ringte hjem"
+    const val lastNobodyHome = "du ringte hjem, ingen svarte"
+}
+
+/** What a missing piece is called on the home screen. */
+fun setupText(item: SetupItem): String = when (item) {
+    SetupItem.PUSH_MISSING -> Texts.setupPushMissing
+    SetupItem.NOTIFICATIONS -> Texts.setupNotifications
+    SetupItem.FULL_SCREEN -> Texts.setupFullScreen
+    SetupItem.CAMERA_MIC -> Texts.setupCamMic
+    SetupItem.BATTERY -> Texts.setupBattery
+    SetupItem.UNUSED_PAUSE -> Texts.setupUnusedPause
 }
 
 /** The last word about a call. */
@@ -87,6 +113,26 @@ fun endText(reason: EndReason): String = when (reason) {
 }
 
 private val clock = DateTimeFormatter.ofPattern("HH:mm")
+
+private val dayAndMonth = DateTimeFormatter.ofPattern("dd.MM.")
+
+/** «i dag kl. 14:32 – tapt anrop». `now`: ms since 1970, to tell today from yesterday. */
+fun lastCallText(last: LastCall, now: Long, zone: ZoneId): String {
+    val at = Instant.ofEpochMilli(last.at).atZone(zone)
+    val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+    val day = when (at.toLocalDate()) {
+        today -> Texts.today
+        today.minusDays(1) -> Texts.yesterday
+        else -> dayAndMonth.format(at)
+    }
+    val what = when (last.kind) {
+        CallKind.FROM_HOME_ANSWERED -> Texts.lastAnswered
+        CallKind.FROM_HOME_MISSED -> Texts.lastMissed
+        CallKind.TO_HOME_ANSWERED -> Texts.lastRangHome
+        CallKind.TO_HOME_UNANSWERED -> Texts.lastNobodyHome
+    }
+    return day + " kl. " + clock.format(at) + " – " + what
+}
 
 /** «Tapt anrop hjemmefra kl. 14:32». `at`: ms since 1970. */
 fun missedText(at: Long, zone: ZoneId): String = Texts.missedPrefix + clock.format(Instant.ofEpochMilli(at).atZone(zone))
