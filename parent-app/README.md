@@ -113,10 +113,11 @@ the setting that decides it:
 
 | Row | What it is | Without it |
 |---|---|---|
-| «Varsler» | notifications, and the kind «Anrop hjemmefra» | the phone does not ring |
+| «Telefonen er ikke meldt inn for anrop ennå – trykk for å prøve igjen» | the server has not been told where this phone's pushes go | the phone cannot be rung; a tap tries again, and so does every opening of the app |
+| «Varsler» | notifications, and the kind «Anrop hjemmefra» left as it came – not turned down to «Standard» or «Lydløs» (a long press on the ringing notification is enough to do that) | the phone does not ring, or makes a sound without showing a call |
 | «Vis anrop over låseskjermen» | Android 14 and newer: full-screen notifications | a locked phone rings and shows a banner, but not the ringing screen |
 | «Kamera og mikrofon» | the two permissions | «Svar» and «Ring hjem» ask for them first |
-| «Ikke la batterisparing stoppe appen» | no battery restriction for the app | pushes may be held back for minutes when the phone has been lying still |
+| «Ikke la batterisparing stoppe appen» | no battery restriction for the app | pushes may be held back for minutes when the phone has been lying still; set to «Begrenset», Android hands the app no pushes at all, and the headline is red |
 | «Ikke sett appen på pause når den ikke brukes» | Android's «pause app activity if unused» off | after months without being opened the app stops getting pushes |
 | «Push er ikke satt opp i denne versjonen» | the build had no `google-services.json` | the phone cannot be rung; nothing on the phone can change that |
 
@@ -131,6 +132,8 @@ Samsung keeps a list of its own that an app cannot read: Innstillinger → Batte
 - On the banner that shows while the phone is in use, the two buttons carry Android's own words («Svar» / «Avslå»).
   The full ringing screen says «Svar» / «Ikke nå».
 - If Google's push service is down, the phone does not ring. The missed call shows when the push arrives.
+- When the phone loses its network in the middle of a call, the picture stands still for up to a minute before the
+  call ends by itself: the room keeps trying to get back that long. «Legg på» ends it at once.
 - Upright, the picture from home is a band across the screen: it is wider than a phone. Turn the phone and it fills
   the screen.
 
@@ -157,7 +160,10 @@ http), make a key on the dev copy's pairing page, and scan it. Test builds have 
 `call.noobventure.com` and `rtc.noobventure.com` for a sign of life and shows the two answers – `call 200 · rtc 401`
 is what a phone that gets through sees, on Wi-Fi and on mobile data.
 
-What the app writes to the phone's log is under one tag, and never a secret, a ticket or a push address:
+What the app writes to the phone's log is under one tag: each push that arrives, each turn a call takes, the ringing
+notification going up and coming down, and whether the server knows where to send the pushes. Never a secret, a
+ticket or a push address; a call is named by the last four characters of its id. When a phone «did not ring», this
+is where to look first – it tells «no push came» from «the notification could not be shown»:
 
 ```powershell
 & "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" logcat -s MenkerudHome
