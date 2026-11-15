@@ -34,6 +34,7 @@ class HttpCallApi(
     @Serializable private class AnswerBody(val livekit: Ticket)
     @Serializable private class RingHomeBody(val callId: String, val livekit: Ticket)
     @Serializable private class StatusBody(val status: String)
+    @Serializable private class ErrorBody(val error: String = "")
 
     private class Reply(val code: Int, val body: String)
 
@@ -69,7 +70,7 @@ class HttpCallApi(
                 ?.let { AnswerResult.Joined(LiveKitTicket(it.livekit.url, it.livekit.token)) }
                 ?: AnswerResult.Failed(Failure.SERVER)
             403, 404, 409, 410 -> AnswerResult.Over
-            401 -> AnswerResult.Unpaired
+            401 -> if (removed(reply)) AnswerResult.Unpaired else AnswerResult.Failed(Failure.SERVER)
             else -> AnswerResult.Failed(Failure.SERVER)
         }
     }
@@ -88,7 +89,7 @@ class HttpCallApi(
             409 -> RingHomeResult.Busy
             503 -> RingHomeResult.KioskOffline
             429 -> RingHomeResult.TooMany
-            401 -> RingHomeResult.Unpaired
+            401 -> if (removed(reply)) RingHomeResult.Unpaired else RingHomeResult.Failed(Failure.SERVER)
             else -> RingHomeResult.Failed(Failure.SERVER)
         }
     }
@@ -124,10 +125,17 @@ class HttpCallApi(
         val reply = send(request(url, method, body, me.takeIf { withSecret })) ?: return Sent.FAILED
         return when {
             reply.code in done -> Sent.OK
-            reply.code == 401 && withSecret -> Sent.UNPAIRED
+            withSecret && removed(reply) -> Sent.UNPAIRED
             else -> Sent.FAILED
         }
     }
+
+    /**
+     * The server's own «I do not know this phone» (contract C3: 401 with `{"error":"unauthorized"}`). A 401 in any
+     * other words comes from something between the phone and the server – a proxy, a login page on a guest network –
+     * and must not unpair the phone: the server would go on believing it can be rung.
+     */
+    private fun removed(reply: Reply) = reply.code == 401 && read(ErrorBody.serializer(), reply)?.error == "unauthorized"
 
     /** Each part becomes one piece of the path, escaped, so that nothing in a call id can change where a request goes. */
     private fun url(base: String, vararg path: String): HttpUrl? =

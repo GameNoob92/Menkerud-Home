@@ -5,12 +5,12 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import com.noobventure.menkerud.Notes
 import com.noobventure.menkerud.R
 import com.noobventure.menkerud.container
 import com.noobventure.menkerud.ui.CallActivity
@@ -54,10 +54,11 @@ class CallForegroundService : LifecycleService() {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
             )
         } catch (e: RuntimeException) {     // not allowed right now (no longer on screen, a permission taken back)
-            Log.w(TAG, "the call runs without its foreground service: " + e.javaClass.simpleName)
+            Notes.warn("the call runs without its foreground service: " + e.javaClass.simpleName + ": " + e.message)
             stopSelf()
             return START_NOT_STICKY
         }
+        Notes.say("the call is kept alive in the background from now on")
         // Only now: a service that was asked to run in the foreground must not stop before it has done so.
         if (watching == null) {
             watching = lifecycleScope.launch {
@@ -70,12 +71,12 @@ class CallForegroundService : LifecycleService() {
     }
 
     private fun stop() {
+        Notes.say("the call is over: nothing is kept alive any more")
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
     companion object {
-        private const val TAG = "MenkerudHome"
         private const val NOTIFICATION_ID = 1
 
         /** Call this only while the call screen is showing. */
@@ -83,7 +84,7 @@ class CallForegroundService : LifecycleService() {
             try {
                 ContextCompat.startForegroundService(context, Intent(context, CallForegroundService::class.java))
             } catch (e: RuntimeException) {
-                Log.w(TAG, "could not start the call's foreground service: " + e.javaClass.simpleName)
+                Notes.warn("could not start the call's foreground service: " + e.javaClass.simpleName + ": " + e.message)
             }
         }
     }

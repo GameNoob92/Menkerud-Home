@@ -9,10 +9,10 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
+import com.noobventure.menkerud.Notes
 import com.noobventure.menkerud.R
 import com.noobventure.menkerud.ui.CallActivity
 import com.noobventure.menkerud.ui.MainActivity
@@ -39,7 +39,10 @@ class AndroidRingNotifier(context: Context) : RingNotifier {
         val caller = Person.Builder().setName(Texts.home).setImportant(true).build()
         val base = { NotificationCompat.Builder(context, CHANNEL_CALLS)
             .setSmallIcon(R.drawable.ic_stat_call)
+            // A call-style notification shows the caller's name as its headline and this text under it; without a
+            // text Android writes its own «incoming call».
             .setContentTitle(Texts.ringsFromHome)
+            .setContentText(Texts.ringsFromHome)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
@@ -56,11 +59,14 @@ class AndroidRingNotifier(context: Context) : RingNotifier {
         val callStyle = base().setStyle(NotificationCompat.CallStyle.forIncomingCall(caller, decline, answer)).build()
         // Should Android ever refuse the call style, the phone must still ring: the same notification with two plain buttons.
         val plain = { base().addAction(0, Texts.answer, answer).addAction(0, Texts.notNow, decline).build() }
-        if (!show(TAG_RING, callId, insist(callStyle))) show(TAG_RING, callId, insist(plain()))
+        val shown = show(TAG_RING, callId, insist(callStyle)) || show(TAG_RING, callId, insist(plain()))
+        Notes.say("ring " + Notes.short(callId) + " for " + forMs / 1000 + " s: " + (if (shown) "notification up" else "NOT SHOWN") +
+            (if (manager.areNotificationsEnabled()) "" else " (notifications are off for the app)"))
     }
 
     override fun stop(callId: String) {
         manager.cancel(TAG_RING, callId.hashCode())
+        Notes.say("ring " + Notes.short(callId) + " taken away")
     }
 
     override fun missed(callId: String, at: Long) {
@@ -79,6 +85,7 @@ class AndroidRingNotifier(context: Context) : RingNotifier {
             .setContentIntent(open)
             .build()
         show(TAG_MISSED, callId, notice)
+        Notes.say("missed call " + Notes.short(callId) + " noted")
     }
 
     /** The ringtone goes on until the call is answered, declined or timed out. */
@@ -97,7 +104,7 @@ class AndroidRingNotifier(context: Context) : RingNotifier {
         manager.notify(tag, callId.hashCode(), notification)
         true
     } catch (e: RuntimeException) {
-        Log.w(TAG, "notification refused: " + e.javaClass.simpleName)
+        Notes.warn("notification refused: " + e.javaClass.simpleName + ": " + e.message)
         false
     }
 
@@ -128,6 +135,5 @@ class AndroidRingNotifier(context: Context) : RingNotifier {
         const val CHANNEL_ONGOING = "ongoing"
         const val TAG_RING = "ring"
         const val TAG_MISSED = "missed"
-        private const val TAG = "MenkerudHome"
     }
 }

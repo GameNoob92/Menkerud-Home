@@ -47,6 +47,41 @@ class CredentialStoreTest {
         assertFalse(file.exists())
     }
 
+    /** A keystore that does not answer the first `silences` times it is asked. */
+    private class MoodyBox(var silences: Int) : SecretBox {
+        private val real = FakeBox()
+        override fun seal(plain: ByteArray) = real.seal(plain)
+        override fun open(sealed: ByteArray): ByteArray? {
+            if (silences > 0) { silences--; throw SecretBoxUnavailable() }
+            return real.open(sealed)
+        }
+    }
+
+    // The Android Keystore now and then fails without the key being gone. Reading the pairing happens at every start
+    // of the app – at almost every push – so one such hiccup must not unpair the phone.
+    @Test fun `a keystore that does not answer at once does not cost the phone its pairing`() {
+        CredentialStore(file, box).save(far)
+        val pauses = mutableListOf<Long>()
+        val store = CredentialStore(file, MoodyBox(silences = 2)) { pauses += it }
+        assertEquals(far, store.current.value)
+        assertEquals(listOf(100L, 300L), pauses)
+        assertFalse(store.unavailable)
+    }
+
+    @Test fun `a keystore that stays silent leaves the pairing where it is, for the next time`() {
+        CredentialStore(file, box).save(far)
+        val moody = MoodyBox(silences = Int.MAX_VALUE)
+        val store = CredentialStore(file, moody) { }
+        assertNull(store.current.value)                 // not paired for now …
+        assertTrue(store.unavailable)
+        assertFalse(store.unreadable)                   // … which is not the same as «the pairing is gone»
+        assertTrue(file.exists())
+        moody.silences = 0
+        store.retry()
+        assertEquals(far, store.current.value)
+        assertFalse(store.unavailable)
+    }
+
     @Test fun `a damaged file means not paired, and the file goes`() {
         file.writeBytes(byteArrayOf(1, 2, 3))
         assertNull(CredentialStore(file, box).current.value)

@@ -34,10 +34,17 @@ class CallControllerTest {
     private var unpaired = 0
     private var failConnect = false
     private var othersWaiting = true
+    private var failCreate = false
+    private var failClose = false
 
     /** A new controller on the test's virtual clock; `now` follows that clock from T0. */
     private fun TestScope.make() = CallController(
-        api, SessionFactory { FakeSession(failConnect, othersWaiting).also { sessions += it } }, notifier,
+        api,
+        SessionFactory {
+            if (failCreate) throw IllegalStateException("no room to be had")
+            FakeSession(failConnect, othersWaiting, failClose).also { sessions += it }
+        },
+        notifier,
         unpair = { unpaired++ }, remember = { remembered += it }, now = { T0 + testScheduler.currentTime }, scope = backgroundScope
     )
 
@@ -88,14 +95,16 @@ class CallControllerTest {
         assertEquals(listOf("ring c_1 60000"), notifier.log)
     }
 
-    @Test fun `a phone clock that is wrong rings for 45 seconds`() {
-        assertEquals(45_000, ringFor(T0 - 600_000, T0))
-        assertEquals(45_000, ringFor(T0 + 600_000, T0))
+    @Test fun `a phone clock that is wrong neither cuts the ring short nor lets it ring for ever`() {
+        assertEquals(45_000, ringFor(T0 - 600_000, T0))     // «it ended ten minutes ago»: not to be believed
         assertEquals(45_000, ringFor(T0 + 4_000, T0))
         assertEquals(30_000, ringFor(T0 + 30_000, T0))
         assertEquals(5_000, ringFor(T0 + 5_000, T0))
         assertEquals(60_000, ringFor(T0 + 60_000, T0))
-        assertEquals(45_000, ringFor(T0 + 60_001, T0))
+        // A phone whose clock is a little behind the server's sees more than a minute left. Home rings for a minute,
+        // so the phone does too – not for the 45 seconds that would leave the kids waiting with nobody able to answer.
+        assertEquals(60_000, ringFor(T0 + 61_500, T0))
+        assertEquals(60_000, ringFor(T0 + 600_000, T0))
     }
 
     @Test fun `nobody answers - the ring ends and leaves a missed call`() = runTest {
@@ -272,6 +281,33 @@ class CallControllerTest {
         assertEquals(1, sessions.single().closed)
         assertNull(c.session.value)
         assertTrue(remembered.isEmpty())
+    }
+
+    @Test fun `a room that cannot even be made ends the call cleanly, on the server too`() = runTest {
+        failCreate = true
+        api.answerResult = AnswerResult.Joined(ticket)
+        val c = ringing()
+        c.answer("c_1"); pass()
+        assertEquals(CallState.Ended(EndReason.COULD_NOT_JOIN), c.state.value)
+        assertEquals(1, asked("end c_1"))
+
+        fresh()
+        api.ringHomeResult = RingHomeResult.Ringing("c_2", ticket)
+        val d = make(); d.ringHome(); pass()
+        assertEquals(CallState.Ended(EndReason.COULD_NOT_JOIN), d.state.value)
+        assertEquals(1, asked("cancel c_2"))
+    }
+
+    @Test fun `a room that will not close does not take the app down with it`() = runTest {
+        failClose = true
+        val c = inCall()
+        c.hangUp(); pass()
+        assertEquals(CallState.Ended(EndReason.HUNG_UP), c.state.value)
+        assertEquals(1, sessions.single().closed)
+        pass(4_000)
+        assertEquals(CallState.Idle, c.state.value)
+        c.onPush(call("c_8")); pass()                    // and the next call rings as if nothing had happened
+        assertEquals(CallState.Incoming("c_8"), c.state.value)
     }
 
     @Test fun `hanging up while Svar is still on its way never enters the room`() = runTest {

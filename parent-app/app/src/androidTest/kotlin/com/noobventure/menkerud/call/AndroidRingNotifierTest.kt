@@ -43,6 +43,7 @@ class AndroidRingNotifierTest {
         val ringing = active("ring").single().notification
         notifier.stop("c_1")                                    // quiet again before anything is checked
         assertEquals("calls", ringing.channelId)
+        assertEquals("Det ringer hjemmefra", ringing.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
         assertEquals(Notification.CATEGORY_CALL, ringing.category)
         assertTrue("ongoing", ringing.flags and Notification.FLAG_ONGOING_EVENT != 0)
         assertTrue("insistent", ringing.flags and Notification.FLAG_INSISTENT != 0)

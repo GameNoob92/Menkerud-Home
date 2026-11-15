@@ -78,6 +78,7 @@ object Texts {
     const val setupBattery = "Ikke la batterisparing stoppe appen"
     const val setupUnusedPause = "Ikke sett appen på pause når den ikke brukes"
     const val setupPushMissing = "Push er ikke satt opp i denne versjonen"
+    const val setupPushUnregistered = "Telefonen er ikke meldt inn for anrop ennå – trykk for å prøve igjen"
     const val samsungHelp = "På Samsung: Innstillinger → Batteri → Grenser for bakgrunnsbruk → Aldri sovende apper → legg til Menkerud Home"
 
     // The last call, on the home screen
@@ -92,6 +93,7 @@ object Texts {
 /** What a missing piece is called on the home screen. */
 fun setupText(item: SetupItem): String = when (item) {
     SetupItem.PUSH_MISSING -> Texts.setupPushMissing
+    SetupItem.PUSH_UNREGISTERED -> Texts.setupPushUnregistered
     SetupItem.NOTIFICATIONS -> Texts.setupNotifications
     SetupItem.FULL_SCREEN -> Texts.setupFullScreen
     SetupItem.CAMERA_MIC -> Texts.setupCamMic

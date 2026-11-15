@@ -39,6 +39,7 @@ class TextsTest {
 
     @Test fun `every missing piece has its words`() {
         assertEquals("Push er ikke satt opp i denne versjonen", setupText(SetupItem.PUSH_MISSING))
+        assertEquals("Telefonen er ikke meldt inn for anrop ennå – trykk for å prøve igjen", setupText(SetupItem.PUSH_UNREGISTERED))
         assertEquals("Varsler", setupText(SetupItem.NOTIFICATIONS))
         assertEquals("Vis anrop over låseskjermen", setupText(SetupItem.FULL_SCREEN))
         assertEquals("Kamera og mikrofon", setupText(SetupItem.CAMERA_MIC))

@@ -138,13 +138,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun cameToFront() {
+        container.store.retry()                                         // the keystore may not have answered at start-up
         setup.value = container.phoneSetup.read()
         if (container.store.current.value == null) return
         when (container.api.whoAmI()) {
             Sent.UNPAIRED -> container.store.clear()                    // the pairing screen says why
             Sent.FAILED -> homeNotice.value = Texts.noServer
-            Sent.OK -> if (homeNotice.value == Texts.noServer) homeNotice.value = null
+            Sent.OK -> {
+                if (homeNotice.value == Texts.noServer) homeNotice.value = null
+                // A phone the server cannot push to cannot be rung: try again every time, until it has worked once.
+                if (container.pushSync.registered.value != true) container.pushSync.run()
+            }
         }
+        setup.value = container.phoneSetup.read()
     }
 
     private fun pair() {
@@ -189,6 +195,13 @@ class MainActivity : ComponentActivity() {
     /** A missing piece was tapped: ask Android for it, or open the setting that decides it. */
     private fun fix(item: SetupItem) {
         val phone = container.phoneSetup
+        if (item == SetupItem.PUSH_UNREGISTERED) {                      // nothing to allow: tell the server once more
+            lifecycleScope.launch {
+                container.pushSync.run()
+                setup.value = phone.read()
+            }
+            return
+        }
         val wanted = phone.permissions(item).filterNot(phone::granted)
         if (wanted.isNotEmpty()) {
             asking = item

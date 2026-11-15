@@ -29,11 +29,18 @@ private const val NOTICES_KEPT = 20
 
 /**
  * How long to ring for a call the server stops at `expiresAt`. The phone's clock may be wrong, so the answer is only
- * believed when it is plausible; otherwise the phone rings for 45 seconds (the server ends a call after 60).
+ * believed when it is plausible. The server rings for a minute: a clock that says more than that is a little behind,
+ * and the phone rings for the minute. A clock that says the call is all but over cannot be right – the push would
+ * not have been sent – and the phone rings for 45 seconds. Ringing too long is bounded from outside (the server's
+ * `call_end`, the question at the start, the notification's own time-out); ringing too short is not.
  */
 fun ringFor(expiresAt: Long, now: Long): Long {
     val left = expiresAt - now
-    return if (left in RING_MIN_MS..RING_MAX_MS) left else RING_FALLBACK_MS
+    return when {
+        left < RING_MIN_MS -> RING_FALLBACK_MS
+        left > RING_MAX_MS -> RING_MAX_MS
+        else -> left
+    }
 }
 
 /**
@@ -163,6 +170,11 @@ class CallController(
             when (said) {
                 is AnswerResult.Joined -> {
                     val session = open(call)
+                    if (session == null) {
+                        tell { api.end(callId) }
+                        leave(call, CallState.Ended(EndReason.COULD_NOT_JOIN))
+                        return@run
+                    }
                     try {
                         session.connect(said.ticket)
                     } catch (e: CancellationException) {
@@ -223,6 +235,11 @@ class CallController(
     private suspend fun CoroutineScope.ringUntilAnswered(call: Live, callId: String, ticket: LiveKitTicket) {
         _state.value = CallState.RingingHome(callId)
         val session = open(call)
+        if (session == null) {
+            tell { api.cancel(callId) }
+            leave(call, CallState.Ended(EndReason.COULD_NOT_JOIN))
+            return
+        }
         launch {
             try {
                 session.connect(ticket)
@@ -326,9 +343,16 @@ class CallController(
         started.start()
     }
 
-    /** Makes the call's session and listens to its room for as long as the call's coroutine lives. */
-    private fun CoroutineScope.open(call: Live): CallSession {
-        val session = sessions.create()
+    /**
+     * Makes the call's session and listens to its room for as long as the call's coroutine lives.
+     * Null when a room cannot even be made: that is a call that could not be joined, not a reason to crash.
+     */
+    private fun CoroutineScope.open(call: Live): CallSession? {
+        val session = try {
+            sessions.create()
+        } catch (e: Exception) {
+            return null
+        }
         call.session = session
         _session.value = session
         launch { session.events.collect { heard(call, it) } }
@@ -355,7 +379,15 @@ class CallController(
         call.session?.let { session ->
             call.session = null
             _session.value = null
-            scope.launch { session.close() }
+            scope.launch {
+                try {
+                    session.close()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // A room that will not close cleanly is over all the same; it must not take the app down with it.
+                }
+            }
         }
         val talkedAt = call.talkedAt
         val why = (next as? CallState.Ended)?.why

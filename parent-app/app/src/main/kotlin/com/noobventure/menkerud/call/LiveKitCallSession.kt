@@ -1,7 +1,7 @@
 package com.noobventure.menkerud.call
 
 import android.content.Context
-import android.util.Log
+import com.noobventure.menkerud.Notes
 import com.noobventure.menkerud.api.LiveKitTicket
 import io.livekit.android.LiveKit
 import io.livekit.android.events.RoomEvent
@@ -72,6 +72,7 @@ class LiveKitCallSession(context: Context) : CallSession {
 
     override suspend fun connect(ticket: LiveKitTicket) {
         room.connect(ticket.url, ticket.token)
+        Notes.say("in the room, with " + room.remoteParticipants.size + " other(s) there")
         say(signals.connected(room.remoteParticipants.size))
         if (_remoteVideo.value == null) _remoteVideo.value = pictureAlreadyThere()
         // Without a camera, or without a microphone, the call still goes on with what there is.
@@ -122,11 +123,7 @@ class LiveKitCallSession(context: Context) : CallSession {
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        Log.w(TAG, "$what: " + e.javaClass.simpleName)
+        Notes.warn("$what would not start: " + e.javaClass.simpleName + ": " + e.message)
         false
-    }
-
-    private companion object {
-        const val TAG = "MenkerudHome"
     }
 }

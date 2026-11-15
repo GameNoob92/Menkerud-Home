@@ -50,7 +50,9 @@ class FakeCallApi : CallApi {
 }
 
 /** Stands in for the LiveKit room. The test says what the room «says» with [say]. */
-class FakeSession(private val failConnect: Boolean = false, private val othersWaiting: Boolean = true) : CallSession {
+class FakeSession(
+    private val failConnect: Boolean = false, private val othersWaiting: Boolean = true, private val failClose: Boolean = false
+) : CallSession {
     private val feed = Channel<SessionEvent>(Channel.UNLIMITED)
     override val events: Flow<SessionEvent> = feed.receiveAsFlow()
     var connected: LiveKitTicket? = null
@@ -64,7 +66,10 @@ class FakeSession(private val failConnect: Boolean = false, private val othersWa
         if (othersWaiting) say(SessionEvent.OTHER_JOINED)      // as the real one does when somebody was in the room first
     }
 
-    override suspend fun close() { closed++ }
+    override suspend fun close() {
+        closed++
+        if (failClose) throw IllegalStateException("will not close")
+    }
 }
 
 /** Stands in for the notification that rings: writes down what it was told, in order. */

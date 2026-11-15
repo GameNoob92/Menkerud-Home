@@ -20,6 +20,7 @@ class HttpCallApiTest {
     private fun reply(code: Int, body: String = "{}") = server.enqueue(MockResponse().setResponseCode(code).setBody(body))
     private fun line() = server.takeRequest().let { it.method + " " + it.path }
     private val ticket = """{"callId":"c_1","livekit":{"url":"wss://rtc.test","token":"tok"},"somethingNew":1}"""
+    private val removed = """{"error":"unauthorized"}"""            // the API's own words for «I do not know this phone»
 
     @Test fun `pairing sends the key and gives back who the phone is`() = runTest {
         server.enqueue(MockResponse().setBody("""{"deviceId":"d_9","secret":"abc","who":"mor","label":"Mor"}"""))
@@ -57,7 +58,7 @@ class HttpCallApiTest {
         val sent = server.takeRequest()
         assertEquals("GET /api/devices/me", sent.method + " " + sent.path)
         assertEquals("Bearer d_1.s3", sent.getHeader("Authorization"))
-        reply(401); assertEquals(Sent.UNPAIRED, api.whoAmI())
+        reply(401, removed); assertEquals(Sent.UNPAIRED, api.whoAmI())
         reply(500); assertEquals(Sent.FAILED, api.whoAmI())
     }
 
@@ -67,13 +68,13 @@ class HttpCallApiTest {
         assertEquals("PUT /api/devices/me/push-token", sent.method + " " + sent.path)
         assertEquals("""{"token":"fid-123"}""", sent.body.readUtf8())
         assertEquals("Bearer d_1.s3", sent.getHeader("Authorization"))
-        reply(401); assertEquals(Sent.UNPAIRED, api.sendPushAddress("fid-123"))
+        reply(401, removed); assertEquals(Sent.UNPAIRED, api.sendPushAddress("fid-123"))
         reply(400); assertEquals(Sent.FAILED, api.sendPushAddress("fid-123"))
     }
 
     @Test fun `an answer that comes too late says the call is over`() = runTest {
         for (code in listOf(403, 404, 409, 410)) { reply(code); assertEquals("$code", AnswerResult.Over, api.answer("c_1")) }
-        reply(401); assertEquals(AnswerResult.Unpaired, api.answer("c_1"))
+        reply(401, removed); assertEquals(AnswerResult.Unpaired, api.answer("c_1"))
         reply(500); assertEquals(AnswerResult.Failed(Failure.SERVER), api.answer("c_1"))
         reply(200, """{"callId":"c_1"}"""); assertEquals(AnswerResult.Failed(Failure.SERVER), api.answer("c_1"))
     }
@@ -84,7 +85,7 @@ class HttpCallApiTest {
         assertEquals("POST /api/calls/c_1/decline", sent.method + " " + sent.path)
         assertEquals("{}", sent.body.readUtf8())
         assertEquals("Bearer d_1.s3", sent.getHeader("Authorization"))
-        reply(401); assertEquals(Sent.UNPAIRED, api.decline("c_1"))
+        reply(401, removed); assertEquals(Sent.UNPAIRED, api.decline("c_1"))
         reply(500); assertEquals(Sent.FAILED, api.decline("c_1"))
     }
 
@@ -97,7 +98,7 @@ class HttpCallApiTest {
         reply(409); assertEquals(RingHomeResult.Busy, api.ringHome())
         reply(503); assertEquals(RingHomeResult.KioskOffline, api.ringHome())
         reply(429); assertEquals(RingHomeResult.TooMany, api.ringHome())
-        reply(401); assertEquals(RingHomeResult.Unpaired, api.ringHome())
+        reply(401, removed); assertEquals(RingHomeResult.Unpaired, api.ringHome())
         reply(500); assertEquals(RingHomeResult.Failed(Failure.SERVER), api.ringHome())
         reply(200, "{}"); assertEquals(RingHomeResult.Failed(Failure.SERVER), api.ringHome())
     }
@@ -124,6 +125,16 @@ class HttpCallApiTest {
         reply(404); assertEquals(Sent.OK, api.end("c_1"))
         reply(500); assertEquals(Sent.FAILED, api.cancel("c_1"))
         reply(500); assertEquals(Sent.FAILED, api.end("c_1"))
+    }
+
+    // A proxy in front of the server, a login page on a hotel network: «401» in somebody else's words. Believing it
+    // would unpair the phone, and the server – which still knows the phone – would keep sending calls to it.
+    @Test fun `a 401 that is not the API's own does not cost the phone its pairing`() = runTest {
+        reply(401, "<html>Sign in</html>"); assertEquals(Sent.FAILED, api.whoAmI())
+        reply(401, "{}"); assertEquals(Sent.FAILED, api.sendPushAddress("fid-123"))
+        reply(401, """{"error":"token expired"}"""); assertEquals(AnswerResult.Failed(Failure.SERVER), api.answer("c_1"))
+        reply(401, "<html>"); assertEquals(Sent.FAILED, api.decline("c_1"))
+        reply(401, ""); assertEquals(RingHomeResult.Failed(Failure.SERVER), api.ringHome())
     }
 
     @Test fun `a server that is not there is UNREACHABLE`() = runTest {

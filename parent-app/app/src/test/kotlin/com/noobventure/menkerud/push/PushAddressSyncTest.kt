@@ -49,6 +49,21 @@ class PushAddressSyncTest {
         assertEquals(0, asked)
     }
 
+    @Test fun `whether the server knows the address is kept for the home screen`() = runTest {
+        assertNull(sync.registered.value)               // not tried yet in this run of the app
+        sync.run()
+        assertEquals(true, sync.registered.value)
+        api.sent = Sent.FAILED
+        sync.run()
+        assertEquals(false, sync.registered.value)
+        api.sent = Sent.OK
+        sync.run()
+        assertEquals(true, sync.registered.value)
+        address = null                                  // the push service gave no address
+        sync.run()
+        assertEquals(false, sync.registered.value)
+    }
+
     @Test fun `a refused push address forgets the pairing`() = runTest {
         api.sent = Sent.UNPAIRED
         assertEquals(Sent.UNPAIRED, sync.run())

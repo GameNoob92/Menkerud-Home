@@ -1,8 +1,10 @@
 package com.noobventure.menkerud.store
 
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import java.security.KeyStore
+import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -12,9 +14,15 @@ import javax.crypto.spec.GCMParameterSpec
 interface SecretBox {
     fun seal(plain: ByteArray): ByteArray
 
-    /** The plain bytes, or null when they cannot be opened – for whatever reason. */
+    /**
+     * The plain bytes – or null when they cannot be opened and never will be (changed bytes, a key that is gone).
+     * Throws [SecretBoxUnavailable] when that cannot be told right now.
+     */
     fun open(sealed: ByteArray): ByteArray?
 }
+
+/** The keystore did not answer. That says nothing about the bytes: asked again, it may open them. */
+class SecretBoxUnavailable(cause: Throwable? = null) : Exception(cause)
 
 /**
  * AES-256-GCM with a key that lives in the Android Keystore and never leaves it. The key is made the first time
@@ -28,15 +36,22 @@ class KeystoreSecretBox(private val alias: String = "menkerud.device") : SecretB
         return cipher.iv + cipher.doFinal(plain)
     }
 
-    override fun open(sealed: ByteArray): ByteArray? = try {
-        val key = key()
-        if (key == null || sealed.size <= IV_BYTES) null else {
+    override fun open(sealed: ByteArray): ByteArray? {
+        if (sealed.size <= IV_BYTES) return null
+        try {
+            val key = key() ?: return null              // the key is gone, and what it sealed with it
             val cipher = Cipher.getInstance(TRANSFORMATION)
             cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_BITS, sealed, 0, IV_BYTES))
-            cipher.doFinal(sealed, IV_BYTES, sealed.size - IV_BYTES)
+            return cipher.doFinal(sealed, IV_BYTES, sealed.size - IV_BYTES)
+        } catch (e: AEADBadTagException) {
+            return null                                 // changed bytes, or sealed with another key
+        } catch (e: KeyPermanentlyInvalidatedException) {
+            return null
+        } catch (e: Exception) {
+            // The Android Keystore is known to fail now and then without the key being gone. Whoever asked decides
+            // whether to ask again; it must not be taken for «cannot be opened».
+            throw SecretBoxUnavailable(e)
         }
-    } catch (e: Exception) {
-        null        // changed bytes, a key that was replaced, a keystore that will not answer: all the same to the caller
     }
 
     private fun key(): SecretKey? =
