@@ -11,7 +11,7 @@ Parent's phone  --https://call.noobventure.com/answer/<token>-->  SWAG  -->  men
 Both join the same room on LiveKit (Unraid): wss://rtc.noobventure.com, media UDP 7882.
 ```
 
-- The kiosk calls `https://call.noobventure.com/api/*` (`/api/calls`, `/api/calls/answer`, `/api/calls/:id/cancel|end`, `/api/calls/:id`, the two `/api/messages` routes). Built for the parent app and not yet deployed: `/api/pair`, `/api/devices/me`, `/api/calls/home`, `/api/calls/:id/answer|decline` and the kiosk's event stream `/api/kiosk/events` – see `../DESIGN.md` §11.
+- The kiosk calls `https://call.noobventure.com/api/*` (`/api/calls`, `/api/calls/answer`, `/api/calls/:id/cancel|end`, `/api/calls/:id`, the two `/api/messages` routes). Built for the parent app and not yet deployed: `/api/pair`, `/api/devices/me`, `/api/calls/home`, `/api/calls/:id/answer|decline`, and for the kiosk its event stream `/api/kiosk/events` and `/api/calls/:id/ringing` – see `../DESIGN.md` §11. These kiosk routes are refused (403 `device_key_required`) on a server without `DEVICE_KEY`.
 - SWAG proxies `call.noobventure.com` to the `menkerud-callapi` container by name over the shared `noobventure-network`.
 - Secrets (LiveKit API secret, Discord token, device key) come from `.env` only — never in the browser or committed.
 
