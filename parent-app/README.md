@@ -115,8 +115,8 @@ the setting that decides it:
 |---|---|---|
 | «Telefonen er ikke meldt inn for anrop ennå – trykk for å prøve igjen» | the server has not been told where this phone's pushes go | the phone cannot be rung; a tap tries again, and so does every opening of the app |
 | «Varsler» | notifications, and the kind «Anrop hjemmefra» left as it came – not turned down to «Standard» or «Lydløs» (a long press on the ringing notification is enough to do that) | the phone does not ring, or makes a sound without showing a call |
-| «Vis anrop over låseskjermen» | Android 14 and newer: full-screen notifications | a locked phone rings and shows a banner, but not the ringing screen |
-| «Kamera og mikrofon» | the two permissions | «Svar» and «Ring hjem» ask for them first |
+| «Vis anrop over låseskjermen» | Android 14 and newer: full-screen notifications | a locked phone still rings or vibrates, but its screen stays dark: it has to be woken and unlocked before the call can be seen and answered (tried on the S26, 2026-11-16) |
+| «Kamera og mikrofon» | the two permissions; Android asks about «nearby devices» (Bluetooth, for a headset) in the same round, and a no to that changes nothing | «Svar» and «Ring hjem» ask for them first – which takes its time in the middle of answering (14 s from the first ring to the call when tried, against the usual 2–4 s) |
 | «Ikke la batterisparing stoppe appen» | no battery restriction for the app | pushes may be held back for minutes when the phone has been lying still; set to «Begrenset», Android hands the app no pushes at all, and the headline is red |
 | «Ikke sett appen på pause når den ikke brukes» | Android's «pause app activity if unused» off | after months without being opened the app stops getting pushes |
 | «Push er ikke satt opp i denne versjonen» | the build had no `google-services.json` | the phone cannot be rung; nothing on the phone can change that |
@@ -126,14 +126,21 @@ Samsung keeps a list of its own that an app cannot read: Innstillinger → Batte
 
 ## What the app cannot do
 
-- It does not ring after it has been **force-stopped** (Innstillinger → Apper → Tving stopp) until it is opened again.
-  Swiping it away from the list of recent apps is fine.
+- It does not ring after it has been **force-stopped** (Innstillinger → Apper → Tving stopp) until it is opened again –
+  and the screen at home cannot know: it says «Ringer …» for the whole minute. Swiping the app away from the list of
+  recent apps is fine, and so is a phone in deep sleep: both ring within a second (tried on 2026-11-16).
 - It follows the phone's own sound setting. In **silent mode** and **Do Not Disturb** it does not ring aloud.
-- On the banner that shows while the phone is in use, the two buttons carry Android's own words («Svar» / «Avslå»).
-  The full ringing screen says «Svar» / «Ikke nå».
+- On the banner that shows while the phone is in use, the two buttons carry Android's own words, in the phone's own
+  language («Svar» / «Avslå»; «Answer» / «Decline» on a phone set to English). The full ringing screen says
+  «Svar» / «Ikke nå».
 - If Google's push service is down, the phone does not ring. The missed call shows when the push arrives.
-- When the phone loses its network in the middle of a call, the picture stands still for up to a minute before the
-  call ends by itself: the room keeps trying to get back that long. «Legg på» ends it at once.
+- When the phone loses its network in the middle of a call, the picture stands still and the call ends by itself
+  after 10–15 seconds («Legg på» ends it at once). The screen at home takes longer to notice: the phone's picture
+  stands still there for some 20 seconds, and then the call screen is empty until the server ends the call – about
+  a minute after the phone went away when the call was young, half a minute to a minute otherwise (DESIGN.md §10).
+  The kids can press «Legg på» at any time.
+- When the screen at home goes away in the middle of a call, the phone ends the call by itself: 10 seconds after
+  the page was closed, about 30 after it lost power or crashed (LiveKit needs 20 of them to notice).
 - Upright, the picture from home is a band across the screen: it is wider than a phone. Turn the phone and it fills
   the screen.
 
@@ -156,7 +163,18 @@ The phone has to reach the dev copy at the address its QR code names. With the p
 says as it comes. Without a cable: start the dev copy with
 `CALL_PUBLIC_URL=http://<the PC's address on the home network>:3100` in `.dev/callapi.env`, and let Windows' firewall
 admit the phone to port 3100. Then install the **debug** or the **minified** build (they accept any server, and plain
-http), make a key on the dev copy's pairing page, and scan it. Test builds have a button «Test forbindelsen ut» on the home screen: it asks
+http), make a key on the dev copy's pairing page, and scan it. Scan it – do not type it: a key that is typed goes to
+`call.noobventure.com` in a test build as in every other build; only a QR code or a link can name another server.
+With nobody at the PC's screen, the link can be handed to the app over adb instead, and «Koble til» pressed on the
+phone:
+
+```powershell
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" shell "am start -a android.intent.action.VIEW -d 'menkerudhome://pair?api=http%3A%2F%2F127.0.0.1%3A3100&code=<the key>' com.noobventure.menkerud.debug"
+```
+
+`adb reverse` works over **wireless debugging** as well, with no cable – as long as the phone stays on the Wi-Fi:
+flight mode, or Wi-Fi off, switches wireless debugging off, and it has to be switched on again by hand. (A call
+over mobile data therefore needs the cable.) Test builds have a button «Test forbindelsen ut» on the home screen: it asks
 `call.noobventure.com` and `rtc.noobventure.com` for a sign of life and shows the two answers – `call 200 · rtc 401`
 is what a phone that gets through sees, on Wi-Fi and on mobile data.
 

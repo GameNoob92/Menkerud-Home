@@ -2,7 +2,7 @@
 
 Plan: `2026-11-15-parent-app-2-android-app.md`. Spec: `../specs/2026-11-14-parent-app-design.md`.
 
-The plan was carried out by Claude in one session on 2026-11-15/16 (Tasks 1–10, a whole-branch review by a fresh reviewer, one fix pass). Wherever the plan was silent, wrong, or overtaken by something found on the way, a decision was made and written down at once – what was decided, why, and what it costs if it is wrong. This is that list, complete and in the order the decisions were made. Nothing here has been run on a phone yet: that is Task 11 of the plan.
+The plan was carried out by Claude in one session on 2026-11-15/16 (Tasks 1–10, a whole-branch review by a fresh reviewer, one fix pass). Wherever the plan was silent, wrong, or overtaken by something found on the way, a decision was made and written down at once – what was decided, why, and what it costs if it is wrong. This is that list, complete and in the order the decisions were made. The run on a real phone (Task 11) was made on 2026-11-16 – all of it but the call from outside the house; the decisions made in it are under Task 11 below, and what it showed is in `DESIGN.md` §11.
 
 The smaller findings of the review that were **not** fixed are in `DESIGN.md` §10.
 
@@ -143,6 +143,24 @@ The smaller findings of the review that were **not** fixed are in `DESIGN.md` §
 - **While waiting, a test the plan does not have was added and run – DevCopyTest: the app's real Pairing, HttpCallApi, readPush and CallController against the RUNNING dev copy (PUSH_TRANSPORT=file), with stand-ins only for the room, the notification and the screen at home's event stream. 7 of 7 passed on the first run against the dev copy on this PC (pairing with a real key; a `call` push as the server writes it; «Svar» returns a real LiveKit ticket and the server says connected; «Ikke nå» -> declined; the kids cancel -> call_end cancelled -> «missed»; ring home with no kiosk -> KIOSK_OFFLINE; ring home answered, then declined; a removed phone -> UNPAIRED). The dev copy's log shows no error. It is skipped unless MENKERUD_DEV_COPY is set.**
   Why: The phone run costs the operator an hour; a mismatch between app and server that a PC can find should not be found there.
   If that is wrong: One more test file to keep true when the contract changes (that is its purpose).
+- **The backend was changed in the middle of the phone run: the call push says `caller: "home"` where it said `from: "home"`, and contract C9 is revised.**
+  Why: Google's push service keeps `from` for itself and refused every real push. Found at the first call to the phone; the cause was read from Google's own answer before anything was changed, and the test was written first.
+  If that is wrong: Nothing reads that key – not the app, not the stand-in phone, not the kiosk – so the cost is one renamed field in the contract.
+- **Step 12 was done from the PC: each permission was switched off and on again with adb, and the home screen's words read back, instead of the operator going through Android's settings by hand.**
+  Why: The operator was away from the PC with the phone in hand; the app reads the same state of the system either way; every setting was put back as it was found.
+  If that is wrong: A setting that Samsung's own pages keep somewhere adb's switches do not reach is missed – its «deep sleeping» list is one, and it is named as not tried.
+- **The shrunk build was paired from a link sent over adb, not from the QR code and not from a typed key.**
+  Why: Nobody was at the PC's screen to scan from, and a test build sends a typed key to the real server.
+  If that is wrong: The scanner is untried under the shrinker (it is Google's own, running inside Play services, and worked in the debug build). Scan once with a shrunk or release build before the second phone is paired.
+- **Step 14, the call from outside the house, was not run.**
+  Why: It needs the phone on a USB cable – the API through the cable, picture and sound over the mobile network – and the operator was away from the PC; over wireless debugging the phone loses the PC the moment its Wi-Fi goes off.
+  If that is wrong: This is the one thing the run was meant to settle and did not: whether a parent outside the house gets picture and sound. Until it is tried, calls on mobile data are unproven.
+- **Left from the review's list of things to look at: the QR code read by Samsung's camera app, earbuds, an ordinary phone call arriving during a call, «Anrop hjemmefra» turned down by a long press, Samsung's «deep sleeping» list.**
+  Why: Each needs hands at the PC or more gear than the operator had at hand.
+  If that is wrong: Each is a small, named risk (`DESIGN.md` §10 and §11); none of them stops a phone from ringing in the ordinary case.
+- **That the screen at home takes about a minute to end a call after the phone has dropped out was written down, not fixed.**
+  Why: The step asked for the times, not for a limit; the cure is in the kiosk page – part 1's code – and deserves a test of its own and the operator's yes.
+  If that is wrong: After a parent's phone loses its network, the kids look at a dead call screen for up to a minute unless they press «Legg på».
 
 ### Review and fix pass
 
