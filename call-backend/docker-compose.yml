@@ -13,7 +13,10 @@ services:
     env_file: .env
     ports:
       - "3008:3000"          # host 3008 -> container 3000 (the app listens on 3000; 3008 for host/debug access)
-      - "3009:3001"          # the local pairing page for the parent app: http://<unraid-ip>:3009. Host only - never add a SWAG conf for it
+      # The local pairing page for the parent app: http://192.168.68.74:3012 (container port 3001). Published on the
+      # server's LAN address only - not on every address the host has - and never given a SWAG conf.
+      # (3009, first planned, turned out to be another project's port on this server; 3005-3011 are all taken.)
+      - "192.168.68.74:3012:3001"
     volumes:
       # Paired phones (devices.json) and the Firebase key. Deliberately OUTSIDE this project folder: the folder is
       # refreshed from the dev PC with robocopy /MIR, which deletes whatever the dev PC does not have.

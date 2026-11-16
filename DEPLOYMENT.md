@@ -150,7 +150,12 @@ Anything in `config.js` is the baseline at every boot; on-screen edits still ove
 ## 3. Updating
 
 Frontend (Ubuntu): on the screen, ☰ → Innstillinger → Status → **«Hent oppdatering»** (the kiosk screen helper runs `git pull --ff-only` and the page reloads; the helper restarts itself if the pull changed it). From a shell: `cd /var/www/menkerud-home && sudo -u menkerud-hjem git pull`, then reload the page — no service to restart, nginx serves the files.
-Backend (Unraid): `git pull` the call-backend folder, then `docker compose up -d --build`.
+Backend (Unraid): work in this repo on the dev PC, then sync, then rebuild –
+1. on the dev PC: `D:\scripts\sync-call.bat` (robocopy `/MIR` of `call-backend/` to `X:\Nettsider\call.noobventure.com`, which is `/mnt/user/projects/Nettsider/call.noobventure.com` on Unraid – a plain copy, not a git checkout; `node_modules` is left out, `.env` is carried along, so the dev PC's `call-backend/.env` IS the production one). Nothing is ever edited on the share itself.
+2. in the Unraid terminal: `cd /mnt/user/projects/Nettsider/call.noobventure.com && docker-compose up -d --build` (the standalone `docker-compose`; there is no `docker compose` on the server). The image is built first; the running container is replaced only when the build went through.
+3. check: `curl http://192.168.68.74:3008/healthz` and `curl https://call.noobventure.com/healthz`.
+
+Whatever must survive a sync – the paired phones, the Firebase key – lives in `/mnt/user/appdata/menkerud-callapi` (mounted at `/app/data`), never in the project folder: `/MIR` deletes what the dev PC does not have. Before a new host port is given to anything, look at what the server already uses (`ss -ltn` there, or try the port from the dev PC): 3005–3011 were all taken in November 2026.
 Run `npm test` on the dev PC before pushing.
 
 ## Secrets
