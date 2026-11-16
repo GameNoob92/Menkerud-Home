@@ -128,12 +128,12 @@ To restart Chrome without a reboot (e.g. after a policy change): log the kiosk u
 Full detail in `call-backend/README.md`. In short:
 
 - **LiveKit** already runs (`/mnt/user/appdata/LiveKit/config.yaml`; TCP 7880/7881, single UDP mux **7882** — never the 50000-60000 range). It runs on the **`br0` macvlan network with a dedicated static LAN IP `192.168.68.2`** (not host networking) and **`rtc.use_external_ip: true`**. Host networking crash-looped on the shared UDP 7882 bind (`address already in use`); a dedicated br0 IP binds cleanly and gives LiveKit a real LAN address; `use_external_ip` STUN-discovers the public IP for phones away from home, and **`rtc.advertise_internal_ip: true`** (added 2026-11-14) makes LiveKit offer `192.168.68.2` as well – the routers do not loop traffic back to the public IP, so without it devices at home connect only by luck (`call-backend/README.md` §A). SWAG reaches it through Unraid's macvlan shim — keep *Settings → Docker → "Host access to custom networks"* enabled. SWAG conf `swag/rtc.subdomain.conf` proxies `rtc.noobventure.com` → `192.168.68.2:7880`.
-- **call-backend**: put the `call-backend/` folder on Unraid (e.g. `/mnt/user/appdata/menkerud-call/`), fill `.env` (LiveKit `key`/`secret` matching `config.yaml`, `DISCORD_BOT_TOKEN`, `DEVICE_KEY`), then `docker compose up -d --build`. It listens on 3000, publishes host **3008**, and joins **noobventure-network**. SWAG conf `swag/call.subdomain.conf` proxies `call.noobventure.com` → `menkerud-callapi:3000`.
+- **call-backend**: lives on Unraid in `/mnt/user/projects/Nettsider/call.noobventure.com` – a plain copy of this repo's `call-backend/` folder, refreshed from the dev PC and rebuilt as §3 says. Its `.env` (LiveKit `key`/`secret` matching `config.yaml`, `DISCORD_BOT_TOKEN`, `DEVICE_KEY`; for the parent app `ADMIN_PASSWORD` and `DATA_DIR=/app/data`) is the dev PC's `call-backend/.env`. Container `menkerud-callapi` (compose project `callnoobventurecom`) listens on 3000, publishes host **3008**, and joins **noobventure-network**; SWAG conf `swag/call.subdomain.conf` proxies `call.noobventure.com` → `menkerud-callapi:3000`. Since 2026-11-16 the same container also serves the parent app's **pairing page** on the home network only – `http://192.168.68.74:3012`, the login from `ADMIN_USER` / `ADMIN_PASSWORD` (the operator uses the upload site's), never proxied by SWAG – and keeps the paired phones in **`/mnt/user/appdata/menkerud-callapi`**, mounted at `/app/data`. The Firebase key that lets it push to the app is `call-backend/secrets/fcm-service-account.json` on the dev PC (never committed): it comes over with the sync and is mounted read-only at `/app/secrets`.
 - **Router**: forward **UDP 7882** → `192.168.68.2` (LiveKit's br0 IP; both hops of the double-router; required); optionally **TCP 7881**; do not forward 7880.
 - The `DEVICE_KEY` in the backend `.env` must equal `call.deviceKey` in the kiosk's `config.js`, so only the screen can start calls (the backend is internet-facing).
 - **Home Assistant** (`Home-Assistant-Container`, official image, config in `/mnt/user/appdata/Home-Assistant-Container/`) runs on **`br0` with the static LAN IP `192.168.68.3`**. The kiosk talks to it over the LAN (`ha.url` in `config.js`, plain `http://192.168.68.3:8123`). The **Companion apps** must reach it from outside too, otherwise presence never turns Borte: SWAG conf `call-backend/swag/ha.subdomain.conf` proxies `ha.noobventure.com` → `192.168.68.3:8123` (Cloudflare-proxied DNS, SWAG's wildcard cert, no new port forward). HA then has to trust SWAG: **Settings → System → Network → "HTTP server"** → *Trust X-Forwarded-For* on, *Trusted proxies* = `192.168.68.4` (SWAG's own br0 IP – SWAG connects over br0, not through the host). Saving restarts HA and an admin must **confirm the new settings within 5 minutes** on the LAN address, or HA reverts them. Since HA 2026.8 these settings live in `.storage/http`; a `http:` block in `configuration.yaml` is imported once and ignored afterwards, so do not set it there. Until trust is set every proxied request gets **400** and HA's log says «not set-up for reverse proxies». SWAG does not unwrap Cloudflare's client IP, so HA sees Cloudflare's address as the visitor – leave HA's login-attempt banning off. Verify: `curl -o /dev/null -w '%{http_code}' https://ha.noobventure.com/` → `200`, `…/api/` → `401`.
 
-Verify: `curl https://call.noobventure.com/healthz` → `{"ok":true,"livekit":true,"discord":true}`.
+Verify: `curl https://call.noobventure.com/healthz` → `{"ok":true,"livekit":true,"discord":true,"livekitAdmin":true,"push":"fcm"}` (`livekitAdmin` turns true a moment after the start, once LiveKit's admin interface has answered; `push` is `none` when the Firebase key was not found or could not be read).
 
 ## Settings (why they must not reset)
 
@@ -160,7 +160,7 @@ Run `npm test` on the dev PC before pushing.
 
 ## Secrets
 
-Never commit `.env`, `config.js`, `livekit.yaml`, the Discord bot token or the LiveKit secret. Commit only `config.example.js` and `.env.example`. Production secrets live on the Ubuntu PC (`config.js`) and Unraid (call-backend `.env`, `LiveKit/config.yaml`).
+Never commit `.env`, `config.js`, `livekit.yaml`, the Discord bot token or the LiveKit secret. Commit only `config.example.js` and `.env.example`. Production secrets live on the Ubuntu PC (`config.js`) and Unraid (call-backend `.env` and `secrets/` – the Firebase key –, `LiveKit/config.yaml`). The call backend's two are the dev PC's own files: `call-backend/.env` and `call-backend/secrets/` are git-ignored and travel only with the sync.
 
 ## Acceptance checklist
 
@@ -168,12 +168,13 @@ Never commit `.env`, `config.js`, `livekit.yaml`, the Discord bot token or the L
 - [ ] Chrome launches to `http://localhost` in kiosk mode; nginx serves `/var/www/menkerud-home`; `chrome://policy` shows the camera/mic allow-list
 - [ ] `menkerud-screen.service` runs as a user unit (`curl -s http://127.0.0.1:7777/status`); no Node/backend on the touchscreen
 - [ ] `menkerud-callapi` container runs on Unraid, on `noobventure-network`, published on host 3008
-- [ ] `https://call.noobventure.com/healthz` returns all-true from outside
+- [ ] `https://call.noobventure.com/healthz` returns all-true from outside, and `"push":"fcm"`
 - [ ] LiveKit reachable at `wss://rtc.noobventure.com`; UDP 7882 forwarded
 - [ ] LiveKit's `config.yaml` has `rtc.advertise_internal_ip: true` (its start-up log says `"advertiseInternalIP": true`), so a device on the home network is offered `192.168.68.2:7882`
 - [ ] `https://ha.noobventure.com/` returns 200 from outside (HA trusts `192.168.68.4`); both Companion apps have it as External URL
 - [ ] "Ring far" → Discord DM → parent taps Svar → video both ways on mobile data
-- [ ] `git pull` updates each side with no manual file copying
+- [ ] The parent app's pairing page answers on `http://192.168.68.74:3012` with the password and refuses without it; nothing of it exists on `call.noobventure.com` (`/`, `/api/devices` and `/api/pair-code` are 404 there)
+- [ ] The screen updates with «Hent oppdatering» (`git pull`); the backend with the sync script and `docker-compose up -d --build` (§3) – nothing is edited on the server by hand
 
 ## Constraints for future changes
 

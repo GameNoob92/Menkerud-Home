@@ -238,3 +238,13 @@ ring_hjemme_mor:
 - [ ] Kanal-ID for beskjeder; writing in `#beskjeder` → chime + red number (also on the Bilderamme); tap → sheet → tap reads it; «Hørt!» → ✅ on the message and a line in `#hjemme`
 - [ ] Ny lapp → note appears on the board, tap reads it aloud
 - [ ] Innstillinger → Status: «Versjon» shows a commit, «Hent oppdatering» answers «Allerede oppdatert»
+
+## 6. The parent app (calls without Discord) – the pairing page
+
+The Android app for mor's and far's phones is described in `parent-app/README.md` (building, installing, the phone's settings). What the operator does at home is pair a phone, once:
+
+1. On a PC or phone **on the home network**, open `http://192.168.68.74:3012` and log in (the same user name and password as the upload site; they are `ADMIN_USER` / `ADMIN_PASSWORD` in the call backend's `.env`). The page does not exist outside the house.
+2. Press «Ny telefon for Mor» or «Ny telefon for Far». The page shows a key and a QR code, good for one try within 15 minutes.
+3. In the app on that parent's phone: «Skann QR-kode» (or type the key) and «Koble til», then let the app's home screen walk through what the phone still needs (notifications, calls over the lock screen, camera and microphone, battery).
+
+From that moment the kids' call to that parent rings in the app and **no longer goes out as a Discord link** – so pair one parent at a time, and try a call before the next. «Fjern» on the page takes a phone off again; the parent is back on the Discord link at once. The table shows each paired phone and whether the server can push to it.

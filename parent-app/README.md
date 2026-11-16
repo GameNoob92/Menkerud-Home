@@ -136,9 +136,9 @@ Samsung keeps a list of its own that an app cannot read: Innstillinger → Batte
 - If Google's push service is down, the phone does not ring. The missed call shows when the push arrives.
 - When the phone loses its network in the middle of a call, the picture stands still and the call ends by itself
   after 10–15 seconds («Legg på» ends it at once). The screen at home takes longer to notice: the phone's picture
-  stands still there for some 20 seconds, and then the call screen is empty until the server ends the call – about
-  a minute after the phone went away when the call was young, half a minute to a minute otherwise (DESIGN.md §10).
-  The kids can press «Legg på» at any time.
+  stands still there for some 20 seconds – that is how long LiveKit takes to give a silent phone up – and ten
+  seconds later the screen at home closes the call by itself: about half a minute in all. (Until 2026-11-16 the
+  screen left it to the server, and it took a minute.) The kids can press «Legg på» at any time.
 - When the screen at home goes away in the middle of a call, the phone ends the call by itself: 10 seconds after
   the page was closed, about 30 after it lost power or crashed (LiveKit needs 20 of them to notice).
 - Upright, the picture from home is a band across the screen: it is wider than a phone. Turn the phone and it fills
