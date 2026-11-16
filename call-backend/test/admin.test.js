@@ -18,6 +18,16 @@ const { createAdminApp } = require('../src/admin');
   assert.ok(page.text.includes('Ny telefon for Mor') && page.text.includes('Ny telefon for Far'));
   console.log('ok - every route needs the password; the page offers a key for Mor and for Far');
 
+  // With ADMIN_USER set the user name counts too (the operator uses one login for several of the house's pages)
+  const wu = wire({ ADMIN_USER: 'kari' });
+  const named = (await startApp(createAdminApp({ config: wu.config, devices: wu.devices, log() {} }))).url;
+  assert.strictEqual((await http('GET', named + '/', null, basic('kari', 'pw'))).status, 200);
+  assert.strictEqual((await http('GET', named + '/', null, basic('anyone', 'pw'))).status, 401);
+  assert.strictEqual((await http('GET', named + '/', null, basic('kari', 'wrong'))).status, 401);
+  assert.strictEqual((await http('GET', named + '/', null, basic('', 'pw'))).status, 401);
+  assert.strictEqual((await http('GET', named + '/api/devices', null, basic('Kari', 'pw'))).status, 401);
+  console.log('ok - with a user name set, the page wants that name and the password, exactly');
+
   for (const r of [page, await http('GET', admin + '/'), await http('GET', admin + '/api/devices', null, A)]) {
     assert.strictEqual(r.headers.get('x-frame-options'), 'DENY');
     assert.match(r.headers.get('content-security-policy') || '', /frame-ancestors 'none'/);

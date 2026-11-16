@@ -38,7 +38,7 @@ function createApp({ config, livekit, discord, devices, hub, calls, health, log 
     res.status(500).json({ error: 'internal error' });
   }
 
-  app.get('/healthz', (req, res) => res.json({ ok: true, livekit: livekit.configured(), discord: discord.configured(), livekitAdmin: !!(health && health.livekitAdmin) }));
+  app.get('/healthz', (req, res) => res.json({ ok: true, livekit: livekit.configured(), discord: discord.configured(), livekitAdmin: !!(health && health.livekitAdmin), push: (health && health.push) || 'none' }));
 
   // Beskjeder: Discord refuses bot tokens sent from a browser (403, code 40333), so the kiosk reads its messages
   // channel and acknowledges with a ✅ through here. The kiosk only names the channel; the token stays on the server.

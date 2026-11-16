@@ -10,3 +10,4 @@ dev
 scripts
 test
 .env.dev.example
+secrets

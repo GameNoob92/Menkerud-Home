@@ -1,7 +1,8 @@
 // The local pairing page: a second, small Express app on its own port (config.adminPort).
 // It is published on the Unraid host only and is NEVER proxied by SWAG, so nothing of it exists on
 // call.noobventure.com. Here the operator makes a one-time key for Mor or Far, sees the paired phones and
-// removes one. Every route needs the password from ADMIN_PASSWORD (HTTP Basic, any user name).
+// removes one. Every route needs the password from ADMIN_PASSWORD (HTTP Basic) – and, when ADMIN_USER is set,
+// that user name with it; without ADMIN_USER any user name will do.
 'use strict';
 const crypto = require('crypto');
 const fs = require('fs');
@@ -43,13 +44,15 @@ function createAdminApp({ config, devices, log }) {
   // Password on everything. With no password configured, nothing is served (server.js does not even listen then).
   app.use((req, res, next) => {
     const m = /^Basic\s+(\S+)$/i.exec(req.get('Authorization') || '');
-    let given = null;
+    let given = null, user = '';
     if (m) {
       const raw = Buffer.from(m[1], 'base64').toString('utf8');
       const colon = raw.indexOf(':');
-      if (colon >= 0) given = raw.slice(colon + 1);
+      if (colon >= 0) { user = raw.slice(0, colon); given = raw.slice(colon + 1); }
     }
-    if (given !== null && config.adminPassword && samePassword(given, config.adminPassword)) return next();
+    // Both are compared every time, so that a wrong name takes as long to refuse as a wrong password.
+    const userOk = samePassword(user, config.adminUser || user), passOk = samePassword(given === null ? '' : given, config.adminPassword);
+    if (given !== null && config.adminPassword && userOk && passOk) return next();
     res.set('WWW-Authenticate', 'Basic realm="Menkerud Home"').status(401).type('text/plain').send('Passord kreves');
   });
 

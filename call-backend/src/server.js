@@ -26,7 +26,7 @@ const push = pushFromConfig(config, log);                                       
 const calls = createCalls({ config, livekit, devices, push, discord, hub, log });
 
 // Cleaning up after calls that nobody reported as ended needs LiveKit's admin API; say at start whether it answers.
-const health = { livekitAdmin: false };
+const health = { livekitAdmin: false, push: push.name };   // push: «fcm» when the Firebase key was found and read, else «none»
 if (livekit.configured()) {
   livekit.participantCount('startup-probe').then(n => {
     health.livekitAdmin = n !== null;

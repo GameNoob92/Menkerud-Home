@@ -16,6 +16,7 @@ function loadConfig(env = process.env) {
     dev: env.DEV === '1',
     dataDir,
     adminPassword: env.ADMIN_PASSWORD || '',
+    adminUser: env.ADMIN_USER || '',                // empty = any user name goes with the password
     pushTransport: env.PUSH_TRANSPORT || '',
     fcmServiceAccount: env.FCM_SERVICE_ACCOUNT || path.join(dataDir, 'fcm-service-account.json'),
     // Only these targets exist; Discord ids come from the environment, never from a request.

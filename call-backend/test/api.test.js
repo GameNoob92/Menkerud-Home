@@ -9,6 +9,10 @@ const { wire, startApp, http, bearer } = require('./helpers');
   const hz = (await http('GET', url + '/healthz')).body;
   assert.ok(hz.ok === true && hz.livekit === true && hz.discord === true);
   console.log('ok - healthz reports livekit and discord');
+  assert.strictEqual(hz.push, 'none');
+  const hp = wire({}, { health: { livekitAdmin: true, push: 'fcm' } });
+  assert.strictEqual((await http('GET', (await startApp(hp.app)).url + '/healthz')).body.push, 'fcm');
+  console.log('ok - healthz says whether this server can push to the parent app');
 
   assert.strictEqual((await http('POST', url + '/api/calls', { target: 'far' })).status, 401);
   const s = await http('POST', url + '/api/calls', { target: 'far' }, K);

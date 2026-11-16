@@ -21,6 +21,10 @@ services:
       # Paired phones (devices.json) and the Firebase key. Deliberately OUTSIDE this project folder: the folder is
       # refreshed from the dev PC with robocopy /MIR, which deletes whatever the dev PC does not have.
       - /mnt/user/appdata/menkerud-callapi:/app/data
+      # The Firebase key for pushes to the parent app (.env: FCM_SERVICE_ACCOUNT=/app/secrets/fcm-service-account.json).
+      # It sits in secrets/ beside .env on the dev PC - never committed, never in the image - and comes over with the
+      # sync like .env does: the server's appdata cannot be reached from the dev PC. Read-only in the container.
+      - ./secrets:/app/secrets:ro
     networks:
       - noobventure-network
 

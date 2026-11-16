@@ -180,7 +180,7 @@ function wire(env, deps) {
   const hub = deps.hub || fakeHub();
   const push = deps.push || fakePush();
   const calls = createCalls({ config, livekit: lk, devices, push, discord, hub, timers, now, log() {} });
-  const app = createApp({ config, livekit: lk, discord, devices, hub, calls, health: { livekitAdmin: true }, log() {} });
+  const app = createApp({ config, livekit: lk, discord, devices, hub, calls, health: deps.health || { livekitAdmin: true }, log() {} });
   function phone(who) {
     const paired = devices.redeem(devices.createPairingCode(who).code, { name: who + '-telefon', appVersion: '1.0.0' });
     devices.setPushToken(paired.deviceId, 'push-' + paired.deviceId);
