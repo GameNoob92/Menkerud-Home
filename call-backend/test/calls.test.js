@@ -12,7 +12,7 @@ const { wire } = require('./helpers');
     assert.strictEqual(s.status, 'ringing');
     assert.strictEqual(s.livekit.token, 'tok:family-' + s.callId + ':tablet-stue');
     assert.strictEqual(x.discord.dms.length, 0);
-    assert.deepStrictEqual(x.push.sent[0].data, { type: 'call', v: '1', callId: s.callId, from: 'home', who: 'far', expiresAt: String(s.expiresAt) });
+    assert.deepStrictEqual(x.push.sent[0].data, { type: 'call', v: '1', callId: s.callId, caller: 'home', who: 'far', expiresAt: String(s.expiresAt) });
     assert.strictEqual(x.push.sent[0].opts.ttlSec, 60);
     const a = await x.calls.answerByParent(s.callId, far);
     assert.strictEqual(a.livekit.token, 'tok:family-' + s.callId + ':parent-far');

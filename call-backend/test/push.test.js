@@ -88,8 +88,16 @@ function fakeFetch() {
   assert.strictEqual(outcome.dead, false);
   console.log('ok - a push service that never answers is given up on after the timeout, and the phone is not marked dead');
 
-  assert.deepStrictEqual(callData({ callId: 'c_1', target: 'far', expiresAt: 5 }), { type: 'call', v: '1', callId: 'c_1', from: 'home', who: 'far', expiresAt: '5' });
+  assert.deepStrictEqual(callData({ callId: 'c_1', target: 'far', expiresAt: 5 }), { type: 'call', v: '1', callId: 'c_1', caller: 'home', who: 'far', expiresAt: '5' });
   assert.deepStrictEqual(callEndData({ callId: 'c_1', reason: 'missed', at: 7 }), { type: 'call_end', v: '1', callId: 'c_1', reason: 'missed', at: '7' });
+  // Google refuses a data message that uses one of its own words as a key (400 INVALID_ARGUMENT, «Invalid data
+  // payload key: from»). Seen on 2026-11-16 with the first real push: the phone did not ring.
+  const googles = k => k === 'from' || k === 'message_type' || k === 'collapse_key' || /^(google|gcm)/.test(k);
+  for (const data of [callData({ callId: 'c_1', target: 'far', expiresAt: 5 }), callEndData({ callId: 'c_1', reason: 'missed', at: 7 })]) {
+    assert.deepStrictEqual(Object.keys(data).filter(googles), [], 'a key Google keeps for itself in ' + JSON.stringify(data));
+  }
+  console.log('ok - no push uses a key that Google keeps for itself');
+
   assert.strictEqual(callEndTtl('missed'), 21600);
   assert.strictEqual(callEndTtl('cancelled'), 21600);
   assert.strictEqual(callEndTtl('declined'), 60);

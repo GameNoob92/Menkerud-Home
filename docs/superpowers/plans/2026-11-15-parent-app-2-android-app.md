@@ -74,7 +74,7 @@ All bodies are JSON; errors are `{ "error": "…" }`. `{api}` is the server addr
 | C6 | `POST {api}/api/calls/home` `{}` | 200 `{ callId, status: "ringing", livekit: { url, token }, expiresAt }` · 409 busy · 503 kiosk offline · 429 · 401 |
 | C6 | `GET {api}/api/calls/<id>`, no auth – **asked once a second while it rings home** | 200 `{ status }`: `ringing`, `connected`, `declined`, `missed`, `unreachable`, `cancelled`, `ended` · 404: forgotten, treat as over |
 | C7 | `POST {api}/api/calls/<id>/cancel` and `/end` `{}`, no auth | 200 · 404 |
-| C9 | Push data, every value a string | `{ type: "call", v: "1", callId, from: "home", who, expiresAt }` · `{ type: "call_end", v: "1", callId, reason, at }` with `reason` one of `answered_elsewhere`, `cancelled`, `missed`, `declined`, `ended` |
+| C9 | Push data, every value a string | `{ type: "call", v: "1", callId, caller: "home", who, expiresAt }` (until 2026-11-16 the key was `from` – a word Google keeps for itself, so every real push was refused; found at the first call of Task 11) · `{ type: "call_end", v: "1", callId, reason, at }` with `reason` one of `answered_elsewhere`, `cancelled`, `missed`, `declined`, `ended` |
 | C10 | QR text | `menkerudhome://pair?api=<urlencoded address>&code=<20 characters>` |
 
 The server forgives how a key is typed (dashes, spaces, small letters, `O` for `0`, `I`/`L` for `1`), so the app passes a typed key on as it is.

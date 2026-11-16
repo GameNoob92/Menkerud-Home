@@ -28,7 +28,7 @@ const { createAdminApp } = require('../src/admin');
   const s = (await http('POST', pub + '/api/calls', { target: 'far' }, K)).body;
   assert.strictEqual(s.via, 'app');
   assert.strictEqual(outbox().length, 1);
-  assert.deepStrictEqual(outbox()[0].data, { type: 'call', v: '1', callId: s.callId, from: 'home', who: 'far', expiresAt: String(s.expiresAt) });
+  assert.deepStrictEqual(outbox()[0].data, { type: 'call', v: '1', callId: s.callId, caller: 'home', who: 'far', expiresAt: String(s.expiresAt) });
   assert.strictEqual(outbox()[0].token, 'fake-1');
   assert.strictEqual((await http('POST', pub + '/api/calls/' + s.callId + '/answer', {}, bearer(dev))).status, 200);
   await http('POST', pub + '/api/calls/' + s.callId + '/end', {});

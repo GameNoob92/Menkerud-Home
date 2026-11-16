@@ -6,7 +6,7 @@ import org.junit.Test
 class PushMessageTest {
     @Test fun `a call`() = assertEquals(
         PushMessage.Call("c_1", "far", 1794700000000),
-        readPush(mapOf("type" to "call", "v" to "1", "callId" to "c_1", "from" to "home", "who" to "far", "expiresAt" to "1794700000000"))
+        readPush(mapOf("type" to "call", "v" to "1", "callId" to "c_1", "caller" to "home", "who" to "far", "expiresAt" to "1794700000000"))
     )
 
     @Test fun `the end of a call`() = assertEquals(

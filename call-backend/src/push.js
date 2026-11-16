@@ -13,7 +13,9 @@ const SHORT_NOTICE_SEC = 60;
 
 // --- payloads (contract C9): every push carries a type and a version; every value is a string ---
 function callData({ callId, target, expiresAt }) {
-  return { type: 'call', v: '1', callId: String(callId), from: 'home', who: String(target), expiresAt: String(expiresAt) };
+  // «caller», not «from»: Google keeps «from» (and message_type, collapse_key, google…, gcm…) for itself and refuses
+  // a push that uses one of them as a key.
+  return { type: 'call', v: '1', callId: String(callId), caller: 'home', who: String(target), expiresAt: String(expiresAt) };
 }
 function callEndData({ callId, reason, at }) {
   return { type: 'call_end', v: '1', callId: String(callId), reason: String(reason), at: String(at) };
