@@ -34,7 +34,7 @@ function mkdom(beforeParse) {
       // Minimal LiveKit client stub so the call path runs without the real CDN library.
       window.LivekitClient = {
         Room: class { constructor(){ this._h = {}; window.LivekitClient.Room.last = this; } on(ev, cb){ this._h[ev] = cb; return this; } async connect(){ } get localParticipant(){ return { enableCameraAndMicrophone: async () => {}, getTrackPublication: () => null }; } disconnect(){} },
-        RoomEvent: { TrackSubscribed: 'TrackSubscribed', Disconnected: 'Disconnected', ParticipantConnected: 'ParticipantConnected' },
+        RoomEvent: { TrackSubscribed: 'TrackSubscribed', Disconnected: 'Disconnected', ParticipantConnected: 'ParticipantConnected', ParticipantDisconnected: 'ParticipantDisconnected' },
         Track: { Source: { Camera: 'camera' } }
       };
       // The kiosk reads the call API's event stream with TextDecoder, which jsdom does not provide. With it in place every
@@ -672,6 +672,44 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   assert(grew.every(Boolean) && k10.evReqs().length === 6, 'each failure in a row waits half as long again: ' + grew + ' / ' + k10.evReqs().length);
   k10.feed({ type: 'hello' }); await wait(30); k10.endStream(); await wait(30);
   assert(await retry(2000), 'after a stream that worked the wait starts from two seconds again');
+
+  // Eleventh load: the other side leaves the room and nobody ends the call (a phone that lost its network). The kiosk
+  // gives it ten seconds to come back and then closes the call itself, instead of waiting for the server's check – up
+  // to a minute of dead call screen. Timers of 10 s or more are run by hand here.
+  const k11 = streamLoad(null, null, 10000);
+  await wait(60);
+  const goneWait = () => k11.long.filter(t => t.ms === 10000 && !t.off);      // the «other side is gone» waits that are still set
+  const runGoneWait = () => { const t = goneWait().pop(); if (t) { t.off = true; t.fn(); } return !!t; };   // the ten seconds pass
+  const room11 = () => k11.win.LivekitClient.Room.last;
+  const leave = r => { if (r._h.ParticipantDisconnected) r._h.ParticipantDisconnected({}); };   // LiveKit says: the other one has left the room
+  k11.click(k11.q('#card-far')); await wait(60);
+  room11()._h.ParticipantConnected({}); room11()._h.TrackSubscribed({ kind: 'video', attach() {} });
+  assert(k11.q('#calling').classList.contains('hidden') && !k11.q('#call').classList.contains('hidden') && goneWait().length === 0, 'in a call with picture nothing is waiting to end it');
+  leave(room11());
+  assert(!k11.q('#call').classList.contains('hidden') && goneWait().length === 1, 'the other side leaving the room does not close the call at once – it gets ten seconds: ' + goneWait().length);
+  room11()._h.ParticipantConnected({});                                       // back within the ten seconds
+  assert(goneWait().length === 0 && !k11.q('#call').classList.contains('hidden'), 'a parent who comes back in time keeps the call: ' + goneWait().length);
+  leave(room11());                                                            // gone again, and this time for good
+  runGoneWait();
+  await wait(20);
+  assert(k11.q('#call').classList.contains('hidden') && k11.posts(/\/api\/calls\/c_test\/end$/).length === 1, 'ten seconds after the other side left for good the kiosk closes the call and tells the API: ' + k11.posts(/\/end$/).length);
+  // The parent came into the room and left again before any picture: the kiosk says what it says when nobody answers
+  k11.click(k11.q('#card-far')); await wait(60);
+  room11()._h.ParticipantConnected({});
+  leave(room11());
+  runGoneWait();
+  assert(!k11.q('#call').classList.contains('hidden') && k11.q('#call-status').textContent === 'Far kunne ikke svare nå 😢', 'a parent who came in and left before the picture: «kunne ikke svare nå»: ' + k11.q('#call-status').textContent);
+  // A wait left over from a call that is already over does nothing to the next one
+  k11.click(k11.q('#hangup'));
+  k11.click(k11.q('#card-far')); await wait(60);
+  const old11 = room11();
+  old11._h.ParticipantConnected({}); old11._h.TrackSubscribed({ kind: 'video', attach() {} }); leave(old11);
+  const left11 = goneWait().pop();
+  k11.click(k11.q('#hangup'));
+  k11.click(k11.q('#card-mor')); await wait(60);
+  if (left11) left11.fn();
+  assert(!!left11 && !k11.q('#call').classList.contains('hidden') && /^Ringer mor/.test(k11.q('#call-status').textContent), 'a wait left over from an earlier call does not end the next one: ' + k11.q('#call-status').textContent);
+  k11.click(k11.q('#hangup'));
 
   console.log(errors.length ? 'ERRORS:\n' + errors.join('\n') : 'ALL GOOD');
   process.exit(errors.length ? 1 : 0);

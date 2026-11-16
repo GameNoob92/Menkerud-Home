@@ -2152,7 +2152,16 @@ async function connectCall(who, callId, lk) {
     // failing – LiveKit reports that as a disconnect first – and the catch below says so.
     let inRoom = false;
     room.on(LK.RoomEvent.Disconnected, () => { if (inRoom && lkRoom === room && !callOver && !couldNotAnswer(who)) endCall(); });
-    room.on(LK.RoomEvent.ParticipantConnected, () => { if (lkRoom === room) awaitPicture(who); });
+    // The other side has left the room and nobody has ended the call – a phone that lost its network, an app that
+    // died, an answer page that was closed. Give it ten seconds to come back, then close the call from here: the
+    // server's own check of the room takes up to a minute, and the kids would look at a dead call screen that long.
+    let goneTimer = null;
+    room.on(LK.RoomEvent.ParticipantDisconnected, () => {
+      if (lkRoom !== room || callOver) return;
+      clearTimeout(goneTimer);
+      goneTimer = setTimeout(() => { if (lkRoom === room && !callOver && !couldNotAnswer(who)) endCall(); }, 10000);
+    });
+    room.on(LK.RoomEvent.ParticipantConnected, () => { clearTimeout(goneTimer); if (lkRoom === room) awaitPicture(who); });
     await room.connect(lk.url, lk.token);
     inRoom = true;
     if (!live()) return;
