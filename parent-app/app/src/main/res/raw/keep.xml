@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Firebase reads these four by name when the app starts; the build script writes them from google-services.json
+     (app/build.gradle.kts). Nothing in the code names them, so the shrinker and lint are told here that they are used. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@string/google_app_id,@string/google_api_key,@string/project_id,@string/gcm_defaultSenderId" />
