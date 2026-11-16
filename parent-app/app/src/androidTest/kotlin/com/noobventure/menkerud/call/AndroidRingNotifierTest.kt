@@ -38,8 +38,18 @@ class AndroidRingNotifierTest {
 
     private fun active(tag: String) = manager.activeNotifications.filter { it.tag == tag }
 
+    /** Android shows and removes a notification a moment after it is told to (seen on a Galaxy S26, Android 17). */
+    private fun soon(what: () -> Boolean): Boolean {
+        repeat(40) {
+            if (what()) return true
+            Thread.sleep(50)
+        }
+        return what()
+    }
+
     @Test fun ringingShowsOneCallNotificationThatInsists() {
         notifier.ring("c_1", 30_000)
+        assertTrue("the ringing notification is up", soon { active("ring").size == 1 })
         val ringing = active("ring").single().notification
         notifier.stop("c_1")                                    // quiet again before anything is checked
         assertEquals("calls", ringing.channelId)
@@ -54,12 +64,14 @@ class AndroidRingNotifierTest {
 
     @Test fun stopTakesTheRingingAway() {
         notifier.ring("c_1", 30_000)
+        assertTrue("the ringing notification is up", soon { active("ring").size == 1 })
         notifier.stop("c_1")
-        assertTrue(active("ring").isEmpty())
+        assertTrue("and gone again within two seconds", soon { active("ring").isEmpty() })
     }
 
     @Test fun aMissedCallLeavesItsNotice() {
         notifier.missed("c_1", System.currentTimeMillis())
+        assertTrue("the notice is up", soon { active("missed").size == 1 })
         val notice = active("missed").single().notification
         assertEquals("missed", notice.channelId)
         assertTrue(notice.extras.getCharSequence(Notification.EXTRA_TITLE).toString().startsWith("Tapt anrop hjemmefra kl."))
